@@ -1,0 +1,6 @@
+{
+  "entities": [
+    {"id": "database", "engine": "postgres", "metadata": {"region": "local"}},
+    {"id": "secret", "visibility": "private"}
+  ]
+}

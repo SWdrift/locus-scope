@@ -1,0 +1,6 @@
+id: a
+imports:
+  b: ../b
+exports:
+  - alpha
+  - b:beta

@@ -1,0 +1,4 @@
+id: root
+imports:
+  east: ../east
+  west: ../west

@@ -4,13 +4,13 @@
 
 ## 文档入口
 
-- [核心协议](核心协议.md)：权威定义 Entity、Scope、Export、Import、Projection、Relation、Definition document 和 Group。
-- [当前实现快照](../current-architecture.md)：记录现有目录、模块、示例、验证基线和明确未实现项。
+- [核心协议](protocol/PROTOCOL.md)：权威定义 Entity、Scope、Export、Import、Projection、Relation、Definition document 和 Group。
+- [v1 实现设计](implementation-v1.md)：定义第一版本地 Source、Workspace 装配、诊断、CLI 与非目标。
 
 ## 阅读顺序
 
 - 协议使用者：核心协议。
-- 实现者：核心协议 → 当前实现快照。
+- 工具使用者和实现者：核心协议 → v1 实现设计。
 
 ## 管理规则
 

@@ -1,0 +1,3 @@
+group: team
+entities:
+  - id: worker

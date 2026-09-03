@@ -1,0 +1,4 @@
+entities:
+  - id: api
+relations:
+  - [api, uses, infra:database]

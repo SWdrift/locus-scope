@@ -1,0 +1,4 @@
+entities:
+  - id: source
+relations:
+  - [source, points_to, absent]

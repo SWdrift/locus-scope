@@ -1,0 +1,3 @@
+id: missing-projection
+exports:
+  - ghost:item

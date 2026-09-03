@@ -1,0 +1,5 @@
+group: backend
+entities:
+  - id: worker
+relations:
+  - [worker, uses, database]

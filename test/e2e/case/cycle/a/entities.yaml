@@ -1,0 +1,4 @@
+entities:
+  - id: alpha
+relations:
+  - [alpha, reaches, b:beta]

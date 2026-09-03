@@ -1,0 +1,3 @@
+id: missing-import
+imports:
+  absent: ../does-not-exist
