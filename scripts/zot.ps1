@@ -88,7 +88,7 @@ function Test-ZotReady {
 
 function Assert-ZotBinary {
     if (-not (Test-Path -LiteralPath $BinaryPath -PathType Leaf)) {
-        throw "Zot is not installed; run: pwsh -File scripts/local-zot.ps1 install"
+        throw "Zot is not installed; run: pwsh -File scripts/zot.ps1 install"
     }
 
     $actualHash = (Get-FileHash -LiteralPath $BinaryPath -Algorithm SHA256).Hash.ToLowerInvariant()
