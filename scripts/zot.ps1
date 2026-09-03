@@ -12,9 +12,9 @@ $ZotVersion = 'v2.1.20'
 $ZotAsset = 'zot-windows-amd64-minimal.exe'
 $ZotSha256 = '80d42edb8c2b65054f43a113da7d00c78a8491d974b8edd3680a316d471f085c'
 $ReleaseBase = "https://github.com/project-zot/zot/releases/download/$ZotVersion"
-$RepositoryRoot = (Resolve-Path (Join-Path $PSScriptRoot '..\..')).Path
-$ConfigPath = Join-Path $RepositoryRoot 'deploy\local-zot\config.json'
+$RepositoryRoot = (Resolve-Path (Join-Path $PSScriptRoot '..')).Path
 $StateRoot = Join-Path $RepositoryRoot 'temp\zot'
+$ConfigPath = Join-Path $StateRoot 'config.json'
 $DownloadRoot = Join-Path $StateRoot 'download'
 $BinaryRoot = Join-Path $StateRoot 'bin'
 $LogRoot = Join-Path $StateRoot 'logs'
@@ -25,8 +25,23 @@ $PidPath = Join-Path $StateRoot 'zot.pid'
 $ReadyUrl = 'http://127.0.0.1:18080/readyz'
 $RegistryUrl = 'http://127.0.0.1:18080/v2/'
 
-function New-ZotDirectories {
+function Initialize-ZotDeployment {
     New-Item -ItemType Directory -Force -Path $DownloadRoot, $BinaryRoot, $LogRoot | Out-Null
+    @'
+{
+  "distSpecVersion": "1.1.1",
+  "storage": {
+    "rootDirectory": "temp/zot/registry"
+  },
+  "http": {
+    "address": "127.0.0.1",
+    "port": "18080"
+  },
+  "log": {
+    "level": "info"
+  }
+}
+'@ | Set-Content -LiteralPath $ConfigPath -NoNewline
 }
 
 function Get-ZotProcess {
@@ -73,7 +88,7 @@ function Test-ZotReady {
 
 function Assert-ZotBinary {
     if (-not (Test-Path -LiteralPath $BinaryPath -PathType Leaf)) {
-        throw "Zot is not installed; run: pwsh -File deploy/local-zot/zot.ps1 install"
+        throw "Zot is not installed; run: pwsh -File scripts/zot.ps1 install"
     }
 
     $actualHash = (Get-FileHash -LiteralPath $BinaryPath -Algorithm SHA256).Hash.ToLowerInvariant()
@@ -83,7 +98,7 @@ function Assert-ZotBinary {
 }
 
 function Install-Zot {
-    New-ZotDirectories
+    Initialize-ZotDeployment
 
     if (Test-Path -LiteralPath $BinaryPath -PathType Leaf) {
         $existingHash = (Get-FileHash -LiteralPath $BinaryPath -Algorithm SHA256).Hash.ToLowerInvariant()
@@ -120,6 +135,7 @@ function Install-Zot {
 
 function Verify-Zot {
     Assert-ZotBinary
+    Initialize-ZotDeployment
 
     Push-Location $RepositoryRoot
     try {
@@ -158,7 +174,6 @@ function Serve-Zot {
 
 function Start-Zot {
     Assert-ZotBinary
-    New-ZotDirectories
 
     $existing = Get-ZotProcess
     if ($null -ne $existing) {
