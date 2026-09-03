@@ -5,16 +5,16 @@
 ## 文档入口
 
 - [核心协议](protocol/PROTOCOL.md)：权威定义 Entity、Scope、Export、Import、Projection、Relation、Definition document 和 Group。
-- [base-基本设计](base-基本设计.md)：定义第一版本地 Source、Workspace 装配、诊断、CLI 与非目标。
-- [包管理设计](包管理设计.md)：定义 OCI Package、Source identity、lock、cache、安装流程与 source-aware loader。
-- [base-测试设计](base-测试设计.md)：登记测试分层、已覆盖场景、fixture、隔离、OCI E2E 和完成标准。
+- [Scope 设计](Scope设计.md)：以本地 `app`/`infra` 装配为主例，定义 Source、Workspace、文件发现、解析、诊断、CLI 与非目标。
+- [Package设计](Package设计.md)：定义 OCI Package、Source identity、lock、cache、安装流程与 source-aware loader。
+- [测试设计](测试设计.md)：登记测试分层、已覆盖场景、fixture、隔离、OCI E2E 和完成标准。
 
 ## 阅读顺序
 
 - 只使用协议：阅读[核心协议](protocol/PROTOCOL.md)。
-- 开发基础能力：依次阅读[核心协议](protocol/PROTOCOL.md)和[base-基本设计](base-基本设计.md)。
-- 开发 Package 能力：在基础设计之后阅读[包管理设计](包管理设计.md)。
-- 设计或实现测试：在基本设计和包管理设计之后阅读[base-测试设计](base-测试设计.md)。
+- 开发 Scope 装配：依次阅读[核心协议](protocol/PROTOCOL.md)和[Scope 设计](Scope设计.md)。
+- 开发 Package 能力：在 Scope 设计之后阅读[Package设计](Package设计.md)。
+- 设计或实现测试：在 Scope 设计和Package设计之后阅读[测试设计](测试设计.md)。
 
 ## 管理规则
 
