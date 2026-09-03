@@ -96,6 +96,10 @@ func validateCachedPackage(ctx context.Context, store content.ReadOnlyStorage, m
 	if manifest.ArtifactType != ArtifactType {
 		return cachedPackage{}, fmt.Errorf("manifest artifact type is %q, expected %q", manifest.ArtifactType, ArtifactType)
 	}
+	emptyConfig := ocispec.DescriptorEmptyJSON
+	if manifest.Config.MediaType != emptyConfig.MediaType || manifest.Config.Digest != emptyConfig.Digest || manifest.Config.Size != emptyConfig.Size {
+		return cachedPackage{}, fmt.Errorf("manifest config is not the OCI empty JSON descriptor")
+	}
 	if len(manifest.Layers) != 1 {
 		return cachedPackage{}, fmt.Errorf("manifest contains %d layers, expected exactly 1", len(manifest.Layers))
 	}
@@ -104,24 +108,34 @@ func validateCachedPackage(ctx context.Context, store content.ReadOnlyStorage, m
 		return cachedPackage{}, fmt.Errorf("layer media type is %q, expected %q", layer.MediaType, ocispec.MediaTypeImageLayerGzip)
 	}
 
-	layerReader, err := store.Fetch(ctx, layer)
-	if err != nil {
-		return cachedPackage{}, fmt.Errorf("fetch layer %s: %w", layer.Digest, err)
+	if err := verifyStoredContent(ctx, store, manifest.Config); err != nil {
+		return cachedPackage{}, fmt.Errorf("validate config: %w", err)
 	}
-	verifier := content.NewVerifyReader(layerReader, layer)
-	_, copyErr := io.Copy(io.Discard, verifier)
-	verifyErr := verifier.Verify()
-	closeErr = layerReader.Close()
-	if copyErr != nil {
-		return cachedPackage{}, fmt.Errorf("read layer %s: %w", layer.Digest, copyErr)
-	}
-	if verifyErr != nil {
-		return cachedPackage{}, fmt.Errorf("verify layer %s: %w", layer.Digest, verifyErr)
-	}
-	if closeErr != nil {
-		return cachedPackage{}, fmt.Errorf("close layer %s: %w", layer.Digest, closeErr)
+	if err := verifyStoredContent(ctx, store, layer); err != nil {
+		return cachedPackage{}, fmt.Errorf("validate layer: %w", err)
 	}
 	return cachedPackage{manifest: manifestDescriptor, layer: layer}, nil
+}
+
+func verifyStoredContent(ctx context.Context, store content.ReadOnlyStorage, descriptor ocispec.Descriptor) error {
+	reader, err := store.Fetch(ctx, descriptor)
+	if err != nil {
+		return fmt.Errorf("fetch %s: %w", descriptor.Digest, err)
+	}
+	verifier := content.NewVerifyReader(reader, descriptor)
+	_, copyErr := io.Copy(io.Discard, verifier)
+	verifyErr := verifier.Verify()
+	closeErr := reader.Close()
+	if copyErr != nil {
+		return fmt.Errorf("read %s: %w", descriptor.Digest, copyErr)
+	}
+	if verifyErr != nil {
+		return fmt.Errorf("verify %s: %w", descriptor.Digest, verifyErr)
+	}
+	if closeErr != nil {
+		return fmt.Errorf("close %s: %w", descriptor.Digest, closeErr)
+	}
+	return nil
 }
 
 func cacheRepositoryPath(cacheRoot string, reference packageReference) string {

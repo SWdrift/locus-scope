@@ -1,12 +1,9 @@
 package e2e_test
 
 import (
-	"archive/tar"
 	"bytes"
-	"compress/gzip"
 	"context"
 	"encoding/json"
-	"io"
 	"net"
 	"net/http"
 	"net/http/httptest"
@@ -15,7 +12,6 @@ import (
 	"os/exec"
 	"path/filepath"
 	"runtime"
-	"sort"
 	"strings"
 	"sync"
 	"testing"
@@ -24,14 +20,8 @@ import (
 	"github.com/distribution/distribution/v3/configuration"
 	"github.com/distribution/distribution/v3/registry/handlers"
 	_ "github.com/distribution/distribution/v3/registry/storage/driver/inmemory"
-	ocispec "github.com/opencontainers/image-spec/specs-go/v1"
 	"gopkg.in/yaml.v3"
 	"locus-scope/internal/packages"
-	"oras.land/oras-go/v2"
-	"oras.land/oras-go/v2/content"
-	"oras.land/oras-go/v2/registry/remote"
-	"oras.land/oras-go/v2/registry/remote/auth"
-	"oras.land/oras-go/v2/registry/remote/retry"
 )
 
 func TestPackageCLIClosure(t *testing.T) {
@@ -68,7 +58,6 @@ func runPackageCLIClosure(t *testing.T, endpoint, runRoot string) {
 	}
 	for _, directory := range []string{
 		filepath.Join(runRoot, "bin"),
-		filepath.Join(runRoot, "registry", "payloads"),
 		filepath.Join(runRoot, "registry", "sources"),
 		filepath.Join(runRoot, "results"),
 		filepath.Join(runRoot, "docker"),
@@ -96,9 +85,6 @@ func runPackageCLIClosure(t *testing.T, endpoint, runRoot string) {
 
 	ctx, cancel := context.WithTimeout(context.Background(), 2*time.Minute)
 	defer cancel()
-	packageADigest := publishPackage(t, ctx, endpoint, "locus/package-a", packageA, filepath.Join(runRoot, "registry", "payloads", "package-a"))
-	packageBDigest := publishPackage(t, ctx, endpoint, "locus/package-b", packageB, filepath.Join(runRoot, "registry", "payloads", "package-b"))
-
 	suffix := ""
 	if runtime.GOOS == "windows" {
 		suffix = ".exe"
@@ -109,6 +95,46 @@ func runPackageCLIClosure(t *testing.T, endpoint, runRoot string) {
 	buildBinary(t, ctx, scopeBinary, "./cmd/locus-scope")
 	environment := isolatedEnvironment(runRoot)
 
+	targetA := "oci://" + registryHost + "/locus/package-a:latest"
+	targetB := "oci://" + registryHost + "/locus/package-b:latest"
+	publishWorkingDirectory := filepath.Join(packageB, ".locus", "publish-working-directory")
+	if err := os.MkdirAll(publishWorkingDirectory, 0o755); err != nil {
+		t.Fatalf("create nested publish working directory: %v", err)
+	}
+	firstBOutput := runBinaryAt(t, ctx, environment, publishWorkingDirectory, runRoot, "publish-b-first", pkgBinary, "--json", "publish", targetB)
+	var firstB packages.PublishResult
+	decodeJSON(t, firstBOutput, &firstB)
+	if firstB.Target != targetB {
+		t.Fatalf("first package B target = %q, want %q", firstB.Target, targetB)
+	}
+	repeatedBOutput := runBinaryAt(t, ctx, environment, publishWorkingDirectory, runRoot, "publish-b-repeat", pkgBinary, "publish", targetB)
+	if !bytes.Contains(repeatedBOutput, []byte("published: "+targetB+"\n")) ||
+		!bytes.Contains(repeatedBOutput, []byte("digest: "+firstB.Digest+"\n")) {
+		t.Fatalf("unchanged package B output = %q", repeatedBOutput)
+	}
+	entitiesPath := filepath.Join(packageB, "entities.yaml")
+	entitiesData, err := os.ReadFile(entitiesPath)
+	if err != nil {
+		t.Fatalf("read package B entities: %v", err)
+	}
+	entitiesData = bytes.ReplaceAll(entitiesData, []byte("postgres"), []byte("cockroachdb"))
+	if err := os.WriteFile(entitiesPath, entitiesData, 0o644); err != nil {
+		t.Fatalf("update package B entities: %v", err)
+	}
+	secondBOutput := runBinary(t, ctx, environment, runRoot, "publish-b-update", pkgBinary, "--scope", packageB, "publish", targetB, "--json")
+	var secondB packages.PublishResult
+	decodeJSON(t, secondBOutput, &secondB)
+	if secondB.Target != targetB || secondB.Digest == firstB.Digest {
+		t.Fatalf("updated package B result = %#v, first digest = %q", secondB, firstB.Digest)
+	}
+	packageAOutput := runBinary(t, ctx, environment, runRoot, "publish-a", pkgBinary, "--scope", packageA, "publish", targetA, "--json")
+	var publishedA packages.PublishResult
+	decodeJSON(t, packageAOutput, &publishedA)
+	if publishedA.Target != targetA {
+		t.Fatalf("package A target = %q, want %q", publishedA.Target, targetA)
+	}
+	packageADigest := "oci://" + registryHost + "/locus/package-a@" + publishedA.Digest
+	packageBDigest := "oci://" + registryHost + "/locus/package-b@" + secondB.Digest
 	firstOutput := runBinary(t, ctx, environment, runRoot, "install-first", pkgBinary, "install", "--scope", project, "--json")
 	var first packages.InstallResult
 	decodeJSON(t, firstOutput, &first)
@@ -130,6 +156,14 @@ func runPackageCLIClosure(t *testing.T, endpoint, runRoot string) {
 	keyB := "oci://" + registryHost + "/locus/package-b:latest"
 	if lock.Packages[keyA].Resolved != packageADigest || lock.Packages[keyB].Resolved != packageBDigest {
 		t.Fatalf("installed lock resolutions = %#v", lock.Packages)
+	}
+	materializedB := filepath.Join(project, ".locus", "packages", strings.Replace(secondB.Digest, ":", "-", 1), "entities.yaml")
+	materializedBData, err := os.ReadFile(materializedB)
+	if err != nil {
+		t.Fatalf("read updated materialized package B: %v", err)
+	}
+	if !bytes.Contains(materializedBData, []byte("cockroachdb")) {
+		t.Fatalf("materialized package B did not contain the published update: %s", materializedBData)
 	}
 	if strings.Index(string(lockData), keyA) > strings.Index(string(lockData), keyB) {
 		t.Fatalf("lock entries are not sorted:\n%s", lockData)
@@ -203,129 +237,6 @@ func runPackageCLIClosure(t *testing.T, endpoint, runRoot string) {
 	}
 }
 
-func publishPackage(t *testing.T, ctx context.Context, endpoint, repositoryName, source, resultRoot string) string {
-	t.Helper()
-	parsed, err := url.Parse(endpoint)
-	if err != nil {
-		t.Fatalf("parse registry endpoint: %v", err)
-	}
-	repository, err := remote.NewRepository(parsed.Host + "/" + repositoryName)
-	if err != nil {
-		t.Fatalf("create repository %s: %v", repositoryName, err)
-	}
-	repository.PlainHTTP = true
-	repository.Client = &auth.Client{Client: retry.DefaultClient, Cache: auth.NewCache()}
-
-	layerData := packageLayer(t, source)
-	if err := os.MkdirAll(resultRoot, 0o755); err != nil {
-		t.Fatalf("create payload result directory: %v", err)
-	}
-	if err := os.WriteFile(filepath.Join(resultRoot, "layer.tar.gz"), layerData, 0o644); err != nil {
-		t.Fatalf("persist package layer: %v", err)
-	}
-	layer, err := oras.PushBytes(ctx, repository, ocispec.MediaTypeImageLayerGzip, layerData)
-	if err != nil {
-		t.Fatalf("push %s layer: %v", repositoryName, err)
-	}
-	manifest, err := oras.PackManifest(ctx, repository, oras.PackManifestVersion1_1, packages.ArtifactType, oras.PackManifestOptions{
-		Layers: []ocispec.Descriptor{layer},
-	})
-	if err != nil {
-		t.Fatalf("pack %s manifest: %v", repositoryName, err)
-	}
-	if err := repository.Tag(ctx, manifest, "latest"); err != nil {
-		t.Fatalf("tag %s manifest: %v", repositoryName, err)
-	}
-	reader, err := repository.Fetch(ctx, manifest)
-	if err != nil {
-		t.Fatalf("fetch %s manifest: %v", repositoryName, err)
-	}
-	manifestData, readErr := content.ReadAll(reader, manifest)
-	closeErr := reader.Close()
-	if readErr != nil {
-		t.Fatalf("read %s manifest: %v", repositoryName, readErr)
-	}
-	if closeErr != nil {
-		t.Fatalf("close %s manifest: %v", repositoryName, closeErr)
-	}
-	if err := os.WriteFile(filepath.Join(resultRoot, "manifest.json"), manifestData, 0o644); err != nil {
-		t.Fatalf("persist package manifest: %v", err)
-	}
-	return "oci://" + parsed.Host + "/" + repositoryName + "@" + manifest.Digest.String()
-}
-
-func packageLayer(t *testing.T, source string) []byte {
-	t.Helper()
-	var payload bytes.Buffer
-	gzipWriter := gzip.NewWriter(&payload)
-	gzipWriter.Header.ModTime = time.Unix(0, 0)
-	gzipWriter.Header.OS = 255
-	tarWriter := tar.NewWriter(gzipWriter)
-	var paths []string
-	if err := filepath.WalkDir(source, func(path string, entry os.DirEntry, err error) error {
-		if err != nil {
-			return err
-		}
-		if path != source {
-			paths = append(paths, path)
-		}
-		return nil
-	}); err != nil {
-		t.Fatalf("walk package source: %v", err)
-	}
-	sort.Strings(paths)
-	for _, filePath := range paths {
-		info, err := os.Lstat(filePath)
-		if err != nil {
-			t.Fatalf("inspect package source: %v", err)
-		}
-		if info.Mode()&os.ModeSymlink != 0 {
-			t.Fatalf("package source contains symlink: %s", filePath)
-		}
-		header, err := tar.FileInfoHeader(info, "")
-		if err != nil {
-			t.Fatalf("create tar header: %v", err)
-		}
-		relative, err := filepath.Rel(source, filePath)
-		if err != nil {
-			t.Fatalf("make package path relative: %v", err)
-		}
-		header.Name = filepath.ToSlash(relative)
-		if info.IsDir() {
-			header.Name += "/"
-		}
-		header.ModTime = time.Unix(0, 0)
-		header.AccessTime = time.Time{}
-		header.ChangeTime = time.Time{}
-		header.Uid, header.Gid = 0, 0
-		header.Uname, header.Gname = "", ""
-		if err := tarWriter.WriteHeader(header); err != nil {
-			t.Fatalf("write package header: %v", err)
-		}
-		if info.Mode().IsRegular() {
-			file, err := os.Open(filePath)
-			if err != nil {
-				t.Fatalf("open package source file: %v", err)
-			}
-			_, copyErr := io.Copy(tarWriter, file)
-			closeErr := file.Close()
-			if copyErr != nil {
-				t.Fatalf("copy package source file: %v", copyErr)
-			}
-			if closeErr != nil {
-				t.Fatalf("close package source file: %v", closeErr)
-			}
-		}
-	}
-	if err := tarWriter.Close(); err != nil {
-		t.Fatalf("close package tar: %v", err)
-	}
-	if err := gzipWriter.Close(); err != nil {
-		t.Fatalf("close package gzip: %v", err)
-	}
-	return payload.Bytes()
-}
-
 func materializeSource(t *testing.T, source, destination, registryHost string) {
 	t.Helper()
 	if err := os.CopyFS(destination, os.DirFS(source)); err != nil {
@@ -357,8 +268,13 @@ func buildBinary(t *testing.T, ctx context.Context, output, packagePath string) 
 
 func runBinary(t *testing.T, ctx context.Context, environment []string, runRoot, name, binary string, arguments ...string) []byte {
 	t.Helper()
+	return runBinaryAt(t, ctx, environment, repositoryPath(), runRoot, name, binary, arguments...)
+}
+
+func runBinaryAt(t *testing.T, ctx context.Context, environment []string, workingDirectory, runRoot, name, binary string, arguments ...string) []byte {
+	t.Helper()
 	command := exec.CommandContext(ctx, binary, arguments...)
-	command.Dir = repositoryPath()
+	command.Dir = workingDirectory
 	command.Env = environment
 	var stdout, stderr bytes.Buffer
 	command.Stdout = &stdout

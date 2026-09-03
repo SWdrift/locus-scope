@@ -137,7 +137,7 @@ packages:
 | 普通安装 | 已有 lock entry 优先复用；缺失时查询 Registry。完整 Workspace 验证成功后，按 key 字典序原子提交全部 reachable entries，并删除不再 reachable 的旧 entry。 |
 | Frozen | lock 的内容和 key 集合必须与完整依赖一致；允许按已锁 digest 获取本地缺失内容，但不得增删改 lock。 |
 | Artifact | 使用 OCI 1.1 image manifest：`schemaVersion` 为 `2`，manifest media type 为 `application/vnd.oci.image.manifest.v1+json`，`artifactType` 固定为 `application/vnd.locus.scope.package.v1`；必需的 `config` 使用内容为 `{}` 的 OCI empty JSON descriptor（`application/vnd.oci.empty.v1+json`）；恰好包含一个 `application/vnd.oci.image.layer.v1.tar+gzip` layer，artifact 根目录直接对应 Package root Scope。 |
-| 发布输入 | 所选 root Scope 目录形成一个 Scope source tree 快照；包内本地 Import 必须使用 `/` 分隔的相对路径且不得逃出 Package root，OCI Import 只保留 reference，不复制依赖 Package。发布前必须检查快照中的 Scope 文件和 Package 边界。 |
+| 发布输入 | 所选 root Scope 目录形成一个 Scope source tree 快照；包内本地 Import 必须使用 `/` 分隔的相对路径且不得逃出 Package root，OCI Import 只保留 reference，不复制依赖 Package。`locus.lock` 和任意 `.locus` 目录属于项目生成状态，不进入 artifact。发布前必须检查快照中的 Scope 文件和 Package 边界。 |
 | 发布产物 | 使用本表规定的 OCI manifest、artifact type 和单 layer 结构。相同 source tree 内容与相关文件 mode 必须产生相同 manifest digest；绝对路径、文件遍历顺序、owner、构建时间和压缩时间不得影响 digest。 |
 | 发布目标 | 必须是无 fragment 的 tag reference；省略 tag 规范化为 `:latest`，digest reference 拒绝。同一 tag 可以重复发布：内容未变时得到同一 digest；内容变化时以 manifest/tag 更新为提交边界，使 tag 原子指向新 digest。旧 digest 的 identity 不变，已有 `locus.lock` 不会因 tag 更新而自动漂移。 |
 | Artifact 校验 | ORAS 必须校验 manifest、config 和 layer descriptor 的 digest 与 size；拒绝错误的 schema version、manifest media type、artifact type、empty config、layer 数量或 layer media type，以及没有唯一 root Scope manifest 的内容。 |

@@ -94,16 +94,19 @@ func (LocalResolver) Resolve(from Source, reference string) (Source, error) {
 	return resolved, nil
 }
 
-// CheckSource validates the local files for one source without resolving imports.
-func CheckSource(source Source) error {
+// ReadSource decodes and validates one source without resolving imports.
+func ReadSource(source Source) (*Scope, error) {
 	normalized, err := normalizeSource(source)
 	if err != nil {
-		return err
+		return nil, err
 	}
-	if _, err := decodeScope(normalized); err != nil {
-		return err
-	}
-	return nil
+	return decodeScope(normalized)
+}
+
+// CheckSource validates the local files for one source without resolving imports.
+func CheckSource(source Source) error {
+	_, err := ReadSource(source)
+	return err
 }
 
 // Load discovers every reachable import and returns a fully validated workspace.
