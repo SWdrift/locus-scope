@@ -1,8 +1,11 @@
 [CmdletBinding()]
 param(
     [Parameter(Position = 0)]
-    [ValidateSet('install', 'verify', 'serve', 'start', 'stop', 'status')]
-    [string]$Action = 'status'
+    [ValidateSet('install', 'verify', 'serve', 'start', 'stop', 'status', 'uninstall')]
+    [string]$Action = 'status',
+    [switch]$User,
+    [string]$UserLocusRoot,
+    [string]$InstallSource
 )
 
 Set-StrictMode -Version Latest
@@ -13,7 +16,21 @@ $ZotAsset = 'zot-windows-amd64-minimal.exe'
 $ZotSha256 = '80d42edb8c2b65054f43a113da7d00c78a8491d974b8edd3680a316d471f085c'
 $ReleaseBase = "https://github.com/project-zot/zot/releases/download/$ZotVersion"
 $RepositoryRoot = (Resolve-Path (Join-Path $PSScriptRoot '..')).Path
-$StateRoot = Join-Path $RepositoryRoot 'temp\zot'
+. (Join-Path $PSScriptRoot 'internal/locus-paths.ps1')
+
+if (-not $User -and -not [string]::IsNullOrWhiteSpace($UserLocusRoot)) {
+    throw '-UserLocusRoot requires -User'
+}
+if ($Action -ne 'install' -and -not [string]::IsNullOrWhiteSpace($InstallSource)) {
+    throw '-InstallSource is only valid with install'
+}
+if ($User) {
+    $LocusRoot = Resolve-LocusUserRoot -Override $UserLocusRoot
+    $StateRoot = Join-Path $LocusRoot 'zot'
+}
+else {
+    $StateRoot = Join-Path $RepositoryRoot 'temp/zot'
+}
 $ConfigPath = Join-Path $StateRoot 'config.json'
 $DownloadRoot = Join-Path $StateRoot 'download'
 $BinaryRoot = Join-Path $StateRoot 'bin'
@@ -27,21 +44,20 @@ $RegistryUrl = 'http://127.0.0.1:18080/v2/'
 
 function Initialize-ZotDeployment {
     New-Item -ItemType Directory -Force -Path $DownloadRoot, $BinaryRoot, $LogRoot | Out-Null
-    @'
-{
-  "distSpecVersion": "1.1.1",
-  "storage": {
-    "rootDirectory": "temp/zot/registry"
-  },
-  "http": {
-    "address": "127.0.0.1",
-    "port": "18080"
-  },
-  "log": {
-    "level": "info"
-  }
-}
-'@ | Set-Content -LiteralPath $ConfigPath -NoNewline
+    $configuration = [ordered]@{
+        distSpecVersion = '1.1.1'
+        storage = [ordered]@{
+            rootDirectory = (Join-Path $StateRoot 'registry')
+        }
+        http = [ordered]@{
+            address = '127.0.0.1'
+            port = '18080'
+        }
+        log = [ordered]@{
+            level = 'info'
+        }
+    }
+    $configuration | ConvertTo-Json -Depth 4 | Set-Content -LiteralPath $ConfigPath -Encoding utf8NoBOM -NoNewline
 }
 
 function Get-ZotProcess {
@@ -109,21 +125,27 @@ function Install-Zot {
         throw "refusing to replace Zot binary with unexpected hash $existingHash at $BinaryPath"
     }
 
-    Invoke-WebRequest -Uri "$ReleaseBase/checksums.sha256.txt" -OutFile $ChecksumPath
-    Invoke-WebRequest -Uri "$ReleaseBase/$ZotAsset" -OutFile $DownloadPath
+    Remove-Item -LiteralPath $DownloadPath -Force -ErrorAction SilentlyContinue
+    if ([string]::IsNullOrWhiteSpace($InstallSource)) {
+        Invoke-WebRequest -Uri "$ReleaseBase/checksums.sha256.txt" -OutFile $ChecksumPath
+        Invoke-WebRequest -Uri "$ReleaseBase/$ZotAsset" -OutFile $DownloadPath
 
-    $matchingLines = @(Get-Content -LiteralPath $ChecksumPath | Where-Object {
-        $_ -match "^([0-9A-Fa-f]{64})\s+\*?$([regex]::Escape($ZotAsset))$"
-    })
-    if ($matchingLines.Count -ne 1) {
-        throw "checksum manifest must contain exactly one entry for $ZotAsset"
+        $matchingLines = @(Get-Content -LiteralPath $ChecksumPath | Where-Object {
+            $_ -match "^([0-9A-Fa-f]{64})\s+\*?$([regex]::Escape($ZotAsset))$"
+        })
+        if ($matchingLines.Count -ne 1) {
+            throw "checksum manifest must contain exactly one entry for $ZotAsset"
+        }
+
+        $manifestHash = ([regex]::Match($matchingLines[0], '^([0-9A-Fa-f]{64})')).Groups[1].Value.ToLowerInvariant()
+        if ($manifestHash -ne $ZotSha256) {
+            throw "release checksum mismatch for ${ZotAsset}: expected $ZotSha256, got $manifestHash"
+        }
     }
-
-    $manifestHash = ([regex]::Match($matchingLines[0], '^([0-9A-Fa-f]{64})')).Groups[1].Value.ToLowerInvariant()
-    if ($manifestHash -ne $ZotSha256) {
-        throw "release checksum mismatch for ${ZotAsset}: expected $ZotSha256, got $manifestHash"
+    else {
+        $sourcePath = (Resolve-Path -LiteralPath $InstallSource).Path
+        Copy-Item -LiteralPath $sourcePath -Destination $DownloadPath
     }
-
     $downloadHash = (Get-FileHash -LiteralPath $DownloadPath -Algorithm SHA256).Hash.ToLowerInvariant()
     if ($downloadHash -ne $ZotSha256) {
         throw "downloaded Zot binary hash mismatch: expected $ZotSha256, got $downloadHash"
@@ -137,7 +159,7 @@ function Verify-Zot {
     Assert-ZotBinary
     Initialize-ZotDeployment
 
-    Push-Location $RepositoryRoot
+    Push-Location $StateRoot
     try {
         & $BinaryPath verify $ConfigPath
         if ($LASTEXITCODE -ne 0) {
@@ -160,7 +182,7 @@ function Verify-Zot {
 
 function Serve-Zot {
     Verify-Zot
-    Push-Location $RepositoryRoot
+    Push-Location $StateRoot
     try {
         & $BinaryPath serve $ConfigPath
         if ($LASTEXITCODE -ne 0) {
@@ -188,7 +210,7 @@ function Start-Zot {
     $timestamp = Get-Date -Format 'yyyyMMdd-HHmmss'
     $stdoutPath = Join-Path $LogRoot "zot-$timestamp.stdout.log"
     $stderrPath = Join-Path $LogRoot "zot-$timestamp.stderr.log"
-    $process = Start-Process -FilePath $BinaryPath -ArgumentList @('serve', ('"{0}"' -f $ConfigPath)) -WorkingDirectory $RepositoryRoot -RedirectStandardOutput $stdoutPath -RedirectStandardError $stderrPath -WindowStyle Hidden -PassThru
+    $process = Start-Process -FilePath $BinaryPath -ArgumentList @('serve', ('"{0}"' -f $ConfigPath)) -WorkingDirectory $StateRoot -RedirectStandardOutput $stdoutPath -RedirectStandardError $stderrPath -WindowStyle Hidden -PassThru
     Set-Content -LiteralPath $PidPath -Value $process.Id -NoNewline
 
     $deadline = [DateTime]::UtcNow.AddSeconds(15)
@@ -238,6 +260,20 @@ function Stop-Zot {
     Write-Output 'Zot stopped'
 }
 
+function Uninstall-Zot {
+    if (-not (Test-Path -LiteralPath $StateRoot)) {
+        Write-Output "Zot is not installed at $StateRoot"
+        return
+    }
+    Stop-Zot
+    Remove-Item -LiteralPath $StateRoot -Recurse -Force
+    Write-Output "Uninstalled Zot from $StateRoot"
+    if ($User -and (Test-Path -LiteralPath $LocusRoot -PathType Container) -and
+        $null -eq (Get-ChildItem -LiteralPath $LocusRoot -Force | Select-Object -First 1)) {
+        Remove-Item -LiteralPath $LocusRoot -Force
+    }
+}
+
 switch ($Action) {
     'install' { Install-Zot }
     'verify' { Verify-Zot }
@@ -245,4 +281,5 @@ switch ($Action) {
     'start' { Start-Zot }
     'stop' { Stop-Zot }
     'status' { Get-ZotStatus }
+    'uninstall' { Uninstall-Zot }
 }
