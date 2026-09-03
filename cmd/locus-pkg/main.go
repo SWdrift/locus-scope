@@ -33,8 +33,23 @@ func run(arguments []string, stdout, stderr io.Writer) int {
 		fmt.Fprint(stdout, usage)
 		return 0
 	}
-	if len(command) != 1 || command[0] != "install" {
-		writeFailure(stderr, opts.jsonOutput, fmt.Errorf("unknown command %q; run locus-pkg help", strings.Join(command, " ")))
+	switch command[0] {
+	case "install":
+		if len(command) != 1 {
+			writeFailure(stderr, opts.jsonOutput, errors.New("install does not accept positional arguments"))
+			return 2
+		}
+	case "publish":
+		if len(command) != 2 {
+			writeFailure(stderr, opts.jsonOutput, errors.New("publish requires exactly one OCI target"))
+			return 2
+		}
+		if opts.frozen {
+			writeFailure(stderr, opts.jsonOutput, errors.New("--frozen is only valid with install"))
+			return 2
+		}
+	default:
+		writeFailure(stderr, opts.jsonOutput, fmt.Errorf("unknown command %q; run locus-pkg help", command[0]))
 		return 2
 	}
 
@@ -43,12 +58,30 @@ func run(arguments []string, stdout, stderr io.Writer) int {
 		writeFailure(stderr, opts.jsonOutput, err)
 		return 1
 	}
-	cacheRoot, err := packages.DefaultCacheRoot()
+	credential, err := packages.DockerCredential()
 	if err != nil {
 		writeFailure(stderr, opts.jsonOutput, err)
 		return 1
 	}
-	credential, err := packages.DockerCredential()
+
+	if command[0] == "publish" {
+		result, err := packages.Publish(context.Background(), root, command[1], packages.PublishOptions{Credential: credential})
+		if err != nil {
+			writeFailure(stderr, opts.jsonOutput, err)
+			return 1
+		}
+		if opts.jsonOutput {
+			if err := writeJSON(stdout, result); err != nil {
+				writeFailure(stderr, true, err)
+				return 1
+			}
+		} else {
+			fmt.Fprintf(stdout, "published: %s\ndigest: %s\n", result.Target, result.Digest)
+		}
+		return 0
+	}
+
+	cacheRoot, err := packages.DefaultCacheRoot()
 	if err != nil {
 		writeFailure(stderr, opts.jsonOutput, err)
 		return 1
@@ -131,9 +164,10 @@ func writeFailure(output io.Writer, jsonOutput bool, err error) {
 	fmt.Fprintf(output, "locus-pkg: %v\n", err)
 }
 
-const usage = `locus-pkg installs Scope packages for a workspace.
+const usage = `locus-pkg publishes and installs Scope packages.
 
 Usage:
+  locus-pkg [--scope <dir>] [--json] publish <oci-tag>
   locus-pkg [--scope <dir>] [--frozen] [--json] install
   locus-pkg help
 `

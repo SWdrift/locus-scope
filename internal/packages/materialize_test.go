@@ -121,6 +121,29 @@ func TestInvalidArtifactAndMaterializationAreNotPublished(t *testing.T) {
 	}
 }
 
+func TestValidateCachedPackageRejectsNonEmptyConfig(t *testing.T) {
+	root := packageTestRoot(t, "invalid-config")
+	store, err := oci.New(filepath.Join(root, "store"))
+	if err != nil {
+		t.Fatalf("create OCI store: %v", err)
+	}
+	layer := pushTestLayer(t, store, []archiveEntry{{name: "locus.yaml", body: "id: package\n"}})
+	config, err := oras.PushBytes(context.Background(), store, "application/vnd.example.config.v1+json", []byte("{}"))
+	if err != nil {
+		t.Fatalf("push config: %v", err)
+	}
+	manifest, err := oras.PackManifest(context.Background(), store, oras.PackManifestVersion1_1, ArtifactType, oras.PackManifestOptions{
+		ConfigDescriptor: &config,
+		Layers:           []ocispec.Descriptor{layer},
+	})
+	if err != nil {
+		t.Fatalf("pack manifest: %v", err)
+	}
+	if _, err := validateCachedPackage(context.Background(), store, manifest); err == nil || !strings.Contains(err.Error(), "empty JSON descriptor") {
+		t.Fatalf("artifact validation error = %v", err)
+	}
+}
+
 func TestCachePathEncodingPreservesRepositorySegments(t *testing.T) {
 	reference, err := parsePackageReference("oci://localhost:18080/team/package:latest")
 	if err != nil {

@@ -5,6 +5,7 @@ import (
 	"encoding/json"
 	"os"
 	"path/filepath"
+	"strings"
 	"testing"
 
 	"locus-scope/internal/packages"
@@ -59,5 +60,38 @@ func TestRunReportsJSONUsageFailure(t *testing.T) {
 	}
 	if err := json.Unmarshal(stderr.Bytes(), &failure); err != nil || failure.Error == "" {
 		t.Fatalf("failure output = %q, error = %v", stderr.String(), err)
+	}
+}
+
+func TestRunRejectsInvalidPublishInvocation(t *testing.T) {
+	tests := []struct {
+		name      string
+		arguments []string
+		want      string
+	}{
+		{name: "missing target", arguments: []string{"publish"}, want: "requires exactly one OCI target"},
+		{name: "multiple targets", arguments: []string{"publish", "oci://registry.example/one:v1", "oci://registry.example/two:v1"}, want: "requires exactly one OCI target"},
+		{name: "frozen", arguments: []string{"--frozen", "publish", "oci://registry.example/package:v1"}, want: "only valid with install"},
+	}
+	for _, test := range tests {
+		t.Run(test.name, func(t *testing.T) {
+			var stdout, stderr bytes.Buffer
+			if code := run(test.arguments, &stdout, &stderr); code != 2 {
+				t.Fatalf("run exit code = %d, stderr = %s", code, stderr.String())
+			}
+			if !strings.Contains(stderr.String(), test.want) {
+				t.Fatalf("stderr = %q, want fragment %q", stderr.String(), test.want)
+			}
+		})
+	}
+}
+
+func TestHelpIncludesPublishUsage(t *testing.T) {
+	var stdout, stderr bytes.Buffer
+	if code := run([]string{"help"}, &stdout, &stderr); code != 0 {
+		t.Fatalf("run exit code = %d, stderr = %s", code, stderr.String())
+	}
+	if !strings.Contains(stdout.String(), "publish <oci-tag>") {
+		t.Fatalf("help output = %q", stdout.String())
 	}
 }
