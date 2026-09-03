@@ -1,0 +1,12 @@
+entities:
+  - id: server
+    type: compute
+    metadata:
+      region: local
+
+  - id: database
+    type: datastore
+    engine: postgres
+
+relations:
+  - [server, hosts, database]

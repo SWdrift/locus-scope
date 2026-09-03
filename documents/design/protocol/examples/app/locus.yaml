@@ -1,0 +1,8 @@
+id: app
+
+imports:
+  infra: ../infra
+
+exports:
+  - api
+  - infra:database

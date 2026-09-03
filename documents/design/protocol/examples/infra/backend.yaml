@@ -1,0 +1,13 @@
+group: backend
+
+entities:
+  - id: worker
+    runtime: go
+
+  - id: monitor
+    anything:
+      nested:
+        values: [are, allowed]
+
+relations:
+  - [worker, reports_to, monitor]

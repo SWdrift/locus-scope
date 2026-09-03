@@ -1,0 +1,4 @@
+interface:
+  display_name: "Iteration Review"
+  short_description: "按指定 Git 提交范围编写简洁、可追溯的迭代复盘"
+  default_prompt: "使用 $write-iteration-review 为指定提交范围编写迭代复盘。"

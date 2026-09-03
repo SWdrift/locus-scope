@@ -1,0 +1,9 @@
+entities:
+  - id: api
+    type: service
+    runtime: go
+    port: 8080
+
+relations:
+  - [api, uses, infra:database]
+  - [api, dispatches_to, infra:backend/worker]

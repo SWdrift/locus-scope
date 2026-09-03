@@ -1,0 +1,5 @@
+id: infra
+
+exports:
+  - database
+  - backend/worker
