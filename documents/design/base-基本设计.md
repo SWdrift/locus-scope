@@ -8,6 +8,8 @@ v1 将本地 Scope 文件完整装配为可验证、可查询的内存 Workspace
 
 本文负责本地 Source、文件发现、Workspace 装配、诊断和 CLI 契约。不负责重新定义协议，也不负责远程分发、持久化、编辑或执行。
 
+代码目录与依赖方向只在 [当前架构](../current-architecture.md) 中维护，本文不重复目录树。
+
 ## 本地 Source 与文件发现
 
 一个 Scope 对应一个目录。目录中必须且只能存在 `locus.yaml`、`locus.yml`、`locus.json` 之一；同目录下其他小写 `.yaml`、`.yml`、`.json` 文件是 definition documents。发现不递归，definition documents 按文件名排序读取。
@@ -39,10 +41,6 @@ locus-scope resolve <ref>
 ```
 
 所有命令接受 `--scope <dir>` 和 `--json`。文本输出用于人工检查；JSON 输出使用固定字段和稳定集合顺序，供 Agent 与脚本消费。`validate` 总是加载并验证完整 reachable graph，而不是只检查 root 文件。
-
-## 明确非目标
-
-v1 不包含 OCI 或远程获取、lockfile、cache、registry、数据库、图数据库、网络服务、Scope 写入或编辑、通用查询语言、执行能力、Relation 属性、Provider 或 plugin 系统。代码不为这些未实现能力预留空接口或层级；出现第二种真实 Source 时再提取边界。
 
 ## 验证口径
 
