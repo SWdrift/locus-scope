@@ -11,8 +11,8 @@ internal/
 ├── scope/
 └── packages/
 
-deploy/
-└── local-zot/
+scripts/
+└── local-zot.ps1
 
 documents/
 test/
@@ -30,7 +30,7 @@ flowchart LR
     P --> S
 ```
 
-`cmd` 只负责参数、调用和输出。`internal/scope` 负责 Core semantics；`internal/packages` 负责 OCI、lock、cache、物化和 Source resolver。`deploy/local-zot` 提供固定版本、仅绑定环回地址的仓库本地 OCI Registry 配置与生命周期脚本。项目不使用 `src/`。
+`cmd` 只负责参数、调用和输出。`internal/scope` 负责 Core semantics；`internal/packages` 负责 OCI、lock、cache、物化和 Source resolver。`scripts/local-zot.ps1` 提供固定版本、仅绑定环回地址的仓库本地 OCI Registry 配置与生命周期管理。项目不使用 `src/`。
 
 ## 目录规则
 
