@@ -56,7 +56,8 @@ func (r *relationDocument) UnmarshalYAML(node *yaml.Node) error {
 	return nil
 }
 
-func decodeScope(directory string) (*Scope, error) {
+func decodeScope(source Source) (*Scope, error) {
+	directory := source.LocalPath
 	entries, err := os.ReadDir(directory)
 	if err != nil {
 		return nil, fmt.Errorf("read scope directory %q: %w", directory, err)
@@ -120,7 +121,7 @@ func decodeScope(directory string) (*Scope, error) {
 	}
 
 	s := &Scope{
-		Key: ScopeKey(directory),
+		Key: source.Key,
 		Manifest: Manifest{
 			ID:      rawManifest.ID,
 			Imports: rawManifest.Imports,

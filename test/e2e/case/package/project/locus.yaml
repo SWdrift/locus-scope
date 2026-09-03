@@ -1,0 +1,5 @@
+id: root
+imports:
+  a: oci://{{REGISTRY}}/locus/package-a:latest
+exports:
+  - a:sub:b:database

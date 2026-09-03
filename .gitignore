@@ -1,4 +1,5 @@
 temp/
+.locus/
 .VSCodeCounter
 node_modules/
 .vscode/

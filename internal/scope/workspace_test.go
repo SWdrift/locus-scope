@@ -6,16 +6,19 @@ import (
 	"strings"
 	"testing"
 
-	"locus-scope/scope"
+	"locus-scope/internal/scope"
 )
 
 func TestLoadProtocolExamples(t *testing.T) {
-	workspace, err := scope.Load(repoPath("documents", "design", "protocol", "examples", "app"))
+	workspace, err := loadLocal(repoPath("documents", "design", "protocol", "examples", "app"))
 	if err != nil {
 		t.Fatalf("load protocol example: %v", err)
 	}
 	if len(workspace.Scopes) != 2 {
 		t.Fatalf("loaded scopes = %d, want 2", len(workspace.Scopes))
+	}
+	if !strings.HasPrefix(string(workspace.Root), "file://") {
+		t.Fatalf("root key = %q, want canonical file URI", workspace.Root)
 	}
 	if len(workspace.Relations) != 4 {
 		t.Fatalf("resolved relations = %d, want 4", len(workspace.Relations))
@@ -57,7 +60,7 @@ func TestLoadProtocolExamples(t *testing.T) {
 
 func TestGroupedRelationKeepsExternalRootReference(t *testing.T) {
 	rootDirectory := materializeCase(t, "group-fallback")
-	workspace, err := scope.Load(rootDirectory)
+	workspace, err := loadLocal(rootDirectory)
 	if err != nil {
 		t.Fatalf("load grouped fallback fixture: %v", err)
 	}
@@ -71,7 +74,7 @@ func TestGroupedRelationKeepsExternalRootReference(t *testing.T) {
 
 func TestMultilevelReexportKeepsOriginalOwnership(t *testing.T) {
 	rootDirectory := materializeCase(t, "reexport", "product")
-	workspace, err := scope.Load(rootDirectory)
+	workspace, err := loadLocal(rootDirectory)
 	if err != nil {
 		t.Fatalf("load reexport fixture: %v", err)
 	}
@@ -93,7 +96,7 @@ func TestMultilevelReexportKeepsOriginalOwnership(t *testing.T) {
 
 func TestCyclicImportsLoadAndResolve(t *testing.T) {
 	rootDirectory := materializeCase(t, "cycle", "a")
-	workspace, err := scope.Load(rootDirectory)
+	workspace, err := loadLocal(rootDirectory)
 	if err != nil {
 		t.Fatalf("load cyclic fixture: %v", err)
 	}
@@ -113,7 +116,7 @@ func TestCyclicImportsLoadAndResolve(t *testing.T) {
 
 func TestDistinctSourcesMayShareManifestID(t *testing.T) {
 	rootDirectory := materializeCase(t, "same-manifest-id", "root")
-	workspace, err := scope.Load(rootDirectory)
+	workspace, err := loadLocal(rootDirectory)
 	if err != nil {
 		t.Fatalf("load same manifest ID fixture: %v", err)
 	}
@@ -131,6 +134,54 @@ func TestDistinctSourcesMayShareManifestID(t *testing.T) {
 	}
 	if got := workspace.Scopes[west.Scope].Entities[west.ID].Properties["side"]; got != "west" {
 		t.Fatalf("west entity property = %#v", got)
+	}
+}
+
+func TestResolverSourceKeyDefinesIdentityAcrossMaterializations(t *testing.T) {
+	base := repoPath("temp", "e2e-run", "source-key")
+	if err := os.RemoveAll(base); err != nil {
+		t.Fatalf("clear source-key fixture: %v", err)
+	}
+
+	const packageKey = scope.ScopeKey("oci://registry.example/team/package@sha256:aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa")
+	var resolved [2]scope.EntityKey
+	for index, name := range []string{"first", "second"} {
+		rootDirectory := filepath.Join(base, name, "root")
+		packageDirectory := filepath.Join(base, name, "materialized-package")
+		if err := os.MkdirAll(rootDirectory, 0o755); err != nil {
+			t.Fatalf("create root fixture: %v", err)
+		}
+		if err := os.MkdirAll(packageDirectory, 0o755); err != nil {
+			t.Fatalf("create package fixture: %v", err)
+		}
+		if err := os.WriteFile(filepath.Join(rootDirectory, "locus.yaml"), []byte("id: root\nimports:\n  pkg: package\nexports:\n  - pkg:item\n"), 0o644); err != nil {
+			t.Fatalf("write root manifest: %v", err)
+		}
+		if err := os.WriteFile(filepath.Join(packageDirectory, "locus.yaml"), []byte("id: package\nimports:\n  root: root\nexports:\n  - item\n"), 0o644); err != nil {
+			t.Fatalf("write package manifest: %v", err)
+		}
+		if err := os.WriteFile(filepath.Join(packageDirectory, "entities.yaml"), []byte("entities:\n  - id: item\n"), 0o644); err != nil {
+			t.Fatalf("write package entities: %v", err)
+		}
+
+		rootSource, err := scope.NewLocalSource(rootDirectory)
+		if err != nil {
+			t.Fatalf("create root source: %v", err)
+		}
+		packageSource := scope.Source{Key: packageKey, LocalPath: packageDirectory}
+		resolver := testResolver{
+			rootSource.Key: {"package": packageSource},
+			packageKey:     {"root": rootSource},
+		}
+		workspace, err := scope.Load(rootSource, resolver)
+		if err != nil {
+			t.Fatalf("load %s materialization: %v", name, err)
+		}
+		resolved[index] = mustResolve(t, workspace, workspace.Root, "pkg:item")
+	}
+
+	if resolved[0] != resolved[1] || resolved[0] != (scope.EntityKey{Scope: packageKey, ID: "item"}) {
+		t.Fatalf("materialized entity identities = %#v and %#v", resolved[0], resolved[1])
 	}
 }
 
@@ -153,7 +204,7 @@ func TestValidationDiagnostics(t *testing.T) {
 	for _, test := range tests {
 		t.Run(strings.ReplaceAll(test.name, "/", "-"), func(t *testing.T) {
 			rootDirectory := materializeCase(t, test.name)
-			_, err := scope.Load(rootDirectory)
+			_, err := loadLocal(rootDirectory)
 			if err == nil {
 				t.Fatal("Load succeeded, want validation error")
 			}
@@ -177,13 +228,27 @@ func TestFindScopeWalksToNearestAncestor(t *testing.T) {
 	if err != nil {
 		t.Fatalf("find scope: %v", err)
 	}
-	workspace, err := scope.Load(found)
+	workspace, err := loadLocal(found)
 	if err != nil {
 		t.Fatalf("load found scope: %v", err)
 	}
 	if workspace.Scopes[workspace.Root].Manifest.ID != "a" {
 		t.Fatalf("found root scope ID = %q", workspace.Scopes[workspace.Root].Manifest.ID)
 	}
+}
+
+func loadLocal(path string) (*scope.Workspace, error) {
+	source, err := scope.NewLocalSource(path)
+	if err != nil {
+		return nil, err
+	}
+	return scope.Load(source, scope.LocalResolver{})
+}
+
+type testResolver map[scope.ScopeKey]map[string]scope.Source
+
+func (r testResolver) Resolve(from scope.Source, reference string) (scope.Source, error) {
+	return r[from.Key][reference], nil
 }
 
 func mustResolve(t *testing.T, workspace *scope.Workspace, from scope.ScopeKey, ref string) scope.EntityKey {
@@ -221,5 +286,5 @@ func materializeCase(t *testing.T, name string, rootParts ...string) string {
 }
 
 func repoPath(parts ...string) string {
-	return filepath.Join(append([]string{".."}, parts...)...)
+	return filepath.Join(append([]string{"..", ".."}, parts...)...)
 }

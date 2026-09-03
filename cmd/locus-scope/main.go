@@ -9,7 +9,8 @@ import (
 	"sort"
 	"strings"
 
-	"locus-scope/scope"
+	"locus-scope/internal/packages"
+	"locus-scope/internal/scope"
 )
 
 type options struct {
@@ -76,7 +77,7 @@ func run(arguments []string, stdout, stderr io.Writer) int {
 		writeFailure(stderr, opts.jsonOutput, err)
 		return 1
 	}
-	workspace, err := scope.Load(root)
+	workspace, err := packages.LoadWorkspace(root)
 	if err != nil {
 		writeFailure(stderr, opts.jsonOutput, err)
 		return 1

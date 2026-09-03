@@ -22,7 +22,7 @@ type Manifest struct {
 	Exports []string          `json:"exports"`
 }
 
-// Scope is one loaded local scope. Key is its canonical source directory.
+// Scope is one loaded source. Key is its stable source identity, independent of LocalPath.
 type Scope struct {
 	Key      ScopeKey            `json:"key"`
 	Manifest Manifest            `json:"manifest"`
