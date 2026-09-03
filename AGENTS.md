@@ -13,6 +13,7 @@
 - 在仓库根目录运行命令。
 - 临时文件和构建产物只能写入 `temp/`。
 - internal\web\ui 可使用 `pnpm --dir internal\web\ui run format` 格式化。
+- 使用 `pnpm`。
 
 ## 品味
 
