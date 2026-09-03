@@ -10,25 +10,60 @@
 
 ## 分层
 
-测试层级由行为边界、运行成本和失败定位决定，不按模块维护封闭的用例清单。新增行为选择能完整观察其契约的最低层级；下列范围是指导，不限制未来测试。
+测试分为以下三层：
+
+- **Core**（`internal/scope/*_test.go`）：验证协议、Workspace 和诊断。
+- **Package**（`internal/packages/*_test.go`）：验证 lock、artifact、cache、物化和 resolution；覆盖跨包或持久化边界。
+- **E2E**（`test/e2e/*_test.go`）：通过真实 CLI、ORAS 和环回 OCI API 验证跨进程或网络边界。
+
+选择能完整观察契约的最低层级。Core 测试公开行为而非 helper；Package 测试可注入工作区路径和测试 Registry，但不得用 mock 结果代替状态转换；E2E 场景保持最少。
+
+## 注册测试边界
+
+以下登记当前已有的回归用例；增加或改变可观察契约时同步更新。
 
 ### Core
 
-`internal/scope/*_test.go` 适合无需网络和持久化基础设施即可观察的协议、Workspace 与诊断行为。优先从公开行为验证多个内部步骤，不逐个测试 decode 或排序 helper。
+| 情况 | 用例 | Fixture |
+| --- | --- | --- |
+| 协议示例的 Scope、Entity、Relation 和跨 Scope 解析 | `TestLoadProtocolExamples` | `documents/design/protocol/examples/app` |
+| Group 内 Relation 引用外部根 Entity | `TestGroupedRelationKeepsExternalRootReference` | `group-fallback` |
+| 多级再次 Export 保持原始 ownership 和私有边界 | `TestMultilevelReexportKeepsOriginalOwnership` | `reexport` |
+| 循环 Import 的加载、解析和 Relation | `TestCyclicImportsLoadAndResolve` | `cycle` |
+| 相同 Manifest ID 的不同来源不合并 | `TestDistinctSourcesMayShareManifestID` | `same-manifest-id` |
+| 不同物化目录使用相同非 file `ScopeKey` 时 identity 稳定 | `TestResolverSourceKeyDefinesIdentityAcrossMaterializations` | 测试内生成 |
+| Manifest、Entity、Import、Projection、Relation 和重复 ID 的错误上下文 | `TestValidationDiagnostics` | `duplicate-expanded`、`missing-relation`、`validation/*` |
+| 从嵌套目录发现最近的 root Scope | `TestFindScopeWalksToNearestAncestor` | `cycle` |
 
 ### Package
 
-`internal/packages/*_test.go` 适合 lock、artifact、cache、物化和 Source resolution 等包管理行为。可以在边界注入工作区路径和测试 Registry，但不得用 mock 结果代替被测状态转换。
+| 情况 | 用例 |
+| --- | --- |
+| 本地 Workspace 安装、空 lock 和离线加载 | `TestInstallAndOfflineLoadLocalWorkspace` |
+| Frozen 模式拒绝 stale lock 且不改写文件 | `TestFrozenInstallRejectsStaleLockWithoutWriting` |
+| 离线加载缺少 Package 时提示安装 | `TestOfflineLoadRequiresInstallForMissingPackage` |
+| Package 相对 Import 不能逃逸物化根目录 | `TestPackageRelativeImportCannotEscapeMaterialization` |
+| 合法 OCI artifact 的验证、物化和复用 | `TestValidateAndMaterializePackage` |
+| 拒绝父目录逃逸、反斜杠、重复路径和 symlink | `TestArchiveExtractionRejectsUnsafeEntries` |
+| 错误 artifact 或无 root Scope 的内容不得发布目标目录 | `TestInvalidArtifactAndMaterializationAreNotPublished` |
+| Registry/repository cache 路径编码 | `TestCachePathEncodingPreservesRepositorySegments` |
+| Tag、digest、`:latest`、scheme、fragment 和组合引用解析 | `TestParsePackageReference` |
+| Lock 排序、严格字段、digest 和 repository 约束 | `TestLockEncodingSortsKeysAndReadIsStrict` |
 
-### E2E
+### CLI 与 E2E
 
-`test/e2e/` 验证跨进程、网络协议或持久化边界的关键闭环。场景数量和文件名不固定，但应保持最少，并使用真实 CLI、ORAS client 和 loopback OCI Distribution API。
+| 情况 | 用例 | Fixture |
+| --- | --- | --- |
+| `locus-pkg` 参数位置、JSON 成功输出和 lock 生成 | `TestRunInstallsLocalScopeWithFlagsAfterCommand` | 测试内生成 |
+| `locus-pkg` JSON 用法错误和退出码 | `TestRunReportsJSONUsageFailure` | 无 |
+| 进程内 Distribution：首次安装、lock 复用、Frozen、离线查询和跨 Package ownership | `TestPackageCLIClosure` | `package` |
+| 外部 Zot 上执行相同 Package 闭包 | `TestZotPackageCLIClosure` | `package`；设置 `LOCUS_TEST_REGISTRY` 后运行 |
 
 ## 数据与隔离
 
 - 可复用 Scope source tree 存放在 `test/e2e/case/`。
 - 每个场景确定性写入 `temp/e2e-run/<case>/` 并保留现场。
-- registry、cache、project、binary 和结果均位于该场景目录。
+- registry、cache、project、binary 和结果均位于该场景目录；外部 Zot 用例的 Registry 状态按部署约定保留在 `temp/zot/`。
 - 测试不读取用户凭据、配置、cache 或外部网络状态。
 - 归档错误场景在测试中构造，不保存大量二进制 fixture。
 
@@ -40,7 +75,4 @@
 
 ```text
 go test ./...
-pnpm --dir .tools/markdown run check:links
 ```
-
-当前 Package 闭环基线包括首次 tag 解析、lock 复用、`--frozen` 和安装后跨 Package Entity 解析；后续新增行为按相同原则补充测试。
