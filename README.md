@@ -2,6 +2,8 @@
 
 可组合 Entity 图的 Scope 协议及轻量工具，定义了身份、关系、作用域和组合方式。
 
+当前版本：`v0.1.0`。
+
 Locus Scope 将具有身份的事物及其关系组织成有边界的图。Entity 可以表示环境、资源、能力、代码、知识、逻辑结构或其他领域对象，属性和关系不受预设模型限制。
 
 Scope 提供 Entity 的命名空间、组合与引用边界，并可通过 Import / Export 组合其他 Scope。Scope 也可以作为 OCI Artifact 发布到 [OCI Registry](https://github.com/opencontainers/distribution-spec/blob/main/spec.md)，从而在不同项目和环境之间分发与复用。
@@ -56,19 +58,22 @@ pwsh -File scripts/clean-local.ps1 -User -WithZot
 
 </details>
 
-## example：创建、组合与发布 Scope
+## example：创建、安装与发布 Scope
 
-下面通过 `app` 与 `infra` 组成的 Workspace，演示 Scope 的创建、组合、安装和发布。
+一个项目只有一个 root `locus.yaml` 和一份 `locus.lock`；普通子目录只组织 Definition documents。
 
 ### 1. 创建 Scope
 
-创建 `locus.yaml` 定义 Scope：
+创建 `app/locus.yaml`：
 
 ```yaml
 id: app
+
+exports:
+    - backend
 ```
 
-创建 `app.yaml`，定义 Entity 和 Relation：
+在普通子目录中创建 `app/model/services.locus.yaml`：
 
 ```yaml
 entities:
@@ -84,156 +89,103 @@ relations:
     - [backend, uses, database]
 ```
 
-> Entity（backend、database）属性结构任意，Relation（这里是 uses）名称任意，Relation 是无身份、无属性的命名有向边。
-
-目录：
+目录不会产生隐式 Group；未声明 `group` 的 `database` 和 `backend` 都位于 Scope 根命名空间。Definition document 必须使用 `.locus.yaml`、`.locus.yml` 或 `.locus.json` 后缀，普通 YAML/JSON 不会被读取：
 
 ```text
 app/
 ├── locus.yaml
-└── app.yaml
+├── docker-compose.yaml
+└── model/
+    └── services.locus.yaml
 ```
 
-验证：
+Loader 递归普通子目录，但遇到包含 Scope manifest 的后代目录时停止；该 Scope 只有经 `imports` 才会加入 Workspace。可选的 `app/.locusignore` 用来排除无需遍历的路径：
+
+```text
+# Scope-relative paths
+generated/
+*.draft.locus.yaml
+```
+
+`.locusignore` 使用 `/` 分隔的 Scope 相对模式，支持单路径段内的 `*`、`?` 和字符类；不支持 `!` 与 `**`。匹配目录会跳过整棵子树；`.git` 和 `.locus` 始终跳过。
+
+验证和查询：
 
 ```text
 locus-scope --scope ./app validate
-```
-
-查询：
-
-```text
 locus-scope --scope ./app entity list
 locus-scope --scope ./app entity show database
 locus-scope --scope ./app relation list
 locus-scope --scope ./app resolve database
 ```
 
-在 Scope 目录内部执行时可以省略 `--scope`，`locus-scope` 会从当前目录向父目录查找最近的 `locus.yaml`：
+在 Scope 内部执行时可以省略 `--scope`，CLI 会从当前目录沿祖先链查找最近的 Scope manifest；找不到就直接失败，不做用户级 Scope 回退。
 
-```text
-locus-scope validate
-```
+### 2. 安装 Package
 
-### 2. 组合 Scope
-
-Scope 可以 Import、Export 和重新组合其他 Scope，而 Entity 的 ownership 始终属于它原始的 Source。
-
-创建 `infra/locus.yaml`，并导出可供其他 Scope 引用的 Entity：
-
-```yaml
-id: infra
-
-exports:
-    - database
-```
-
-在 `infra/infra.yaml` 中定义 Entity：
-
-```yaml
-entities:
-    - id: database
-      type: postgres
-      host: db.internal
-      port: 5432
-      database: app
-      tls: required
-      metadata:
-          environment: production
-          owner: platform
-```
-
-在 `app/locus.yaml` 中通过 alias 导入 `infra`：
-
-```yaml
-id: app
-
-imports:
-    infra: ../infra
-```
-
-在 `app/app.yaml` 中，可以用 `infra:database` 把本地 `backend` 连接到 `infra` 导出的 `database`：
-
-```yaml
-entities:
-    - id: backend
-      type: service
-      runtime: go
-      endpoint: http://backend.internal:8080
-
-relations:
-    - [backend, uses, infra:database]
-```
-
-目录：
-
-```text
-workspace/
-├── app/
-│   ├── locus.yaml
-│   └── app.yaml
-└── infra/
-    ├── locus.yaml
-    └── infra.yaml
-```
-
-可以直接查询这个引用：
-
-```text
-locus-scope --scope ./app entity show infra:database
-```
-
-### 3. 安装 Package
-
-Scope 可以通过 OCI Registry 分发。
-
-项目引用远程 Scope：
+项目通过 OCI reference 引用远程 Scope：
 
 ```yaml
 id: app
 
 imports:
     infra: oci://registry.example.com/locus/infra:v1
+
+exports:
+    - backend
 ```
 
-安装依赖：
+在项目根执行一次安装：
 
 ```text
-locus-pkg install
+locus-pkg --scope ./app install
 ```
 
-安装后生成：
+安装会解析完整 reachable graph，统一生成一份 lock 和项目物化状态：
 
 ```text
 app/
 ├── locus.yaml
 ├── locus.lock
+├── model/
+│   └── services.locus.yaml
 └── .locus/
     └── packages/
+        └── sha256-abc.../
+            ├── locus.yaml
+            └── ...
 ```
 
-`locus.lock` 将可变 tag 固定到不可变 OCI digest。之后 `locus-scope` 只使用 `locus.lock` 和 `.locus/packages` 装配 Workspace，不访问 Registry：
+`locus.lock` 将可变 tag 固定到不可变 OCI digest。之后 `locus-scope` 只使用 `locus.lock` 和 `.locus/packages` 离线装配 Workspace，不访问 Registry：
 
 ```text
-locus-scope validate
-locus-scope resolve infra:database
+locus-scope --scope ./app validate
+locus-scope --scope ./app resolve infra:database
 ```
 
 严格复用现有 lock：
 
 ```text
-locus-pkg install --frozen
+locus-pkg --scope ./app install --frozen
 ```
 
-### 4. Publish
+### 3. Publish
 
-发布指定 Scope：
+待发布 Package 同样以单个 root `locus.yaml` 为入口：
+
+```text
+infra/
+├── locus.yaml
+└── resources.locus.yaml
+```
+
+发布：
 
 ```text
 locus-pkg --scope ./infra publish oci://registry.example.com/locus/infra:v1
 ```
 
-省略 `--scope` 时，从当前目录向父目录查找最近的 Scope manifest。Publish 检查并把 root Scope source tree 编码为 OCI 1.1 artifact，推送成功后输出目标 tag 和不可变 manifest digest。
+省略 `--scope` 时，从当前目录沿祖先链查找最近的 Scope manifest。Publish 检查并把 root Scope source tree 编码为 OCI 1.1 artifact，推送成功后输出目标 tag 和不可变 manifest digest。
 
 相同内容重复发布得到相同 digest；内容变化后再次发布同一 tag，会让该 tag 指向新 digest。已有项目的 `locus.lock` 仍固定原 digest，不会自动漂移。
 

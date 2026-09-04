@@ -88,10 +88,10 @@ temp/build/<goos>-<goarch>/
 生成带两个 CLI 的压缩包、独立 Zot 和 Windows 安装包：
 
 ```powershell
-pwsh -File scripts/package-release.ps1 -Version 0.1.0
+pwsh -File scripts/package-release.ps1
 ```
 
-命令固定构建 `windows/amd64`，下载并校验仓库锁定版本的 Zot，然后调用 Inno Setup 6 的 `ISCC.exe`。`ISCC.exe` 可位于 `PATH` 或 Inno Setup 标准安装目录，也可通过 `-IsccPath <path>` 或 `ISCC_PATH` 指定。离线构建可通过 `-ZotBinary <path>` 使用 SHA-256 匹配的现有 Zot 二进制。
+命令从仓库根目录 `VERSION` 读取发布版本；显式 `-Version` 仅用于校验且必须与该文件一致。命令固定构建 `windows/amd64`，下载并校验仓库锁定版本的 Zot，然后调用 Inno Setup 6 的 `ISCC.exe`。`ISCC.exe` 可位于 `PATH` 或 Inno Setup 标准安装目录，也可通过 `-IsccPath <path>` 或 `ISCC_PATH` 指定。离线构建可通过 `-ZotBinary <path>` 使用 SHA-256 匹配的现有 Zot 二进制。
 
 最终制品位于：
 

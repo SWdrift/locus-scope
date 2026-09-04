@@ -1,7 +1,5 @@
 [CmdletBinding()]
 param(
-    [Parameter(Mandatory)]
-    [ValidatePattern('^[0-9]+\.[0-9]+\.[0-9]+(?:[-+][0-9A-Za-z.-]+)?$')]
     [string]$Version,
     [string]$ZotBinary,
     [string]$IsccPath
@@ -11,6 +9,17 @@ Set-StrictMode -Version Latest
 $ErrorActionPreference = 'Stop'
 
 $RepositoryRoot = (Resolve-Path (Join-Path $PSScriptRoot '..')).Path
+$VersionFile = Join-Path $RepositoryRoot 'VERSION'
+$ProjectVersion = (Get-Content -LiteralPath $VersionFile -Raw).Trim()
+if ([string]::IsNullOrWhiteSpace($Version)) {
+    $Version = $ProjectVersion
+}
+elseif ($Version -ne $ProjectVersion) {
+    throw "release version $Version does not match VERSION ($ProjectVersion)"
+}
+if ($Version -notmatch '^[0-9]+\.[0-9]+\.[0-9]+(?:[-+][0-9A-Za-z.-]+)?$') {
+    throw "VERSION contains an invalid semantic version: $Version"
+}
 $Platform = 'windows-amd64'
 $StageRoot = Join-Path $RepositoryRoot "temp\release-stage\$Platform"
 $ReleaseRoot = Join-Path $RepositoryRoot "temp\release\$Platform"
