@@ -8,6 +8,7 @@
 - [Scope 设计](Scope设计.md)：以本地 `app`/`infra` 装配为主例，定义 Source、Workspace、文件发现、解析、诊断、CLI 与非目标。
 - [Package设计](Package设计.md)：定义 OCI Package、Source identity、发布与安装、lock、cache、项目物化和 source-aware loader。
 - [测试设计](测试设计.md)：登记测试分层、已覆盖场景、fixture、隔离、OCI E2E 和完成标准。
+- [Windows安装包设计](Windows安装包设计.md)：定义 Windows 安装包、发布暂存、最终制品和用户安装目录，以及 Zot 生命周期入口与卸载数据边界。
 
 ## 阅读顺序
 
@@ -15,6 +16,7 @@
 - 开发 Scope 装配：依次阅读[核心协议](protocol/PROTOCOL.md)和[Scope 设计](Scope设计.md)。
 - 开发 Package 发布或安装能力：在 Scope 设计之后阅读[Package设计](Package设计.md)。
 - 设计或实现测试：在 Scope 设计和Package设计之后阅读[测试设计](测试设计.md)。
+- 构建或维护 Windows 安装包：阅读[Windows安装包设计](Windows安装包设计.md)。
 
 ## 管理规则
 
