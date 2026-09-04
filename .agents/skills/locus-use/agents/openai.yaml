@@ -1,0 +1,4 @@
+interface:
+  display_name: "Locus Scope · 从安装到使用"
+  short_description: "指导安装、入门、Package 消费并解释核心理念。"
+  default_prompt: "使用 $locus-use 指导我从安装 Locus Scope 到完成基本使用。"
