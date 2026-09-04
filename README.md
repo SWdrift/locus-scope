@@ -6,6 +6,19 @@
 
 ## Quick Start
 
+### Window
+
+- Windows 用户可直接运行 `locus-setup-windows-amd64.exe`，按需选择 `locus-scope`、`locus-pkg`、Zot 和当前用户 `PATH`。
+- 安装根目录固定为 `%USERPROFILE%\.locus`；安装包包含全部组件。
+- 安装 Zot 后可通过开始菜单启动、停止和查看状态，也可选择登录 Windows 后自动启动。卸载默认保留 Zot 仓库数据和 `%USERPROFILE%\.locus\oci` cache。
+
+### Linux
+
+TODO
+
+<details>
+<summary>从源码构建与本地部署</summary>
+
 要求：
 
 - Go 1.26 或更新版本（源码构建；最低版本以 `go.mod` 为准）
@@ -39,13 +52,13 @@ pwsh -File scripts/clean-local.ps1 -User -WithZot
 
 脚本不会修改 `PATH`，完整选项和数据删除边界见 [`scripts/README.md`](scripts/README.md)。
 
-### Windows 安装包
+</details>
 
-Windows 发布用户可直接运行 `locus-setup-windows-amd64.exe`，按需选择 `locus-scope`、`locus-pkg`、Zot 和当前用户 `PATH`。安装根目录固定为 `%USERPROFILE%\.locus`；安装包包含全部组件，不要求 Go、pnpm、PowerShell 7 或安装时联网。
+## example：创建、组合与发布 Scope
 
-安装 Zot 后可通过开始菜单启动、停止和查看状态，也可选择登录 Windows 后自动启动。卸载默认保留 Zot 仓库数据和 `~/.locus/oci` cache。
+下面通过 `app` 与 `infra` 组成的 Workspace，演示 Scope 的创建、组合、安装和发布。
 
-## 创建一个 Scope
+### 1. 创建 Scope
 
 `locus.yaml`：
 
@@ -107,7 +120,7 @@ locus-scope validate
 
 `locus-scope` 会从当前目录向父目录查找最近的 `locus.yaml`。
 
-## 组合 Scope
+### 2. 组合 Scope
 
 一个 Scope 可以 Import 另一个 Scope：
 
@@ -126,7 +139,7 @@ infra:database
 
 Scope 可以继续 Import、Export 和重新组合其他 Scope，而 Entity 的 ownership 始终属于它原始的 Source。
 
-## Package
+### 3. 安装 Package
 
 Scope 可以通过 OCI Registry 分发。
 
@@ -170,7 +183,7 @@ locus-scope resolve infra:database
 locus-pkg install --frozen
 ```
 
-## Publish
+### 4. Publish
 
 发布指定 Scope：
 
@@ -184,9 +197,9 @@ locus-pkg --scope ./infra publish oci://registry.example.com/locus/infra:v1
 
 Registry、认证和传输由 OCI / ORAS 生态处理；Locus 没有实现 Registry Server 或独立的账号系统。
 
-### 使用本地 Zot
+#### 使用本地 Zot
 
-本地 Zot 安装并启动后监听 `127.0.0.1:18080`。使用仓库脚本部署时可执行：
+本地 Zot 安装并启动后监听 `127.0.0.1:18080`。若使用仓库脚本部署，可执行：
 
 ```powershell
 pwsh -File scripts/deploy-local.ps1 -User -WithZot
@@ -222,37 +235,37 @@ locus-scope --scope . validate
 
 ### `locus-scope`
 
-| 命令 | 作用 |
-| --- | --- |
-| `locus-scope validate` | 验证完整 Workspace，并输出 root identity 及 Scope、Entity、Relation 数量。 |
-| `locus-scope scope show` | 显示 root Scope 的 manifest ID、source identity、Imports 和 Exports。 |
-| `locus-scope scope list` | 列出所有可达 Scope，并标记 root Scope。 |
-| `locus-scope entity list` | 列出所有可达 Entity 及其原始 owner。 |
-| `locus-scope entity show <ref>` | 从 root Scope 解析 Entity reference，并显示 owner、ID 和属性。 |
-| `locus-scope relation list` | 列出验证后的 Relation 及两端 Entity 的原始 owner。 |
-| `locus-scope resolve <ref>` | 只解析 Entity reference，返回最终 owner 和 ID，不返回属性。 |
+| 命令                            | 作用                                                                       |
+| ------------------------------- | -------------------------------------------------------------------------- |
+| `locus-scope validate`          | 验证完整 Workspace，并输出 root identity 及 Scope、Entity、Relation 数量。 |
+| `locus-scope scope show`        | 显示 root Scope 的 manifest ID、source identity、Imports 和 Exports。      |
+| `locus-scope scope list`        | 列出所有可达 Scope，并标记 root Scope。                                    |
+| `locus-scope entity list`       | 列出所有可达 Entity 及其原始 owner。                                       |
+| `locus-scope entity show <ref>` | 从 root Scope 解析 Entity reference，并显示 owner、ID 和属性。             |
+| `locus-scope relation list`     | 列出验证后的 Relation 及两端 Entity 的原始 owner。                         |
+| `locus-scope resolve <ref>`     | 只解析 Entity reference，返回最终 owner 和 ID，不返回属性。                |
 
 通用参数：
 
-| 参数 | 作用 |
-| --- | --- |
+| 参数            | 作用                                                                 |
+| --------------- | -------------------------------------------------------------------- |
 | `--scope <dir>` | 指定 root Scope；省略时从当前目录向父目录查找最近的 Scope manifest。 |
-| `--json` | 输出字段和顺序稳定的 JSON，供 Agent 和脚本消费。 |
+| `--json`        | 输出字段和顺序稳定的 JSON，供 Agent 和脚本消费。                     |
 
 ### `locus-pkg`
 
-| 命令 | 作用 |
-| --- | --- |
+| 命令                          | 作用                                                                                                    |
+| ----------------------------- | ------------------------------------------------------------------------------------------------------- |
 | `locus-pkg publish <oci-tag>` | 检查所选 Scope source tree，构建并发布 OCI artifact，成功后输出规范化 target 和不可变 manifest digest。 |
-| `locus-pkg install` | 解析完整 Package 依赖闭包，获取并物化 artifact，验证 Workspace，成功后提交 `locus.lock`。 |
+| `locus-pkg install`           | 解析完整 Package 依赖闭包，获取并物化 artifact，验证 Workspace，成功后提交 `locus.lock`。               |
 
 参数：
 
-| 参数 | 适用命令 | 作用 |
-| --- | --- | --- |
+| 参数            | 适用命令             | 作用                                                                 |
+| --------------- | -------------------- | -------------------------------------------------------------------- |
 | `--scope <dir>` | `publish`、`install` | 指定 root Scope；省略时从当前目录向父目录查找最近的 Scope manifest。 |
-| `--json` | `publish`、`install` | 输出稳定 JSON；错误也以 `{"error":"..."}` 输出。 |
-| `--frozen` | `install` | 要求现有 lock 与完整依赖一致，且不修改 lock。 |
+| `--json`        | `publish`、`install` | 输出稳定 JSON；错误也以 `{"error":"..."}` 输出。                     |
+| `--frozen`      | `install`            | 要求现有 lock 与完整依赖一致，且不修改 lock。                        |
 
 option 可以位于子命令前后。`publish` 的 `<oci-tag>` 必须是无 fragment 的 OCI tag reference，不能使用 digest reference。
 
