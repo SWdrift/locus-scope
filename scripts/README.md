@@ -69,7 +69,7 @@ pwsh -File scripts/zot.ps1 <action> [-User]
 
 | 命令 | 行为 |
 | --- | --- |
-| `pwsh -File scripts/build.ps1` | 按 `go env GOOS/GOARCH` 构建，使用 `-trimpath`。 |
+| `pwsh -File scripts/build.ps1` | 按 `go env GOOS/GOARCH` 构建，使用 `-trimpath`，并从根目录 `VERSION` 向两个 CLI 注入版本。 |
 | `pwsh -File scripts/test.ps1 all` | 使用 `-count=1` 执行 `go test ./...`。 |
 | `pwsh -File scripts/test.ps1 e2e` | 使用 `-count=1` 执行 `go test ./test/e2e`。 |
 
@@ -88,10 +88,10 @@ temp/build/<goos>-<goarch>/
 生成带两个 CLI 的压缩包、独立 Zot 和 Windows 安装包：
 
 ```powershell
-pwsh -File scripts/package-release.ps1 -Version 0.1.0
+pwsh -File scripts/package-release.ps1
 ```
 
-命令固定构建 `windows/amd64`，下载并校验仓库锁定版本的 Zot，然后调用 Inno Setup 6 的 `ISCC.exe`。`ISCC.exe` 可位于 `PATH` 或 Inno Setup 标准安装目录，也可通过 `-IsccPath <path>` 或 `ISCC_PATH` 指定。离线构建可通过 `-ZotBinary <path>` 使用 SHA-256 匹配的现有 Zot 二进制。
+命令从仓库根目录 `VERSION` 读取发布版本；显式 `-Version` 仅用于校验且必须与该文件一致。命令固定构建 `windows/amd64`，下载并校验仓库锁定版本的 Zot，然后调用 Inno Setup 6 的 `ISCC.exe`。`ISCC.exe` 可位于 `PATH` 或 Inno Setup 标准安装目录，也可通过 `-IsccPath <path>` 或 `ISCC_PATH` 指定。离线构建可通过 `-ZotBinary <path>` 使用 SHA-256 匹配的现有 Zot 二进制。
 
 最终制品位于：
 
@@ -112,7 +112,7 @@ pwsh -File scripts/install-user.ps1
 pwsh -File scripts/uninstall-user.ps1
 ```
 
-`install-user.ps1` 默认静默安装两个 CLI 和 Zot、添加当前用户 `PATH`，但不启用 Zot 登录自启动。可用 `-Components scope,pkg` 选择组件、`-NoPath` 禁止修改 `PATH`、`-ZotAutoStart` 启用 Zot 登录自启动，或用 `-Interactive` 显示安装向导；`-SetupPath` 可指定其他安装包。
+`install-user.ps1` 默认静默安装两个 CLI 和 Zot、添加当前用户 `PATH`，但不启用 Zot 登录自启动。若当前用户已安装 Locus，脚本会快速失败并提示先运行 `scripts/uninstall-user.ps1`，避免安装器被正在运行的 Zot 或已有文件阻塞。可用 `-Components scope,pkg` 选择组件、`-NoPath` 禁止修改 `PATH`、`-ZotAutoStart` 启用 Zot 登录自启动，或用 `-Interactive` 显示安装向导；`-SetupPath` 可指定其他安装包。
 
 `uninstall-user.ps1` 默认静默卸载并保留 Zot registry 和 OCI cache；`-Interactive` 显示卸载确认及“删除 Zot 仓库数据”选项，`-UninstallerPath` 可指定其他卸载器。两个脚本会修改真实当前用户安装状态，仅用于明确的本机安装验证，日志分别写入 `temp/install-user.log` 和 `temp/uninstall-user.log`。
 

@@ -24,7 +24,7 @@ func TestBuildPackageLayerIsDeterministicAndExcludesGeneratedState(t *testing.T)
 	}
 	files := map[string]string{
 		"locus.yaml":                 "id: package\n",
-		"entities.yaml":              "entities:\n  - id: service\n",
+		"entities.locus.yaml":        "entities:\n  - id: service\n",
 		filepath.Join("sub", "data"): "payload\n",
 		"locus.lock":                 "version: 1\npackages: {}\n",
 		filepath.Join(".locus", "packages", "ignored"): "generated\n",
@@ -49,7 +49,7 @@ func TestBuildPackageLayerIsDeterministicAndExcludesGeneratedState(t *testing.T)
 	}
 
 	changedTime := time.Now().Add(24 * time.Hour)
-	if err := os.Chtimes(filepath.Join(root, "entities.yaml"), changedTime, changedTime); err != nil {
+	if err := os.Chtimes(filepath.Join(root, "entities.locus.yaml"), changedTime, changedTime); err != nil {
 		t.Fatalf("change source timestamp: %v", err)
 	}
 	secondFile, second, err := buildPackageLayer(root)
@@ -67,7 +67,7 @@ func TestBuildPackageLayerIsDeterministicAndExcludesGeneratedState(t *testing.T)
 	if first.Digest != second.Digest || first.Size != second.Size {
 		t.Fatalf("package layer changed with source timestamps: first=%s/%d second=%s/%d", first.Digest, first.Size, second.Digest, second.Size)
 	}
-	wantNames := []string{"entities.yaml", "locus.yaml", "sub/", "sub/data"}
+	wantNames := []string{"entities.locus.yaml", "locus.yaml", "sub/", "sub/data"}
 	if !reflect.DeepEqual(firstNames, wantNames) {
 		t.Fatalf("package entries = %#v, want %#v", firstNames, wantNames)
 	}

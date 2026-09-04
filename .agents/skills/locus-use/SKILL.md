@@ -57,7 +57,7 @@ CLI 位于 `temp/local/bin/`。只有明确需要写入当前用户安装目录�
 id: app
 ```
 
-在同一目录添加 `entities.yaml`：
+在同一目录或普通子目录添加 `entities.locus.yaml`：
 
 ```yaml
 entities:

@@ -36,8 +36,10 @@ Scope 可以导入其他 Scope。每个 Import 在当前 Scope 中声明一个 P
 
 ```yaml
 imports:
-    infra: ../infra
+    infra: infra-source
 ```
+
+`infra-source` 只表示由实现解析的 Source 声明；Core 不规定它采用本地路径、Package reference 或其他定位形式。
 
 Import 只使目标 Scope 的公开内容在当前 Scope 中可见：
 
@@ -108,7 +110,7 @@ scope/
 id: app
 
 imports:
-    infra: ../infra
+    infra: infra-source
 
 exports:
     - api

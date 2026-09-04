@@ -6,8 +6,6 @@ import (
 	"io"
 	"os"
 	"path/filepath"
-	"slices"
-	"sort"
 	"strings"
 
 	"gopkg.in/yaml.v3"
@@ -62,25 +60,10 @@ func decodeScope(source Source) (*Scope, error) {
 	if err != nil {
 		return nil, fmt.Errorf("read scope directory %q: %w", directory, err)
 	}
-
-	var manifests []string
-	var definitions []string
-	for _, entry := range entries {
-		if entry.IsDir() {
-			continue
-		}
-		name := entry.Name()
-		if slices.Contains(manifestFileNames, name) {
-			manifests = append(manifests, name)
-			continue
-		}
-		switch filepath.Ext(name) {
-		case ".json", ".yaml", ".yml":
-			definitions = append(definitions, name)
-		}
+	manifests, definitions, err := discoverScopeDocuments(directory, entries)
+	if err != nil {
+		return nil, err
 	}
-	sort.Strings(manifests)
-	sort.Strings(definitions)
 
 	if len(manifests) == 0 {
 		return nil, fmt.Errorf("scope %q: manifest missing; expected exactly one of locus.yaml, locus.yml, or locus.json", directory)
@@ -138,7 +121,7 @@ func decodeScope(source Source) (*Scope, error) {
 	}
 
 	for _, name := range definitions {
-		path := filepath.Join(directory, name)
+		path := filepath.Join(directory, filepath.FromSlash(name))
 		if err := s.decodeDefinition(path); err != nil {
 			return nil, err
 		}
