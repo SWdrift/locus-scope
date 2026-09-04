@@ -2,7 +2,7 @@
 
 可组合 Entity 图协议及其轻量实现。
 
-可用于把分散的环境、资源、能力和关系组织成可查询的 Scope，并通过 OCI Registry 分发和复用 Scope。
+可用于把分散的环境、资源、能力和关系组织成可查询的 Scope，并通过 [OCI Registry](https://github.com/opencontainers/distribution-spec/blob/main/spec.md) 分发和复用 Scope。
 
 ## Quick Start
 
@@ -60,32 +60,26 @@ pwsh -File scripts/clean-local.ps1 -User -WithZot
 
 ### 1. 创建 Scope
 
-`locus.yaml`：
+创建 `locus.yaml` 定义 Scope：
 
 ```yaml
 id: app
 ```
 
-定义 Entity：
+创建 `app.yaml`，定义 Entity 和 Relation：
 
 ```yaml
 entities:
-    database:
-        type: postgres
-        host: db.internal
-        port: 5432
+    - id: database
+      type: postgres
+      host: db.internal
+      port: 5432
 
-    backend:
-        type: service
-```
+    - id: backend
+      type: service
 
-定义 Relation：
-
-```yaml
 relations:
-    - from: backend
-      name: uses
-      to: database
+    - [backend, uses, database]
 ```
 
 目录：
@@ -93,8 +87,7 @@ relations:
 ```text
 app/
 ├── locus.yaml
-├── entities.yaml
-└── relations.yaml
+└── app.yaml
 ```
 
 验证：
@@ -112,17 +105,41 @@ locus-scope --scope ./app relation list
 locus-scope --scope ./app resolve database
 ```
 
-在 Scope 目录内部执行时可以省略 `--scope`：
+在 Scope 目录内部执行时可以省略 `--scope`，`locus-scope` 会从当前目录向父目录查找最近的 `locus.yaml`：
 
 ```text
 locus-scope validate
 ```
 
-`locus-scope` 会从当前目录向父目录查找最近的 `locus.yaml`。
-
 ### 2. 组合 Scope
 
-一个 Scope 可以 Import 另一个 Scope：
+Scope 可以 Import、Export 和重新组合其他 Scope，而 Entity 的 ownership 始终属于它原始的 Source。
+
+创建 `infra/locus.yaml`，并导出可供其他 Scope 引用的 Entity：
+
+```yaml
+id: infra
+
+exports:
+    - database
+```
+
+在 `infra/infra.yaml` 中定义 Entity：
+
+```yaml
+entities:
+    - id: database
+      type: postgres
+      host: db.internal
+      port: 5432
+      database: app
+      tls: required
+      metadata:
+          environment: production
+          owner: platform
+```
+
+在 `app/locus.yaml` 中通过 alias 导入 `infra`：
 
 ```yaml
 id: app
@@ -131,13 +148,36 @@ imports:
     infra: ../infra
 ```
 
-通过 alias 引用其中导出的 Entity：
+在 `app/app.yaml` 中，可以用 `infra:database` 把本地 `backend` 连接到 `infra` 导出的 `database`：
 
-```text
-infra:database
+```yaml
+entities:
+    - id: backend
+      type: service
+      runtime: go
+      endpoint: http://backend.internal:8080
+
+relations:
+    - [backend, uses, infra:database]
 ```
 
-Scope 可以继续 Import、Export 和重新组合其他 Scope，而 Entity 的 ownership 始终属于它原始的 Source。
+目录：
+
+```text
+workspace/
+├── app/
+│   ├── locus.yaml
+│   └── app.yaml
+└── infra/
+    ├── locus.yaml
+    └── infra.yaml
+```
+
+可以直接查询这个引用：
+
+```text
+locus-scope --scope ./app entity show infra:database
+```
 
 ### 3. 安装 Package
 
@@ -168,9 +208,7 @@ app/
     └── packages/
 ```
 
-`locus.lock` 将可变 tag 固定到不可变 OCI digest。
-
-以后 `locus-scope` 只使用 `locus.lock` 和 `.locus/packages` 装配 Workspace，不访问 Registry：
+`locus.lock` 将可变 tag 固定到不可变 OCI digest。之后 `locus-scope` 只使用 `locus.lock` 和 `.locus/packages` 装配 Workspace，不访问 Registry：
 
 ```text
 locus-scope validate
@@ -199,12 +237,7 @@ Registry、认证和传输由 OCI / ORAS 生态处理；Locus 没有实现 Regis
 
 #### 使用本地 Zot
 
-本地 Zot 安装并启动后监听 `127.0.0.1:18080`。若使用仓库脚本部署，可执行：
-
-```powershell
-pwsh -File scripts/deploy-local.ps1 -User -WithZot
-pwsh -File scripts/zot.ps1 start -User
-```
+若安装时选择了 Zot ，可从开始菜单启动、停止和查看状态；若安装时选择了登录后自动启动，则无需手动启动。Zot 启动后监听 `127.0.0.1:18080`。
 
 进入待发布的 Scope，将它发布到本机 Registry：
 
