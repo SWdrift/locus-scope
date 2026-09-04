@@ -18,6 +18,7 @@
 | `scripts/clean-local.ps1` | 清理当前 target 的 CLI；按需同时卸载 Zot。 |
 | `scripts/zot.ps1` | 安装、校验和管理当前 target 的 Zot。 |
 | `scripts/test.ps1` | 使用仓库内 Zot 执行 Go 测试。 |
+| `scripts/package-release.ps1` | 构建 Windows AMD64 发布制品和 Inno Setup 安装包。 |
 
 ## Target
 
@@ -78,6 +79,28 @@ temp/build/<goos>-<goarch>/
 ```
 
 测试前需先运行 `pwsh -File scripts/zot.ps1 install`。测试脚本复用已运行的工作区 Zot，否则临时启动它；同时设置 `LOCUS_TEST_REGISTRY=http://127.0.0.1:18080`，结束时只停止由本次测试启动的实例。`temp/e2e-run/` 保留可复现现场。
+
+## Windows 发布制品
+
+生成带两个 CLI 的压缩包、独立 Zot 和 Windows 安装包：
+
+```powershell
+pwsh -File scripts/package-release.ps1 -Version 0.1.0
+```
+
+命令固定构建 `windows/amd64`，下载并校验仓库锁定版本的 Zot，然后调用 Inno Setup 6 的 `ISCC.exe`。`ISCC.exe` 可位于 `PATH` 或 Inno Setup 标准安装目录，也可通过 `-IsccPath <path>` 或 `ISCC_PATH` 指定。离线构建可通过 `-ZotBinary <path>` 使用 SHA-256 匹配的现有 Zot 二进制。
+
+最终制品位于：
+
+```text
+temp/release/windows-amd64/
+├── locus-windows-amd64.zip
+├── zot-windows-amd64.exe
+├── locus-setup-windows-amd64.exe
+└── SHA256SUMS
+```
+
+安装包包含两个可选 CLI、可选 Zot、Zot 用户级管理脚本和分发许可证，不在安装时访问网络。安装根目录固定为 `~/.locus/`；可选任务负责配置当前用户 `PATH` 和 Zot 登录自启动。
 
 ## 常用工作流
 

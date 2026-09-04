@@ -27,7 +27,8 @@ scripts/
 ├── package-release.ps1
 └── internal/
     ├── locus-paths.ps1
-    └── locus-zot-user.ps1
+    ├── locus-zot-user.ps1
+    └── zot-release.psd1
 ```
 
 职责如下：
@@ -36,11 +37,12 @@ scripts/
 - `installer/windows/assets/zot-license.txt`：随 Zot 分发的第三方许可证。
 - `scripts/build.ps1`：构建 `locus-pkg.exe` 和 `locus-scope.exe`。
 - `scripts/package-release.ps1`：组装压缩包、独立 Zot 和 Windows 安装包。
-- `scripts/internal/locus-zot-user.ps1`：安装后供开始菜单快捷方式调用的 Zot `start`、`stop` 和 `status` 生命周期管理脚本；它不属于公共 CLI，也不加入 `PATH`。
+- `scripts/internal/locus-zot-user.ps1`：安装后供开始菜单快捷方式调用的 Zot `start`、`stop` 和 `status` 生命周期管理脚本，并维护当前用户的登录自启动计划任务；它不属于公共 CLI，也不加入 `PATH`。
+- `scripts/internal/zot-release.psd1`：集中记录 Zot 的固定版本、发布资产、下载地址和 SHA-256，供开发部署与制品构建共同使用。
 
 ## 发布目录
 
-发布过程在 `temp/` 下生成暂存内容和最终只制品，`release-stage` 是安装器和压缩包的唯一组装输入；`release` 只保存可以直接发布的制品及其校验和：
+发布过程在 `temp/` 下生成暂存内容和最终制品，`release-stage` 是安装器和压缩包的唯一组装输入；`release` 只保存可以直接发布的制品及其校验和：
 
 ```text
 temp/
@@ -54,6 +56,7 @@ temp/
 │       ├── libexec/
 │       │   └── locus-zot-user.ps1
 │       └── licenses/
+│           ├── locus-license.txt
 │           └── zot-license.txt
 └── release/
     └── windows-amd64/
@@ -81,6 +84,9 @@ temp/
 │   ├── zot.pid
 │   ├── logs\
 │   └── registry\
+├── licenses\
+│   ├── locus-license.txt
+│   └── zot-license.txt
 ├── oci\
 └── installer\
     └── unins000.exe
@@ -92,6 +98,7 @@ temp/
 - `libexec/` 保存安装器内部辅助程序，不构成公共命令接口。
 - `zot/bin/zot.exe` 和 Zot 管理入口属于 Zot 安装组件。
 - `zot/config.json`、`zot.pid`、`zot/logs/` 和 `zot/registry/` 是 Zot 配置或运行状态。
+- `licenses/` 保存 Locus 和已安装第三方组件的分发许可证。
 - `oci/` 是 `locus-pkg` 的用户级 OCI cache，不属于安装器静态文件。
 - `installer/` 保存卸载器，避免安装根目录散落安装器内部文件。
 

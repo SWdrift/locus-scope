@@ -11,10 +11,11 @@ param(
 Set-StrictMode -Version Latest
 $ErrorActionPreference = 'Stop'
 
-$ZotVersion = 'v2.1.20'
-$ZotAsset = 'zot-windows-amd64-minimal.exe'
-$ZotSha256 = '80d42edb8c2b65054f43a113da7d00c78a8491d974b8edd3680a316d471f085c'
-$ReleaseBase = "https://github.com/project-zot/zot/releases/download/$ZotVersion"
+$ZotRelease = Import-PowerShellDataFile (Join-Path $PSScriptRoot 'internal/zot-release.psd1')
+$ZotVersion = $ZotRelease.Version
+$ZotAsset = $ZotRelease.Asset
+$ZotSha256 = $ZotRelease.Sha256
+$ReleaseBase = $ZotRelease.ReleaseBase
 $RepositoryRoot = (Resolve-Path (Join-Path $PSScriptRoot '..')).Path
 . (Join-Path $PSScriptRoot 'internal/locus-paths.ps1')
 
