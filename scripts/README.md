@@ -19,6 +19,8 @@
 | `scripts/zot.ps1` | 安装、校验和管理当前 target 的 Zot。 |
 | `scripts/test.ps1` | 使用仓库内 Zot 执行 Go 测试。 |
 | `scripts/package-release.ps1` | 构建 Windows AMD64 发布制品和 Inno Setup 安装包。 |
+| `scripts/install-user.ps1` | 使用已构建安装包为当前用户安装所选组件。 |
+| `scripts/uninstall-user.ps1` | 卸载当前用户的 Locus 程序并默认保留用户数据。 |
 
 ## Target
 
@@ -101,6 +103,17 @@ temp/release/windows-amd64/
 ```
 
 安装包包含两个可选 CLI、可选 Zot、Zot 用户级管理脚本和分发许可证，不在安装时访问网络。安装根目录固定为 `~/.locus/`；可选任务负责配置当前用户 `PATH` 和 Zot 登录自启动。
+
+本机安装和卸载冒烟测试：
+
+```powershell
+pwsh -File scripts/install-user.ps1
+pwsh -File scripts/uninstall-user.ps1
+```
+
+`install-user.ps1` 默认静默安装两个 CLI 和 Zot、添加当前用户 `PATH`，但不启用 Zot 登录自启动。可用 `-Components scope,pkg` 选择组件、`-NoPath` 禁止修改 `PATH`、`-ZotAutoStart` 启用 Zot 登录自启动，或用 `-Interactive` 显示安装向导；`-SetupPath` 可指定其他安装包。
+
+`uninstall-user.ps1` 默认静默卸载并保留 Zot registry 和 OCI cache；`-Interactive` 显示卸载确认及“删除 Zot 仓库数据”选项，`-UninstallerPath` 可指定其他卸载器。两个脚本会修改真实当前用户安装状态，仅用于明确的本机安装验证，日志分别写入 `temp/install-user.log` 和 `temp/uninstall-user.log`。
 
 ## 常用工作流
 
