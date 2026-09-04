@@ -39,6 +39,12 @@ pwsh -File scripts/clean-local.ps1 -User -WithZot
 
 脚本不会修改 `PATH`，完整选项和数据删除边界见 [`scripts/README.md`](scripts/README.md)。
 
+### Windows 安装包
+
+Windows 发布用户可直接运行 `locus-setup-windows-amd64.exe`，按需选择 `locus-scope`、`locus-pkg`、Zot 和当前用户 `PATH`。安装根目录固定为 `%USERPROFILE%\.locus`；安装包包含全部组件，不要求 Go、pnpm、PowerShell 7 或安装时联网。
+
+安装 Zot 后可通过开始菜单启动、停止和查看状态，也可选择登录 Windows 后自动启动。卸载默认保留 Zot 仓库数据和 `~/.locus/oci` cache。
+
 ## 创建一个 Scope
 
 `locus.yaml`：
@@ -177,6 +183,38 @@ locus-pkg --scope ./infra publish oci://registry.example.com/locus/infra:v1
 相同内容重复发布得到相同 digest；内容变化后再次发布同一 tag，会让该 tag 指向新 digest。已有项目的 `locus.lock` 仍固定原 digest，不会自动漂移。
 
 Registry、认证和传输由 OCI / ORAS 生态处理；Locus 没有实现 Registry Server 或独立的账号系统。
+
+### 使用本地 Zot
+
+本地 Zot 安装并启动后监听 `127.0.0.1:18080`。使用仓库脚本部署时可执行：
+
+```powershell
+pwsh -File scripts/deploy-local.ps1 -User -WithZot
+pwsh -File scripts/zot.ps1 start -User
+```
+
+进入待发布的 Scope，将它发布到本机 Registry：
+
+```text
+locus-pkg --scope . publish oci://localhost:18080/locus/my-scope:v1
+```
+
+其他项目通过完整 OCI reference 引用该 Package：
+
+```yaml
+id: my-app
+imports:
+    shared: oci://localhost:18080/locus/my-scope:v1
+```
+
+在引用项目中获取 Package、生成 `locus.lock` 并物化依赖：
+
+```text
+locus-pkg --scope . install
+locus-scope --scope . validate
+```
+
+本地 Zot 不需要 `docker login`，只允许本机访问。`localhost:18080` 不能供其他电脑使用；跨机器共享应改用可访问的 OCI Registry，并在 publish 参数和 `locus.yaml` 中填写其地址。
 
 ## CLI
 
