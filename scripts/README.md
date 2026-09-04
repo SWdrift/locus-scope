@@ -9,7 +9,7 @@
 - 用户部署不修改 `PATH`；用户卸载不删除 OCI cache 或其他 `.locus` 状态。
 - PowerShell 要求 7+，Go 最低版本以根目录 `go.mod` 为准。
 
-## 命令速查
+## Scripts
 
 | 脚本 | 默认行为 |
 | --- | --- |
