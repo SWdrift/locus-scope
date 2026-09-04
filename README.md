@@ -1,8 +1,10 @@
 # locus-scope
 
-可组合 Entity 图协议及其轻量实现。
+可组合 Entity 图的 Scope 协议及轻量工具，定义了身份、关系、作用域和组合方式。
 
-可用于把分散的环境、资源、能力和关系组织成可查询的 Scope，并通过 [OCI Registry](https://github.com/opencontainers/distribution-spec/blob/main/spec.md) 分发和复用 Scope。
+Locus Scope 将具有身份的事物及其关系组织成有边界的图。Entity 可以表示环境、资源、能力、代码、知识、逻辑结构或其他领域对象，属性和关系不受预设模型限制。
+
+Scope 提供 Entity 的命名空间、组合与引用边界，并可通过 Import / Export 组合其他 Scope。Scope 也可以作为 OCI Artifact 发布到 [OCI Registry](https://github.com/opencontainers/distribution-spec/blob/main/spec.md)，从而在不同项目和环境之间分发与复用。
 
 ## Quick Start
 
