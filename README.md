@@ -84,6 +84,8 @@ relations:
     - [backend, uses, database]
 ```
 
+> Entity（backend、database）属性结构任意，Relation（这里是 uses）名称任意，Relation 是无身份、无属性的命名有向边。
+
 目录：
 
 ```text
