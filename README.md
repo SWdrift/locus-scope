@@ -10,7 +10,7 @@ Scope 提供 Entity 的命名空间、组合与引用边界，并可通过 Impor
 
 ### Window
 
-- Windows 用户可直接运行 `locus-setup-windows-amd64.exe`，按需选择 `locus-scope`、`locus-pkg`、Zot 和当前用户 `PATH`。
+- Windows 用户可直接运行 `locus-setup-windows-amd64.exe`，按需选择 `locus-scope`、`locus-pkg`、[Zot](https://zotregistry.dev/) 和当前用户 `PATH`。
 - 安装根目录固定为 `%USERPROFILE%\.locus`；安装包包含全部组件。
 - 安装 Zot 后可通过开始菜单启动、停止和查看状态，也可选择登录 Windows 后自动启动。卸载默认保留 Zot 仓库数据和 `%USERPROFILE%\.locus\oci` cache。
 
