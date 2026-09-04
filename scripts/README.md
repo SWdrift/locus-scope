@@ -21,6 +21,7 @@
 | `scripts/package-release.ps1` | 构建 Windows AMD64 发布制品和 Inno Setup 安装包。 |
 | `scripts/install-user.ps1` | 使用已构建安装包为当前用户安装所选组件。 |
 | `scripts/uninstall-user.ps1` | 卸载当前用户的 Locus 程序并默认保留用户数据。 |
+| `scripts/sync-branches.ps1` | 将 `dev` 合并到 `main` 和 `master`，分别推送到 Gitee 和 GitHub，最后切回 `dev`。 |
 
 ## Target
 
@@ -124,6 +125,12 @@ pwsh -File scripts/deploy-local.ps1 -WithZot
 pwsh -File scripts/zot.ps1 start
 pwsh -File scripts/test.ps1 all
 pwsh -File scripts/clean-local.ps1 -WithZot
+```
+
+同步发布分支（要求工作区干净；远端目标分支发生分叉时会停止，不自动改写历史）：
+
+```powershell
+pwsh -File scripts/sync-branches.ps1
 ```
 
 用户安装与卸载：
