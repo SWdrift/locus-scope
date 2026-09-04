@@ -2,6 +2,18 @@
 
 本文件记录 `locus-scope` 各发布版本的用户可见变更。
 
+## [0.1.1] - 2026-09-04
+
+### Added
+
+- `locus-scope version`、`locus-pkg version` 及对应的 `--version` option。
+- 文本版本输出供人阅读，`--json version` 输出稳定的名称与版本字段。
+
+### Changed
+
+- 构建脚本从根目录 `VERSION` 向两个 CLI 注入发布版本。
+- 用户安装脚本检测已有安装并提示先卸载，避免重复安装被正在运行的 Zot 或已有文件阻塞。
+
 ## [0.1.0] - 2026-09-04
 
 ### Added

@@ -9,6 +9,8 @@ import (
 	"sort"
 	"strings"
 
+	"locus-scope/internal/buildinfo"
+
 	"locus-scope/internal/packages"
 	"locus-scope/internal/scope"
 )
@@ -71,6 +73,13 @@ func run(arguments []string, stdout, stderr io.Writer) int {
 		fmt.Fprint(stdout, usage)
 		return 0
 	}
+	if len(command) == 1 && command[0] == "version" {
+		if err := buildinfo.WriteVersion(stdout, "locus-scope", opts.jsonOutput); err != nil {
+			writeFailure(stderr, opts.jsonOutput, err)
+			return 1
+		}
+		return 0
+	}
 
 	root, err := rootDirectory(opts.scopeDirectory)
 	if err != nil {
@@ -109,6 +118,8 @@ func parseArguments(arguments []string) (options, []string, error) {
 			}
 		case argument == "--help" || argument == "-h":
 			command = []string{"help"}
+		case argument == "--version":
+			command = []string{"version"}
 		case strings.HasPrefix(argument, "-"):
 			return opts, nil, fmt.Errorf("unknown option %q", argument)
 		default:
@@ -364,4 +375,6 @@ Usage:
   locus-scope [--scope <dir>] [--json] entity show <ref>
   locus-scope [--scope <dir>] [--json] relation list
   locus-scope [--scope <dir>] [--json] resolve <ref>
+  locus-scope [--json] version
+  locus-scope help
 `

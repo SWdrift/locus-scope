@@ -2,8 +2,6 @@
 
 可组合 Entity 图的 Scope 协议及轻量工具，定义了身份、关系、作用域和组合方式。
 
-当前版本：`v0.1.0`。
-
 Locus Scope 将具有身份的事物及其关系组织成有边界的图。Entity 可以表示环境、资源、能力、代码、知识、逻辑结构或其他领域对象，属性和关系不受预设模型限制。
 
 Scope 提供 Entity 的命名空间、组合与引用边界，并可通过 Import / Export 组合其他 Scope。Scope 也可以作为 OCI Artifact 发布到 [OCI Registry](https://github.com/opencontainers/distribution-spec/blob/main/spec.md)，从而在不同项目和环境之间分发与复用。
@@ -233,6 +231,7 @@ locus-scope --scope . validate
 | `locus-scope entity show <ref>` | 从 root Scope 解析 Entity reference，并显示 owner、ID 和属性。             |
 | `locus-scope relation list`     | 列出验证后的 Relation 及两端 Entity 的原始 owner。                         |
 | `locus-scope resolve <ref>`     | 只解析 Entity reference，返回最终 owner 和 ID，不返回属性。                |
+| `locus-scope version`           | 输出构建时注入的版本，不发现或加载 Scope。                                |
 
 通用参数：
 
@@ -240,6 +239,7 @@ locus-scope --scope . validate
 | --------------- | -------------------------------------------------------------------- |
 | `--scope <dir>` | 指定 root Scope；省略时从当前目录向父目录查找最近的 Scope manifest。 |
 | `--json`        | 输出字段和顺序稳定的 JSON，供 Agent 和脚本消费。                     |
+| `--version`     | 等价于 `version` 指令。                                           |
 
 ### `locus-pkg`
 
@@ -247,16 +247,18 @@ locus-scope --scope . validate
 | ----------------------------- | ------------------------------------------------------------------------------------------------------- |
 | `locus-pkg publish <oci-tag>` | 检查所选 Scope source tree，构建并发布 OCI artifact，成功后输出规范化 target 和不可变 manifest digest。 |
 | `locus-pkg install`           | 解析完整 Package 依赖闭包，获取并物化 artifact，验证 Workspace，成功后提交 `locus.lock`。               |
+| `locus-pkg version`            | 输出构建时注入的版本，不发现 Scope，也不读取凭据或 Registry。                                       |
 
 参数：
 
 | 参数            | 适用命令             | 作用                                                                 |
 | --------------- | -------------------- | -------------------------------------------------------------------- |
 | `--scope <dir>` | `publish`、`install` | 指定 root Scope；省略时从当前目录向父目录查找最近的 Scope manifest。 |
-| `--json`        | `publish`、`install` | 输出稳定 JSON；错误也以 `{"error":"..."}` 输出。                     |
+| `--json`        | `publish`、`install`、`version` | 输出稳定 JSON；错误也以 `{"error":"..."}` 输出。                     |
 | `--frozen`      | `install`            | 要求现有 lock 与完整依赖一致，且不修改 lock。                        |
+| `--version`     | 全部                 | 等价于 `version` 指令。                                               |
 
-option 可以位于子命令前后。`publish` 的 `<oci-tag>` 必须是无 fragment 的 OCI tag reference，不能使用 digest reference。
+option 可以位于子命令前后；`version` 和 `--version` 无需 Scope。`publish` 的 `<oci-tag>` 必须是无 fragment 的 OCI tag reference，不能使用 digest reference。
 
 ## 技术栈
 

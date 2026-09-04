@@ -123,13 +123,14 @@ relations:
 - `locus-scope entity show <ref>`：从根 Scope 解析 `<ref>`，显示最终 Entity 的原始 owner、ID 和全部属性。
 - `locus-scope relation list`：列出验证后的全部 Relation，显示 Relation 名称，以及解析到原始 owner 后的起点和终点。
 - `locus-scope resolve <ref>`：从根 Scope 解析 `<ref>`，只返回最终 Entity 的 manifest ID、Entity ID 和 owner Scope 来源 identity，不读取其属性。
+- `locus-scope version`：输出构建时注入的 CLI 版本，不发现或加载 Scope；`--version` 与其等价。
 
 对于所有命令，有 option：
 
 - `--scope <dir>` 直接选择目录；未指定时从当前目录的祖先链选择最近的 Scope manifest，不做用户级回退。
-- `--json` 文本输出供人阅读；JSON 字段和集合顺序必须稳定，供 Agent 和脚本消费。
+- `--json`：输出字段和集合顺序稳定的 JSON，供 Agent 和脚本消费；`version` 输出 `name` 和 `version`。
 
-另外所有命令必须先加载并验证完整 reachable graph，不能只检查 root Scope。
+除 `help` 和 `version` 外，所有命令必须先加载并验证完整 reachable graph，不能只检查 root Scope。
 
 ## 验收
 
@@ -141,3 +142,4 @@ relations:
 - Group 示例必须得到 `api`、`backend/api` 和 `backend/worker`，并把同文档内的短 Relation 引用展开到 `backend` Group。
 - 再次 Export、私有成员、显式 Group、循环 Import、相同 Manifest ID 的不同来源、重复 Entity ID 和无效 reference 的成功或失败边界都有 fixture 证明；错误包含对应文件、声明或 Scope 上下文。
 - 构建后的真实 CLI 能完成上述验证和查询；完整测试分层、fixture、隔离规则与执行命令见[测试设计](测试设计.md)。
+- `version`、`--version` 及其 JSON 输出无需有效 Scope，并返回构建时注入的版本。

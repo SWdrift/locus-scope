@@ -146,7 +146,7 @@ $releaseArtifacts = @(
 )
 $checksumLines = foreach ($artifact in $releaseArtifacts) {
     $hash = (Get-FileHash -LiteralPath $artifact -Algorithm SHA256).Hash.ToLowerInvariant()
-    "$hash  $([IO.Path]::GetFileName($artifact))"
+    "$hash *$([IO.Path]::GetFileName($artifact))"
 }
 $checksumContent = ($checksumLines -join "`n") + "`n"
 [IO.File]::WriteAllText((Join-Path $ReleaseRoot 'SHA256SUMS'), $checksumContent, (New-Object Text.UTF8Encoding($false)))
