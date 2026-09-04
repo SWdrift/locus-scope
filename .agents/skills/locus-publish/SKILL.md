@@ -14,10 +14,11 @@ metadata:
 ## 发布前检查
 
 1. 确认待发布目录包含且只包含一个 Scope manifest：`locus.yaml`、`locus.yml` 或 `locus.json`。
-2. 若待发布 source tree 含 OCI Import，先在 root Scope 运行 `locus-pkg install`，再运行 `locus-scope validate`；没有 OCI Import 时直接运行 `locus-scope validate`。这是完整 reachable graph 的发布前检查；`publish` 自身只检查本地 Package source tree、Package 边界和 OCI reference 语法，不获取并验证远端依赖图。
-3. 检查 Package 边界：包内本地 Import 必须使用 `/` 分隔的相对路径，且不能逃出 Package root；跨 Package Import 使用 `oci://` reference。
-4. 选择可写的 OCI Registry repository 和 tag。发布目标必须是无 fragment 的 tag reference；不能使用 digest reference。省略 tag 等价于 `:latest`，但正式发布优先使用明确 tag。
-5. 私有 Registry 的登录和凭据沿用 Docker config 与 credential helper。不要把用户名、密码或 token 写入 Scope 文件、命令示例或仓库。
+2. 确认 Definition documents 使用 `*.locus.yaml`、`*.locus.yml` 或 `*.locus.json`；普通 YAML/JSON 不会被 Loader 读取。
+3. 若待发布 source tree 含 OCI Import，先在 root Scope 运行 `locus-pkg install`，再运行 `locus-scope validate`；没有 OCI Import 时直接运行 `locus-scope validate`。这是完整 reachable graph 的发布前检查；`publish` 自身只检查本地 Package source tree、Package 边界和 OCI reference 语法，不获取并验证远端依赖图。
+4. 检查 Package 边界：包内本地 Import 必须使用 `/` 分隔的相对路径，且不能逃出 Package root；跨 Package Import 使用 `oci://` reference。`.locusignore` 只控制 Loader 的文件发现，不从发布 artifact 排除内容。
+5. 选择可写的 OCI Registry repository 和 tag。发布目标必须是无 fragment 的 tag reference；不能使用 digest reference。省略 tag 等价于 `:latest`，但正式发布优先使用明确 tag。
+6. 私有 Registry 的登录和凭据沿用 Docker config 与 credential helper。不要把用户名、密码或 token 写入 Scope 文件、命令示例或仓库。
 
 ## 发布命令
 

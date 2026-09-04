@@ -1,0 +1,4 @@
+id: discovery
+exports:
+  - root
+  - child

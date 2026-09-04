@@ -21,7 +21,7 @@ func TestValidateAndMaterializePackage(t *testing.T) {
 	store, manifest := testPackageArtifact(t, filepath.Join(root, "store"), ArtifactType, []archiveEntry{
 		{name: "locus.yaml", body: "id: package\nexports:\n  - tool\n"},
 		{name: "bin/tool", body: "#!/bin/sh\n", mode: 0o755},
-		{name: "entities.yaml", body: "entities:\n  - id: tool\n"},
+		{name: "entities.locus.yaml", body: "entities:\n  - id: tool\n"},
 	})
 	cached, err := validateCachedPackage(context.Background(), store, manifest)
 	if err != nil {

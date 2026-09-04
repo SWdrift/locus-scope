@@ -12,6 +12,13 @@ Set-StrictMode -Version Latest
 $ErrorActionPreference = 'Stop'
 
 $RepositoryRoot = (Resolve-Path (Join-Path $PSScriptRoot '..')).Path
+if ([string]::IsNullOrWhiteSpace($HOME)) {
+    throw 'cannot resolve the user Locus directory because HOME is empty'
+}
+$ExistingUninstaller = Join-Path $HOME '.locus\installer\unins000.exe'
+if (Test-Path -LiteralPath $ExistingUninstaller -PathType Leaf) {
+    throw 'Locus is already installed for the current user; run pwsh -File scripts/uninstall-user.ps1 before installing again'
+}
 if ([string]::IsNullOrWhiteSpace($SetupPath)) {
     $SetupPath = Join-Path $RepositoryRoot 'temp\release\windows-amd64\locus-setup-windows-amd64.exe'
 }

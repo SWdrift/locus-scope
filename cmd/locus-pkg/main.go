@@ -9,6 +9,8 @@ import (
 	"os"
 	"strings"
 
+	"locus-scope/internal/buildinfo"
+
 	"locus-scope/internal/packages"
 	"locus-scope/internal/scope"
 )
@@ -31,6 +33,13 @@ func run(arguments []string, stdout, stderr io.Writer) int {
 	}
 	if len(command) == 0 || command[0] == "help" {
 		fmt.Fprint(stdout, usage)
+		return 0
+	}
+	if len(command) == 1 && command[0] == "version" {
+		if err := buildinfo.WriteVersion(stdout, "locus-pkg", opts.jsonOutput); err != nil {
+			writeFailure(stderr, opts.jsonOutput, err)
+			return 1
+		}
 		return 0
 	}
 	switch command[0] {
@@ -127,6 +136,8 @@ func parseArguments(arguments []string) (options, []string, error) {
 			}
 		case argument == "--help" || argument == "-h":
 			command = []string{"help"}
+		case argument == "--version":
+			command = []string{"version"}
 		case strings.HasPrefix(argument, "-"):
 			return opts, nil, fmt.Errorf("unknown option %q", argument)
 		default:
@@ -169,5 +180,6 @@ const usage = `locus-pkg publishes and installs Scope packages.
 Usage:
   locus-pkg [--scope <dir>] [--json] publish <oci-tag>
   locus-pkg [--scope <dir>] [--frozen] [--json] install
+  locus-pkg [--json] version
   locus-pkg help
 `

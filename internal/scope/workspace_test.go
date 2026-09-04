@@ -9,10 +9,11 @@ import (
 	"locus-scope/internal/scope"
 )
 
-func TestLoadProtocolExamples(t *testing.T) {
-	workspace, err := loadLocal(repoPath("documents", "design", "protocol", "examples", "app"))
+func TestLoadScopeComposition(t *testing.T) {
+	rootDirectory := materializeCase(t, "scope-composition", "app")
+	workspace, err := loadLocal(rootDirectory)
 	if err != nil {
-		t.Fatalf("load protocol example: %v", err)
+		t.Fatalf("load scope composition: %v", err)
 	}
 	if len(workspace.Scopes) != 2 {
 		t.Fatalf("loaded scopes = %d, want 2", len(workspace.Scopes))
@@ -55,6 +56,31 @@ func TestLoadProtocolExamples(t *testing.T) {
 	api := scope.EntityKey{Scope: workspace.Root, ID: "api"}
 	if !hasRelation(workspace.Relations, api, "uses", database) {
 		t.Fatalf("cross-scope relation api uses database missing: %#v", workspace.Relations)
+	}
+}
+
+func TestDefinitionDiscoveryRecursesHonorsIgnoreAndStopsAtNestedScope(t *testing.T) {
+	rootDirectory := materializeCase(t, "discovery")
+	generatedDirectory := filepath.Join(rootDirectory, ".locus")
+	if err := os.MkdirAll(generatedDirectory, 0o755); err != nil {
+		t.Fatalf("create generated state directory: %v", err)
+	}
+	if err := os.WriteFile(filepath.Join(generatedDirectory, "generated.locus.yaml"), []byte("invalid: generated state\n"), 0o644); err != nil {
+		t.Fatalf("write generated state definition: %v", err)
+	}
+
+	workspace, err := loadLocal(rootDirectory)
+	if err != nil {
+		t.Fatalf("load recursive discovery fixture: %v", err)
+	}
+	root := workspace.Scopes[workspace.Root]
+	if len(root.Entities) != 2 {
+		t.Fatalf("discovered entities = %#v, want root and child", root.Entities)
+	}
+	for _, id := range []string{"root", "child"} {
+		if _, exists := root.Entities[id]; !exists {
+			t.Fatalf("discovered entities = %#v, missing %q", root.Entities, id)
+		}
 	}
 }
 
@@ -160,7 +186,7 @@ func TestResolverSourceKeyDefinesIdentityAcrossMaterializations(t *testing.T) {
 		if err := os.WriteFile(filepath.Join(packageDirectory, "locus.yaml"), []byte("id: package\nimports:\n  root: root\nexports:\n  - item\n"), 0o644); err != nil {
 			t.Fatalf("write package manifest: %v", err)
 		}
-		if err := os.WriteFile(filepath.Join(packageDirectory, "entities.yaml"), []byte("entities:\n  - id: item\n"), 0o644); err != nil {
+		if err := os.WriteFile(filepath.Join(packageDirectory, "entities.locus.yaml"), []byte("entities:\n  - id: item\n"), 0o644); err != nil {
 			t.Fatalf("write package entities: %v", err)
 		}
 
@@ -190,15 +216,16 @@ func TestValidationDiagnostics(t *testing.T) {
 		name string
 		want []string
 	}{
-		{"duplicate-expanded", []string{"team.yaml", `entity "team/worker"`, "after group expansion"}},
-		{"missing-relation", []string{"entities.yaml", `relation "source points_to absent"`, `end reference "absent"`}},
+		{"duplicate-expanded", []string{"team.locus.yaml", `entity "team/worker"`, "after group expansion"}},
+		{"missing-relation", []string{"entities.locus.yaml", `relation "source points_to absent"`, `end reference "absent"`}},
 		{"validation/missing-manifest", []string{"manifest missing", "locus.yaml"}},
 		{"validation/duplicate-manifest", []string{"multiple manifests", "locus.json", "locus.yaml"}},
 		{"validation/missing-scope-id", []string{"locus.yaml", "scope id is required"}},
-		{"validation/missing-entity-id", []string{"entities.yaml", "entity 1", "id is required"}},
+		{"validation/missing-entity-id", []string{"entities.locus.yaml", "entity 1", "id is required"}},
 		{"validation/missing-import", []string{"locus.yaml", `import "absent"`, "does-not-exist"}},
 		{"validation/missing-projection", []string{"locus.yaml", `export "ghost:item"`, `does not import projection "ghost"`}},
-		{"validation/malformed-relation", []string{"entities.yaml", "line 4", "exactly [from, relation, to]"}},
+		{"validation/malformed-relation", []string{"entities.locus.yaml", "line 4", "exactly [from, relation, to]"}},
+		{"validation/invalid-locusignore", []string{".locusignore:1", "invalid ignore pattern", "syntax error in pattern"}},
 	}
 
 	for _, test := range tests {

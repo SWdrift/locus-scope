@@ -7,6 +7,11 @@ Set-StrictMode -Version Latest
 $ErrorActionPreference = 'Stop'
 
 $RepositoryRoot = (Resolve-Path (Join-Path $PSScriptRoot '..')).Path
+$Version = (Get-Content -LiteralPath (Join-Path $RepositoryRoot 'VERSION') -Raw).Trim()
+if ($Version -notmatch '^[0-9]+\.[0-9]+\.[0-9]+(?:[-+][0-9A-Za-z.-]+)?$') {
+    throw "VERSION contains an invalid semantic version: $Version"
+}
+$LdFlags = "-X locus-scope/internal/buildinfo.Version=$Version"
 
 Push-Location $RepositoryRoot
 try {
@@ -33,7 +38,7 @@ try {
 
     foreach ($Command in $Commands) {
         $OutputPath = Join-Path $ArtifactRoot ($Command.Name + $Extension)
-        & go build -trimpath -o $OutputPath $Command.Package
+        & go build -trimpath -ldflags $LdFlags -o $OutputPath $Command.Package
         if ($LASTEXITCODE -ne 0) {
             throw "go build $($Command.Package) exited with code $LASTEXITCODE"
         }
@@ -46,6 +51,7 @@ try {
         [pscustomobject]@{
             ArtifactRoot = $ArtifactRoot
             Extension = $Extension
+            Version = $Version
         }
     }
 }

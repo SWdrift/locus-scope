@@ -15,7 +15,7 @@ func TestInstallAndOfflineLoadLocalWorkspace(t *testing.T) {
 	if err := os.WriteFile(filepath.Join(root, "locus.yaml"), []byte("id: local\nexports:\n  - item\n"), 0o644); err != nil {
 		t.Fatalf("write manifest: %v", err)
 	}
-	if err := os.WriteFile(filepath.Join(root, "entities.yaml"), []byte("entities:\n  - id: item\n"), 0o644); err != nil {
+	if err := os.WriteFile(filepath.Join(root, "entities.locus.yaml"), []byte("entities:\n  - id: item\n"), 0o644); err != nil {
 		t.Fatalf("write entities: %v", err)
 	}
 	result, err := Install(context.Background(), root, InstallOptions{CacheRoot: filepath.Join(root, "cache")})

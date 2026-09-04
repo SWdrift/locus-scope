@@ -158,16 +158,17 @@ packages:
 - `locus-pkg publish <target>`：检查并打包所选 root Scope 的 Package source tree，把 artifact 发布到 OCI tag reference，并返回不可变 manifest digest。
 - `locus-pkg install [--frozen]`：解析完整 reachable graph，获取并物化 Package，验证 Workspace，成功后提交 `locus.lock`。
     - `--frozen`：要求 lock 内容和 key 集合与完整依赖一致，不修改 lock。
+- `locus-pkg version`：输出构建时注入的 CLI 版本，不发现 Scope，也不读取凭据、cache 或 Registry；`--version` 与其等价。
 
-对于 `publish` 和 `install`，有 option：
+对于 `publish`、`install` 和 `version`，有 option：
 
-- `--scope <dir>`：指定 root Scope；未指定时从当前目录向父目录查找最近的 Scope manifest。
-- `--json`：输出稳定 JSON；`publish` 返回 `target` 和 `digest`，`install` 返回 `valid`、`root`、`resolved`、`reused`、`fetched`、`materialized`、`scopes`、`entities` 和 `relations`。
+- `--scope <dir>`：用于 `publish` 和 `install`，指定 root Scope；未指定时从当前目录向父目录查找最近的 Scope manifest。
+- `--json`：输出稳定 JSON；`publish` 返回 `target` 和 `digest`，`install` 返回 `valid`、`root`、`resolved`、`reused`、`fetched`、`materialized`、`scopes`、`entities` 和 `relations`，`version` 返回 `name` 和 `version`。
 
 另外：
 
-- option 可以位于子命令前后；`publish` 的 `<target>` 是子命令的位置参数。
-- 默认文本输出中，`publish` 输出规范化目标和 manifest digest；`install` 输出 root，解析、复用、获取和物化计数，以及 Scope、Entity 和 Relation 数量。
+- option 可以位于子命令前后；`version` 和 `--version` 不要求 Scope，`publish` 的 `<target>` 是子命令的位置参数。
+- 默认文本输出中，`publish` 输出规范化目标和 manifest digest；`install` 输出 root，解析、复用、获取和物化计数，以及 Scope、Entity 和 Relation 数量；`version` 输出 CLI 名称和版本。
 
 ## 验收
 
@@ -183,5 +184,6 @@ packages:
 - Package 内相对 Import、跨 Package Import、循环 Import 和相同 `Manifest.ID` 的不同来源均保持正确 ownership；
 - artifact 结构、digest、size、路径或 Scope 内容无效时安装失败，不提交 lock，也不留下目标物化目录；
 - 安装后的 `locus-scope` 能在不访问 Registry 和全局 cache 的情况下装配相同 Workspace。
+- `version`、`--version` 及其 JSON 输出无需 Scope、凭据或 Registry，并返回构建时注入的版本。
 
 测试分层、fixture、OCI E2E、隔离和完成标准见[测试设计](测试设计.md)。

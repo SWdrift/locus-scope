@@ -112,7 +112,7 @@ func runPackageCLIClosure(t *testing.T, endpoint, runRoot string) {
 		!bytes.Contains(repeatedBOutput, []byte("digest: "+firstB.Digest+"\n")) {
 		t.Fatalf("unchanged package B output = %q", repeatedBOutput)
 	}
-	entitiesPath := filepath.Join(packageB, "entities.yaml")
+	entitiesPath := filepath.Join(packageB, "entities.locus.yaml")
 	entitiesData, err := os.ReadFile(entitiesPath)
 	if err != nil {
 		t.Fatalf("read package B entities: %v", err)
@@ -157,7 +157,7 @@ func runPackageCLIClosure(t *testing.T, endpoint, runRoot string) {
 	if lock.Packages[keyA].Resolved != packageADigest || lock.Packages[keyB].Resolved != packageBDigest {
 		t.Fatalf("installed lock resolutions = %#v", lock.Packages)
 	}
-	materializedB := filepath.Join(project, ".locus", "packages", strings.Replace(secondB.Digest, ":", "-", 1), "entities.yaml")
+	materializedB := filepath.Join(project, ".locus", "packages", strings.Replace(secondB.Digest, ":", "-", 1), "entities.locus.yaml")
 	materializedBData, err := os.ReadFile(materializedB)
 	if err != nil {
 		t.Fatalf("read updated materialized package B: %v", err)
