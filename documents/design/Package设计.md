@@ -2,11 +2,11 @@
 
 ## 简述
 
-Locus Package Infrastructure 从 OCI 获取不可变 Scope source tree，物化到项目后通过统一 Resolver 装配 Workspace。它只扩展 Source 获取。
+Locus Package Infrastructure 把本地 Scope source tree 发布为 OCI artifact，也从 OCI 获取不可变快照，物化到项目后通过统一 Resolver 装配 Workspace。它只扩展 Source 的分发与获取。
 
 ## 职责
 
-本文负责 Package artifact、Source identity、`locus.lock`、OCI cache、项目物化、安装流程、loader 接口和 `locus-pkg install`。不负责定义新依赖模型、SemVer、版本范围、dependency solver、Registry Server、发布命令、签名或供应链策略。
+本文负责 Package artifact、Source identity、`locus.lock`、OCI cache、项目物化、发布与安装流程、loader 接口，以及 `locus-pkg publish` 和 `locus-pkg install`。不负责定义新依赖模型、SemVer、版本范围、dependency solver、Registry Server、签名或供应链策略。
 
 - 协议语义以 [PROTOCOL.md](protocol/PROTOCOL.md) 为唯一权威来源。
 
@@ -24,6 +24,18 @@ Locus Package Infrastructure 从 OCI 获取不可变 Scope source tree，物化�
 - **`locus.lock`**：root Scope 目录中的解析快照，记录可变 Package reference 当前选定的不可变 digest，使后续安装和离线加载能够复用同一份内容。
 - **`Source`**：基础含义见[Scope 设计术语表](Scope设计.md#术语表)；本文进一步规定 Package Source 的 OCI identity 和项目内物化路径。
 - **Resolver**：基础职责见[Scope 设计术语表](Scope设计.md#术语表)；本文定义安装和离线加载使用的不同实现。
+
+## example：发布共享基础设施
+
+`infra` 目录是待发布 Package 的 root Scope。用户可以显式指定它，并把快照发布到一个带 tag 的 OCI reference：
+
+```text
+locus-pkg --scope ./infra publish oci://registry.example.com/locus/infra:v1
+```
+
+`--scope` 可以省略；此时从当前目录向父目录查找最近的 Scope manifest，并以其所在目录作为 Package root。显式和自动发现只改变 root 的选择方式，不改变 Package 内容或 identity。
+
+执行成功后，目标 tag 指向由该 Scope source tree 构建的不可变 manifest digest，随后可按下文安装示例直接引用。发布输入、artifact 和提交边界统一见 [Package 核心设计](#package-核心设计)，参数与输出见 [CLI](#cli)。
 
 ## example：在项目中使用共享基础设施
 
@@ -124,8 +136,11 @@ packages:
 | lock 内容 | `locus.lock` 只记录可变 Package reference 到不可变 digest 的解析结果，不复制 Scope graph。 |
 | 普通安装 | 已有 lock entry 优先复用；缺失时查询 Registry。完整 Workspace 验证成功后，按 key 字典序原子提交全部 reachable entries，并删除不再 reachable 的旧 entry。 |
 | Frozen | lock 的内容和 key 集合必须与完整依赖一致；允许按已锁 digest 获取本地缺失内容，但不得增删改 lock。 |
-| Artifact | 使用 OCI 1.1 image manifest；`artifactType` 固定为 `application/vnd.locus.scope.package.v1`；恰好包含一个 `application/vnd.oci.image.layer.v1.tar+gzip` layer；artifact 根目录直接对应 Package root Scope。 |
-| Artifact 校验 | ORAS 必须校验 descriptor digest 和 size；拒绝不匹配的 artifact type、layer 数量、layer media type，以及没有唯一 root Scope manifest 的内容。 |
+| Artifact | 使用 OCI 1.1 image manifest：`schemaVersion` 为 `2`，manifest media type 为 `application/vnd.oci.image.manifest.v1+json`，`artifactType` 固定为 `application/vnd.locus.scope.package.v1`；必需的 `config` 使用内容为 `{}` 的 OCI empty JSON descriptor（`application/vnd.oci.empty.v1+json`）；恰好包含一个 `application/vnd.oci.image.layer.v1.tar+gzip` layer，artifact 根目录直接对应 Package root Scope。 |
+| 发布输入 | 所选 root Scope 目录形成一个 Scope source tree 快照；包内本地 Import 必须使用 `/` 分隔的相对路径且不得逃出 Package root，OCI Import 只保留 reference，不复制依赖 Package。`locus.lock` 和任意 `.locus` 目录属于项目生成状态，不进入 artifact。发布前必须检查快照中的 Scope 文件和 Package 边界。 |
+| 发布产物 | 使用本表规定的 OCI manifest、artifact type 和单 layer 结构。相同 source tree 内容与相关文件 mode 必须产生相同 manifest digest；绝对路径、文件遍历顺序、owner、构建时间和压缩时间不得影响 digest。 |
+| 发布目标 | 必须是无 fragment 的 tag reference；省略 tag 规范化为 `:latest`，digest reference 拒绝。同一 tag 可以重复发布：内容未变时得到同一 digest；内容变化时以 manifest/tag 更新为提交边界，使 tag 原子指向新 digest。旧 digest 的 identity 不变，已有 `locus.lock` 不会因 tag 更新而自动漂移。 |
+| Artifact 校验 | ORAS 必须校验 manifest、config 和 layer descriptor 的 digest 与 size；拒绝错误的 schema version、manifest media type、artifact type、empty config、layer 数量或 layer media type，以及没有唯一 root Scope manifest 的内容。 |
 | 解包 | 流式解压到临时目录；拒绝绝对路径、`.`、`..` 逃逸、反斜杠、重复路径、链接、device、FIFO 和 sparse entry。归档与 Scope 验证全部成功前，不发布目标目录。 |
 | Cache | 用户级共享 cache 使用标准 OCI Image Layout，路径为 `~/.locus/oci/r-<registry>/p-<repository-segment>/...`；Registry 和 repository 路径段必须先解析，再做可逆字节编码。 |
 | 物化 | 通过检查的 Package 写入 `<root>/.locus/packages/<algorithm>-<digest>/`；项目物化集合保持扁平，可由 lock 和 cache 重建。Loader 只读取项目物化目录，不直接读取用户级 cache。 |
@@ -140,23 +155,28 @@ packages:
 
 `locus-pkg` 提供：
 
-- `locus-pkg install`：解析完整 reachable graph，获取并物化 Package，验证 Workspace，成功后提交 `locus.lock`。
+- `locus-pkg publish <target>`：检查并打包所选 root Scope 的 Package source tree，把 artifact 发布到 OCI tag reference，并返回不可变 manifest digest。
+- `locus-pkg install [--frozen]`：解析完整 reachable graph，获取并物化 Package，验证 Workspace，成功后提交 `locus.lock`。
+    - `--frozen`：要求 lock 内容和 key 集合与完整依赖一致，不修改 lock。
 
-对于 `install`，有 option：
+对于 `publish` 和 `install`，有 option：
 
 - `--scope <dir>`：指定 root Scope；未指定时从当前目录向父目录查找最近的 Scope manifest。
-- `--frozen`：要求 lock 内容和 key 集合与完整依赖一致，不修改 lock。
-- `--json`：输出稳定的 `valid`、`root`、`resolved`、`reused`、`fetched`、`materialized`、`scopes`、`entities` 和 `relations` 字段。
+- `--json`：输出稳定 JSON；`publish` 返回 `target` 和 `digest`，`install` 返回 `valid`、`root`、`resolved`、`reused`、`fetched`、`materialized`、`scopes`、`entities` 和 `relations`。
 
 另外：
 
-- option 可以位于 `install` 前后。
-- 默认文本输出 root，解析、复用、获取和物化计数，以及 Scope、Entity 和 Relation 数量。
+- option 可以位于子命令前后；`publish` 的 `<target>` 是子命令的位置参数。
+- 默认文本输出中，`publish` 输出规范化目标和 manifest digest；`install` 输出 root，解析、复用、获取和物化计数，以及 Scope、Entity 和 Relation 数量。
 
 ## 验收
 
 本设计按以下可观察行为验收：
 
+- 显式 `--scope ./infra` 能发布该 Scope；省略 `--scope` 时能从嵌套工作目录向上发现最近的 Scope 并发布同一份 Package 内容；
+- 发布到 `oci://registry.example.com/locus/infra:v1` 后，该 tag 指向命令返回的 manifest digest，安装该 reference 能恢复同一份 Scope source tree；
+- 修改 source tree 后再次发布同一 tag，该 tag 改为指向新 digest；新安装解析到新 digest，已有 lock 仍复用原 digest；
+- Package 内本地 Import 使用绝对路径、平台特定分隔符或逃出 root，Scope 文件无效，或 artifact 构建失败时不访问 Registry；推送失败时目标 tag 不得指向未完成的 artifact；
 - 带 OCI Import 的 root Scope 能通过一次 `locus-pkg install` 得到有效 lock、项目物化目录和完整 Workspace；
 - 再次安装复用已有 lock、cache 和物化内容，不改变 Package identity；
 - `--frozen` 在 lock 内容和 key 集合与完整依赖图一致时成功，否则失败且不修改 lock；
