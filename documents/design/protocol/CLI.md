@@ -12,7 +12,7 @@ locus-scope 提供两个 Workspace 检查入口和一个 Package 管理入口：
 
 ## 职责
 
-本文是 CLI 指令、参数、输出和退出状态的公共契约。Scope 数据结构见[核心协议](PROTOCOL.md)；Package 格式、lock/store 和 Registry 规则见[Package 设计](../Package设计.md)；入门步骤见[基本使用](../../基本使用.md)。
+本文是 CLI 指令、参数、输出和退出状态的公共契约。Scope 数据结构见[核心协议](PROTOCOL.md)；application error 分类与映射见[错误契约](ERRORS.md)；Package 格式、lock/store 和 Registry 规则见[Package 设计](../Package设计.md)；入门步骤见[基本使用](../../基本使用.md)。
 
 ## Workspace 检查
 
@@ -75,6 +75,8 @@ locus-scope 提供两个 Workspace 检查入口和一个 Package 管理入口：
 `publish` 不接受 `--offline` 或 `--frozen-lockfile`。
 
 ## 输出与退出状态
+
+错误分类、reason 和未来结构化 transport error 以[错误契约](ERRORS.md)为准；当前 CLI JSON error shape 保持兼容。
 
 - 普通输出写入 stdout，错误写入 stderr。
 - `--json` 同时约束成功与失败输出；凭据不得出现在任何输出中。

@@ -83,7 +83,7 @@ func New(root string, options Options) *Service
 - 新能力按领域行为增加明确 request/result；不按 CLI 命令机械创建 API。
 - 查询语言使用独立 Query request/result；不使用命令字符串作为通用 API。
 - 执行语义使用独立 execution service，不与只读查询合并。
-- 只有消费层需要区分的错误类别才进入稳定错误契约；实现错误保留 cause chain。
+- application error 的分类、reason、上下文与 transport 映射以[错误契约](ERRORS.md)为准；程序不得解析错误文本。
 
 ## 验证
 
