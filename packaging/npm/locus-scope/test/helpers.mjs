@@ -2,7 +2,7 @@ import { mkdir, mkdtemp, rm, symlink, writeFile } from 'node:fs/promises';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
 
-const TEST_STATE = fileURLToPath(new URL('../../../temp/node-adapter-tests/', import.meta.url));
+const TEST_STATE = fileURLToPath(new URL('../../../../temp/node-adapter-tests/', import.meta.url));
 
 export async function testDirectory(t, prefix) {
   await mkdir(TEST_STATE, { recursive: true });
