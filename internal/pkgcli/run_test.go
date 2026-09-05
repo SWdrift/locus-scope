@@ -1,4 +1,4 @@
-package main
+package pkgcli
 
 import (
 	"bytes"
@@ -9,7 +9,7 @@ import (
 	"testing"
 
 	"locus-scope/internal/buildinfo"
-	"locus-scope/internal/purepkg"
+	"locus-scope/internal/pkgapp"
 )
 
 func TestRunInstallsEmptyProjectWithFlagsAfterCommand(t *testing.T) {
@@ -29,10 +29,10 @@ func TestRunInstallsEmptyProjectWithFlagsAfterCommand(t *testing.T) {
 	}
 	t.Cleanup(func() { _ = os.Chdir(original) })
 	var stdout, stderr bytes.Buffer
-	if code := run([]string{"install", "--json"}, &stdout, &stderr); code != 0 {
+	if code := Run([]string{"install", "--json"}, &stdout, &stderr); code != 0 {
 		t.Fatalf("run exit code = %d, stderr = %s", code, stderr.String())
 	}
-	var result purepkg.InstallResult
+	var result pkgapp.InstallResult
 	if err := json.Unmarshal(stdout.Bytes(), &result); err != nil {
 		t.Fatalf("decode output %q: %v", stdout.String(), err)
 	}
@@ -46,7 +46,7 @@ func TestRunInstallsEmptyProjectWithFlagsAfterCommand(t *testing.T) {
 
 func TestRunReportsJSONUsageFailure(t *testing.T) {
 	var stdout, stderr bytes.Buffer
-	if code := run([]string{"--json", "unknown"}, &stdout, &stderr); code != 2 {
+	if code := Run([]string{"--json", "unknown"}, &stdout, &stderr); code != 2 {
 		t.Fatalf("run exit code = %d", code)
 	}
 	var failure struct {
@@ -72,7 +72,7 @@ func TestRunRejectsInvalidMutationOptions(t *testing.T) {
 	for _, test := range tests {
 		t.Run(test.name, func(t *testing.T) {
 			var stdout, stderr bytes.Buffer
-			if code := run(test.arguments, &stdout, &stderr); code != 2 {
+			if code := Run(test.arguments, &stdout, &stderr); code != 2 {
 				t.Fatalf("run exit code = %d, stderr = %s", code, stderr.String())
 			}
 			if !strings.Contains(stderr.String(), test.want) {
@@ -103,7 +103,7 @@ func TestFindRootsWalksToMatchingAncestor(t *testing.T) {
 
 func TestHelpIncludesNpmLifecycleCommands(t *testing.T) {
 	var stdout, stderr bytes.Buffer
-	if code := run([]string{"help"}, &stdout, &stderr); code != 0 {
+	if code := Run([]string{"help"}, &stdout, &stderr); code != 0 {
 		t.Fatalf("run exit code = %d, stderr = %s", code, stderr.String())
 	}
 	for _, fragment := range []string{"install [<package-spec>...]", "uninstall <package>...", "--frozen-lockfile", "--registry <url>"} {
@@ -116,7 +116,7 @@ func TestHelpIncludesNpmLifecycleCommands(t *testing.T) {
 func TestRunShowsVersionWithoutProject(t *testing.T) {
 	for _, arguments := range [][]string{{"version"}, {"--version"}} {
 		var stdout, stderr bytes.Buffer
-		if code := run(arguments, &stdout, &stderr); code != 0 {
+		if code := Run(arguments, &stdout, &stderr); code != 0 {
 			t.Fatalf("run %v exit code = %d, stderr = %s", arguments, code, stderr.String())
 		}
 		want := "locus-pkg " + buildinfo.Version + "\n"
@@ -126,7 +126,7 @@ func TestRunShowsVersionWithoutProject(t *testing.T) {
 	}
 
 	var stdout, stderr bytes.Buffer
-	if code := run([]string{"--json", "version"}, &stdout, &stderr); code != 0 {
+	if code := Run([]string{"--json", "version"}, &stdout, &stderr); code != 0 {
 		t.Fatalf("JSON version exit code = %d, stderr = %s", code, stderr.String())
 	}
 	var info struct {

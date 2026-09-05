@@ -1,4 +1,4 @@
-package purepkg
+package pkg
 
 import (
 	"context"
@@ -56,7 +56,7 @@ func TestPublishResultContractAndTemporaryArchiveCleanup(t *testing.T) {
 
 func writePackFixture(t *testing.T) string {
 	t.Helper()
-	root := purepkgTestRoot(t)
+	root := pkgTestRoot(t)
 	manifest := `{
   "name": "pkg",
   "version": "1.2.3",

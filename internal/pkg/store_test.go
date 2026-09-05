@@ -1,4 +1,4 @@
-package purepkg
+package pkg
 
 import (
 	"archive/tar"
@@ -15,7 +15,7 @@ import (
 )
 
 func TestOfflineMaterializationUsesIntegrityAddressedCache(t *testing.T) {
-	root := purepkgTestRoot(t)
+	root := pkgTestRoot(t)
 	tarball := ordinaryPackageTarball(t, "helper", "1.2.3")
 	integrity := locusnpm.IntegrityFor(tarball)
 	stem := integrity.Algorithm() + "-" + integrity.Hex()
@@ -66,7 +66,7 @@ func TestOfflineMaterializationUsesIntegrityAddressedCache(t *testing.T) {
 	}
 }
 func TestExistingStoreMustMatchIntegrityVerifiedTarball(t *testing.T) {
-	root := purepkgTestRoot(t)
+	root := pkgTestRoot(t)
 	tarball := ordinaryPackageTarball(t, "helper", "1.2.3")
 	integrity := locusnpm.IntegrityFor(tarball)
 	stem := integrity.Algorithm() + "-" + integrity.Hex()
@@ -102,7 +102,7 @@ func TestExistingStoreMustMatchIntegrityVerifiedTarball(t *testing.T) {
 }
 
 func TestOfflineMaterializationRejectsCorruptCache(t *testing.T) {
-	root := purepkgTestRoot(t)
+	root := pkgTestRoot(t)
 	tarball := ordinaryPackageTarball(t, "helper", "1.2.3")
 	integrity := locusnpm.IntegrityFor(tarball)
 	cache := filepath.Join(root, ".locus", "cache", integrity.Algorithm()+"-"+integrity.Hex()+".tgz")

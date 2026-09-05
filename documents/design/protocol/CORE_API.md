@@ -1,0 +1,94 @@
+# 核心 API
+
+## 简述
+
+`internal/scopeapp` 与 `internal/pkgapp` 是两个领域的 transport-independent application API。CLI、Node host 和未来 Web API 都是消费层，不直接实现或复制领域语义。
+
+## 职责
+
+本文定义 Scope 与 Package 的进程内 Go 契约及分层边界。CLI 参数、文本输出和退出状态由 [CLI](CLI.md) 定义；Entity、Scope 与 Relation 规则由[核心协议](PROTOCOL.md)定义；Package、Registry 和 lock/store 规则由 [Package 设计](../Package设计.md)定义。
+
+## 分层
+
+```mermaid
+flowchart LR
+    SC[Scope CLI]
+    SW[Scope Web API]
+    SA[internal/scopeapp]
+    SD[internal/scope]
+    PC[Package CLI]
+    PW[Package Web API]
+    PA[internal/pkgapp]
+    PD[internal/pkg]
+
+    SC --> SA
+    SW --> SA
+    SA --> SD
+    PC --> PA
+    PW --> PA
+    PA --> PD
+```
+
+两个领域使用相同模式：
+
+- `*cli` 只负责参数、transport 输出和退出状态。
+- `*app` 的 exported types 和 methods 是稳定 application API。
+- `scope` 与 `pkg` 实现领域规则和用例所需能力。
+- `npm` 与 `packageenv` 是基础设施或跨领域 adapter。
+- CLI、HTTP、JSON-RPC 或插件协议类型不得进入 `*app` 或领域包。
+
+## Scope API
+
+`scopeapp` 对一个已经完整加载并验证的 Workspace 建立服务：
+
+```go
+func New(workspace *scope.Workspace) *Service
+```
+
+| 方法 | 结果 | 语义 |
+| --- | --- | --- |
+| `Validate()` | `ValidationResult` | 返回 root 与 Scope、Entity、Relation 数量。 |
+| `RootScope()` | `Scope` | 返回 root Scope、排序后的 Imports 和 Exports。 |
+| `ListScopes()` | `ScopesResult` | 按 Source identity 稳定排序返回全部 Scope。 |
+| `ListEntities()` | `EntitiesResult` | 按 owner Source 和 Entity ID 稳定排序返回全部 Entity identity。 |
+| `GetEntity(reference)` | `EntityResult` | 从 root 解析 reference，返回原始 owner 和属性。 |
+| `ListRelations()` | `RelationsResult` | 返回 Relation 及两端原始 owner。 |
+| `ResolveEntity(reference)` | `ResolveResult` | 从 root 解析 reference，返回稳定 Entity identity。 |
+
+Workspace 来源由宿主选择：standalone 通过 `pkgapp` 加载 Pure Locus lock/store，Node host 使用 npm/pnpm resolved package graph。两种入口最终调用相同 `scopeapp.Service`。
+
+## Package API
+
+`pkgapp` 对一个 project 或 package root 建立服务：
+
+```go
+func New(root string, options Options) *Service
+```
+
+| 方法 | 结果 | 语义 |
+| --- | --- | --- |
+| `Install(ctx, specs)` | `InstallResult` | 解析并安装声明或显式 Package。 |
+| `Uninstall(ctx, names)` | `InstallResult` | 删除直接依赖并剪除不可达节点。 |
+| `Update(ctx, names)` | `InstallResult` | 更新全部或指定直接依赖闭包。 |
+| `List()` | `ListResult` | 返回 importer-relative dependency trees。 |
+| `Pack()` | `PackResult` | 生成确定性 npm-compatible archive。 |
+| `Publish(ctx)` | `PublishResult` | 打包并发布不可变 Package version。 |
+| `LoadWorkspace()` | `*scope.Workspace` | 从现有 lock/store 离线装配 Workspace。 |
+
+`pkgcli` 只消费这些方法，不依赖 `pkg`、`npm` 或 `packageenv`。
+
+## 稳定性规则
+
+- application result 使用稳定 DTO，不暴露 CLI writer、exit code 或 HTTP 状态。
+- 新能力按领域行为增加明确 request/result；不按 CLI 命令机械创建 API。
+- 查询语言使用独立 Query request/result；不使用命令字符串作为通用 API。
+- 执行语义使用独立 execution service，不与只读查询合并。
+- 只有消费层需要区分的错误类别才进入稳定错误契约；实现错误保留 cause chain。
+
+## 验证
+
+- `scopeapp` 测试排序、ownership、reference resolution 和 DTO 契约。
+- `pkg` 测试 lock/store、resolution、transaction 和 Package 规则。
+- `pkgapp` 的无分支转发和 DTO 转换不单独测试。
+- CLI 测试只覆盖参数、transport 和退出状态，不重复 application/domain semantics。
+- Node 与 E2E 验证不同宿主进入相同核心 API 后得到一致结果。

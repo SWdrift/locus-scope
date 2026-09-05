@@ -41,7 +41,8 @@ flowchart LR
 
     PureEnv --> Loader["scope.Load"]
     NodeEnv --> Loader
-    Loader --> CLI["scopecli<br/>same Scope / Graph result"]
+    CLI["scopecli frontend"] --> App["scopeapp"]
+    Loader --> App
 ```
 
 ## example：发布一个可被两种环境消费的 Package
@@ -216,7 +217,7 @@ pnpm exec locus-scope-node validate --json
 | Node descriptor | 从 root importer 开始递归解析每个已发现 Locus package 的直接 dependencies；普通 npm package 不进入 descriptor。无法暴露 package root 的普通 dependency 可省略，之后若 Scope Import 引用它则按 missing importer edge 失败。物理多副本的同一 identity 仅在 entry 与 resolved Locus edges 一致时合并，并选择字典序最小 canonical real path；否则 launch 前失败。descriptor maps 必须确定性排序。 |
 | Host request | 私有 host 无 flags 或交互 RPC，从 stdin 读取且只读取一个 version 1 JSON request：`workingDirectory`、`arguments`、含 `scopeRoot`、`packageRoot`、`dependencies` 的 `root`，以及以 `npm:<name>@<version>` 为 key、含绝对 `root`、相对 `entry`、`dependencies` 的 `packages`。拒绝未知字段、unsupported version、trailing JSON、相对或非文件 roots、entry escape 和冲突 identity。 |
 | Host response | host 恰好写一个 `{"version":1,"exitCode":0,"stdout":"...","stderr":"..."}` 形状的 response。协议错误在可能时也返回合法 response 和 exit code 1；正常 host process exit code 等于 enclosed CLI code。adapter 原样转发 stdout、stderr 和 exit code；有效 request 在 Workspace 加载前失败时，stderr 仍须遵守 request 的 `--json` 输出模式。npm root 缺少直接 dependency 的诊断必须指向 `pnpm add` 或 `npm install`，不得指向 Pure 环境的 `locus-pkg`。 |
-| 共用执行核心 | standalone、Pure 和 Node host 最终都调用同一 `packageenv`、`scope.Load` 与 `scopecli`；不得在 JavaScript 或其他入口复制 Scope validation、query 或稳定 JSON view。 |
+| 共用执行核心 | standalone、Pure 和 Node host 最终都调用同一 `packageenv`、`scope.Load`、`scopeapp` 与 `scopecli`；不得在 JavaScript 或其他入口复制 Scope validation、query 或稳定 JSON view。 |
 
 ## 验收
 

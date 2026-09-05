@@ -11,46 +11,8 @@ import (
 
 	"locus-scope/internal/buildinfo"
 	"locus-scope/internal/scope"
+	"locus-scope/internal/scopeapp"
 )
-
-type importView struct {
-	Alias  string         `json:"alias"`
-	Source string         `json:"source"`
-	Target scope.ScopeKey `json:"target"`
-}
-
-type scopeView struct {
-	ID      string         `json:"id"`
-	Source  scope.ScopeKey `json:"source"`
-	Root    bool           `json:"root"`
-	Imports []importView   `json:"imports"`
-	Exports []string       `json:"exports"`
-}
-
-type entityView struct {
-	ScopeID string         `json:"scope_id"`
-	Scope   scope.ScopeKey `json:"scope"`
-	ID      string         `json:"id"`
-}
-
-type entityDetailView struct {
-	ScopeID    string         `json:"scope_id"`
-	Scope      scope.ScopeKey `json:"scope"`
-	ID         string         `json:"id"`
-	Properties map[string]any `json:"properties"`
-}
-
-type relationView struct {
-	From entityKeyView `json:"from"`
-	Name string        `json:"name"`
-	To   entityKeyView `json:"to"`
-}
-
-type entityKeyView struct {
-	ScopeID string         `json:"scope_id"`
-	Scope   scope.ScopeKey `json:"scope"`
-	ID      string         `json:"id"`
-}
 
 // Run executes one query against an already loaded workspace.
 func Run(workspace *scope.Workspace, arguments []string, stdout, stderr io.Writer) int {
@@ -74,7 +36,7 @@ func Run(workspace *scope.Workspace, arguments []string, stdout, stderr io.Write
 		writeFailure(stderr, jsonOutput, errors.New("Scope workspace is required"))
 		return 1
 	}
-	if err := execute(workspace, command, jsonOutput, stdout); err != nil {
+	if err := execute(scopeapp.New(workspace), command, jsonOutput, stdout); err != nil {
 		writeFailure(stderr, jsonOutput, err)
 		return 2
 	}
@@ -101,154 +63,99 @@ func parseArguments(arguments []string) (bool, []string, error) {
 	return jsonOutput, command, nil
 }
 
-func execute(workspace *scope.Workspace, command []string, jsonOutput bool, output io.Writer) error {
+func execute(app *scopeapp.Service, command []string, jsonOutput bool, output io.Writer) error {
 	switch {
 	case len(command) == 1 && command[0] == "validate":
-		return showValidation(workspace, jsonOutput, output)
+		return showValidation(app.Validate(), jsonOutput, output)
 	case len(command) == 2 && command[0] == "scope" && command[1] == "show":
-		return showRootScope(workspace, jsonOutput, output)
+		return showRootScope(app.RootScope(), jsonOutput, output)
 	case len(command) == 2 && command[0] == "scope" && command[1] == "list":
-		return listScopes(workspace, jsonOutput, output)
+		return listScopes(app.ListScopes(), jsonOutput, output)
 	case len(command) == 2 && command[0] == "entity" && command[1] == "list":
-		return listEntities(workspace, jsonOutput, output)
+		return listEntities(app.ListEntities(), jsonOutput, output)
 	case len(command) == 3 && command[0] == "entity" && command[1] == "show":
-		return showEntity(workspace, command[2], jsonOutput, output)
+		result, err := app.GetEntity(command[2])
+		if err != nil {
+			return err
+		}
+		return showEntity(result, jsonOutput, output)
 	case len(command) == 2 && command[0] == "relation" && command[1] == "list":
-		return listRelations(workspace, jsonOutput, output)
+		return listRelations(app.ListRelations(), jsonOutput, output)
 	case len(command) == 2 && command[0] == "resolve":
-		return resolveEntity(workspace, command[1], jsonOutput, output)
+		result, err := app.ResolveEntity(command[1])
+		if err != nil {
+			return err
+		}
+		return resolveEntity(result, jsonOutput, output)
 	default:
 		return fmt.Errorf("unknown command %q; run locus-scope help", strings.Join(command, " "))
 	}
 }
 
-func showValidation(workspace *scope.Workspace, jsonOutput bool, output io.Writer) error {
-	entityCount := 0
-	for _, loaded := range workspace.Scopes {
-		entityCount += len(loaded.Entities)
-	}
-	view := struct {
-		Valid     bool           `json:"valid"`
-		Root      scope.ScopeKey `json:"root"`
-		Scopes    int            `json:"scopes"`
-		Entities  int            `json:"entities"`
-		Relations int            `json:"relations"`
-	}{true, workspace.Root, len(workspace.Scopes), entityCount, len(workspace.Relations)}
+func showValidation(result scopeapp.ValidationResult, jsonOutput bool, output io.Writer) error {
 	if jsonOutput {
-		return writeJSON(output, view)
+		return writeJSON(output, result)
 	}
 	_, err := fmt.Fprintf(output, "valid: %s (%d scopes, %d entities, %d relations)\n",
-		workspace.Root, view.Scopes, view.Entities, view.Relations)
+		result.Root, result.Scopes, result.Entities, result.Relations)
 	return err
 }
 
-func showRootScope(workspace *scope.Workspace, jsonOutput bool, output io.Writer) error {
-	view := makeScopeView(workspace, workspace.Root)
+func showRootScope(result scopeapp.Scope, jsonOutput bool, output io.Writer) error {
 	if jsonOutput {
-		return writeJSON(output, view)
+		return writeJSON(output, result)
 	}
-	if _, err := fmt.Fprintf(output, "id: %s\nsource: %s\n", view.ID, view.Source); err != nil {
+	if _, err := fmt.Fprintf(output, "id: %s\nsource: %s\n", result.ID, result.Source); err != nil {
 		return err
 	}
 	fmt.Fprintln(output, "imports:")
-	for _, imported := range view.Imports {
+	for _, imported := range result.Imports {
 		fmt.Fprintf(output, "  %s: %s -> %s\n", imported.Alias, imported.Source, imported.Target)
 	}
 	fmt.Fprintln(output, "exports:")
-	for _, exported := range view.Exports {
+	for _, exported := range result.Exports {
 		fmt.Fprintf(output, "  %s\n", exported)
 	}
 	return nil
 }
 
-func listScopes(workspace *scope.Workspace, jsonOutput bool, output io.Writer) error {
-	keys := scopeKeys(workspace)
-	views := make([]scopeView, 0, len(keys))
-	for _, key := range keys {
-		views = append(views, makeScopeView(workspace, key))
-	}
+func listScopes(result scopeapp.ScopesResult, jsonOutput bool, output io.Writer) error {
 	if jsonOutput {
-		return writeJSON(output, struct {
-			Scopes []scopeView `json:"scopes"`
-		}{views})
+		return writeJSON(output, result)
 	}
-	for _, view := range views {
+	for _, item := range result.Scopes {
 		marker := " "
-		if view.Root {
+		if item.Root {
 			marker = "*"
 		}
-		fmt.Fprintf(output, "%s %s\t%s\n", marker, view.ID, view.Source)
+		fmt.Fprintf(output, "%s %s\t%s\n", marker, item.ID, item.Source)
 	}
 	return nil
 }
 
-func makeScopeView(workspace *scope.Workspace, key scope.ScopeKey) scopeView {
-	loaded := workspace.Scopes[key]
-	aliases := make([]string, 0, len(loaded.Imports))
-	for alias := range loaded.Imports {
-		aliases = append(aliases, alias)
-	}
-	sort.Strings(aliases)
-	imports := make([]importView, 0, len(aliases))
-	for _, alias := range aliases {
-		imports = append(imports, importView{Alias: alias, Source: loaded.Manifest.Imports[alias], Target: loaded.Imports[alias]})
-	}
-	exports := append([]string(nil), loaded.Manifest.Exports...)
-	sort.Strings(exports)
-	return scopeView{ID: loaded.Manifest.ID, Source: key, Root: key == workspace.Root, Imports: imports, Exports: exports}
-}
-
-func listEntities(workspace *scope.Workspace, jsonOutput bool, output io.Writer) error {
-	views := entityViews(workspace)
+func listEntities(result scopeapp.EntitiesResult, jsonOutput bool, output io.Writer) error {
 	if jsonOutput {
-		return writeJSON(output, struct {
-			Entities []entityView `json:"entities"`
-		}{views})
+		return writeJSON(output, result)
 	}
-	for _, view := range views {
-		fmt.Fprintf(output, "%s\t%s\t%s\n", view.ScopeID, view.ID, view.Scope)
+	for _, entity := range result.Entities {
+		fmt.Fprintf(output, "%s\t%s\t%s\n", entity.ScopeID, entity.ID, entity.Scope)
 	}
 	return nil
 }
 
-func entityViews(workspace *scope.Workspace) []entityView {
-	var views []entityView
-	for _, key := range scopeKeys(workspace) {
-		loaded := workspace.Scopes[key]
-		ids := make([]string, 0, len(loaded.Entities))
-		for id := range loaded.Entities {
-			ids = append(ids, id)
-		}
-		sort.Strings(ids)
-		for _, id := range ids {
-			views = append(views, entityView{ScopeID: loaded.Manifest.ID, Scope: key, ID: id})
-		}
-	}
-	return views
-}
-
-func showEntity(workspace *scope.Workspace, reference string, jsonOutput bool, output io.Writer) error {
-	key, err := workspace.Resolve(workspace.Root, reference)
-	if err != nil {
-		return fmt.Errorf("resolve entity %q: %w", reference, err)
-	}
-	loaded := workspace.Scopes[key.Scope]
-	entity := loaded.Entities[key.ID]
-	view := entityDetailView{ScopeID: loaded.Manifest.ID, Scope: key.Scope, ID: key.ID, Properties: entity.Properties}
+func showEntity(result scopeapp.EntityResult, jsonOutput bool, output io.Writer) error {
 	if jsonOutput {
-		return writeJSON(output, struct {
-			Reference string           `json:"reference"`
-			Entity    entityDetailView `json:"entity"`
-		}{reference, view})
+		return writeJSON(output, result)
 	}
-	fmt.Fprintf(output, "id: %s\nowner: %s (%s)\nproperties:\n", view.ID, view.ScopeID, view.Scope)
-	propertyNames := make([]string, 0, len(view.Properties))
-	for name := range view.Properties {
+	entity := result.Entity
+	fmt.Fprintf(output, "id: %s\nowner: %s (%s)\nproperties:\n", entity.ID, entity.ScopeID, entity.Scope)
+	propertyNames := make([]string, 0, len(entity.Properties))
+	for name := range entity.Properties {
 		propertyNames = append(propertyNames, name)
 	}
 	sort.Strings(propertyNames)
 	for _, name := range propertyNames {
-		encoded, err := json.Marshal(view.Properties[name])
+		encoded, err := json.Marshal(entity.Properties[name])
 		if err != nil {
 			return fmt.Errorf("encode property %q: %w", name, err)
 		}
@@ -257,56 +164,25 @@ func showEntity(workspace *scope.Workspace, reference string, jsonOutput bool, o
 	return nil
 }
 
-func listRelations(workspace *scope.Workspace, jsonOutput bool, output io.Writer) error {
-	views := make([]relationView, 0, len(workspace.Relations))
-	for _, relation := range workspace.Relations {
-		views = append(views, relationView{
-			From: makeEntityKeyView(workspace, relation.From),
-			Name: relation.Name,
-			To:   makeEntityKeyView(workspace, relation.To),
-		})
-	}
+func listRelations(result scopeapp.RelationsResult, jsonOutput bool, output io.Writer) error {
 	if jsonOutput {
-		return writeJSON(output, struct {
-			Relations []relationView `json:"relations"`
-		}{views})
+		return writeJSON(output, result)
 	}
-	for _, view := range views {
+	for _, relation := range result.Relations {
 		fmt.Fprintf(output, "%s:%s (%s) %s %s:%s (%s)\n",
-			view.From.ScopeID, view.From.ID, view.From.Scope,
-			view.Name,
-			view.To.ScopeID, view.To.ID, view.To.Scope)
+			relation.From.ScopeID, relation.From.ID, relation.From.Scope,
+			relation.Name,
+			relation.To.ScopeID, relation.To.ID, relation.To.Scope)
 	}
 	return nil
 }
 
-func resolveEntity(workspace *scope.Workspace, reference string, jsonOutput bool, output io.Writer) error {
-	key, err := workspace.Resolve(workspace.Root, reference)
-	if err != nil {
-		return fmt.Errorf("resolve %q: %w", reference, err)
-	}
-	view := makeEntityKeyView(workspace, key)
+func resolveEntity(result scopeapp.ResolveResult, jsonOutput bool, output io.Writer) error {
 	if jsonOutput {
-		return writeJSON(output, struct {
-			Reference string        `json:"reference"`
-			Entity    entityKeyView `json:"entity"`
-		}{reference, view})
+		return writeJSON(output, result)
 	}
-	_, err = fmt.Fprintf(output, "%s:%s\nowner: %s\n", view.ScopeID, view.ID, view.Scope)
+	_, err := fmt.Fprintf(output, "%s:%s\nowner: %s\n", result.Entity.ScopeID, result.Entity.ID, result.Entity.Scope)
 	return err
-}
-
-func makeEntityKeyView(workspace *scope.Workspace, key scope.EntityKey) entityKeyView {
-	return entityKeyView{ScopeID: workspace.Scopes[key.Scope].Manifest.ID, Scope: key.Scope, ID: key.ID}
-}
-
-func scopeKeys(workspace *scope.Workspace) []scope.ScopeKey {
-	keys := make([]scope.ScopeKey, 0, len(workspace.Scopes))
-	for key := range workspace.Scopes {
-		keys = append(keys, key)
-	}
-	sort.Slice(keys, func(i, j int) bool { return keys[i] < keys[j] })
-	return keys
 }
 
 func writeJSON(output io.Writer, value any) error {

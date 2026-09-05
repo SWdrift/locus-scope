@@ -8,7 +8,7 @@ import (
 	"os"
 	"strings"
 
-	"locus-scope/internal/purepkg"
+	"locus-scope/internal/pkgapp"
 	"locus-scope/internal/scope"
 	"locus-scope/internal/scopecli"
 )
@@ -37,7 +37,7 @@ func run(arguments []string, stdout, stderr io.Writer) int {
 		writeFailure(stderr, opts.jsonOutput, err)
 		return 1
 	}
-	workspace, err := purepkg.LoadWorkspace(root)
+	workspace, err := pkgapp.New(root, pkgapp.Options{}).LoadWorkspace()
 	if err != nil {
 		writeFailure(stderr, opts.jsonOutput, err)
 		return 1
