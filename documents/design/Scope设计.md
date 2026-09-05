@@ -114,23 +114,7 @@ relations:
 
 ## CLI
 
-`locus-scope` 是 Scope 查询的薄入口，提供：
-
-- `locus-scope validate`：加载并验证完整 reachable graph，成功时输出根 Scope 的来源 identity，以及 Scope、Entity 和 Relation 的数量。不会只检查根 Scope 的 locus.yaml 和 definition documents，而会沿着 imports 加载全部可达 Scope，并验证整个依赖闭包。
-- `locus-scope scope show`：显示根 Scope 的 manifest ID、来源 identity、Import alias 及其目标、Export reference。
-- `locus-scope scope list`：列出 reachable graph 中的全部 Scope，并标记根 Scope；每项包含 manifest ID 和来源 identity。
-- `locus-scope entity list`：列出全部 reachable Entity；每项包含所属 Scope 的 manifest ID、Entity ID 和 owner Scope 的来源 identity。
-- `locus-scope entity show <ref>`：从根 Scope 解析 `<ref>`，显示最终 Entity 的原始 owner、ID 和全部属性。
-- `locus-scope relation list`：列出验证后的全部 Relation，显示 Relation 名称，以及解析到原始 owner 后的起点和终点。
-- `locus-scope resolve <ref>`：从根 Scope 解析 `<ref>`，只返回最终 Entity 的 manifest ID、Entity ID 和 owner Scope 来源 identity，不读取其属性。
-- `locus-scope version`：输出构建时注入的 CLI 版本，不发现或加载 Scope；`--version` 与其等价。
-
-对于所有命令，有 option：
-
-- `--scope <dir>` 直接选择目录；未指定时从当前目录的祖先链选择最近的 Scope manifest，不做用户级回退。
-- `--json`：输出字段和集合顺序稳定的 JSON，供 Agent 和脚本消费；`version` 输出 `name` 和 `version`。
-
-除 `help` 和 `version` 外，所有命令必须先加载并验证完整 reachable graph，不能只检查 root Scope。
+`locus-scope` 和 `locus-scope-node` 是完整 Workspace 的薄查询入口。指令、参数、输出和退出状态以 [CLI 公共契约](protocol/CLI.md#scope-查询)为准；除 `help` 和 `version` 外，查询前必须先加载并验证全部可达 Scope。
 
 ## 验收
 

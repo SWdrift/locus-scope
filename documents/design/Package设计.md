@@ -205,9 +205,7 @@ pnpm exec locus-scope-node validate --json
 | Pack 输入 | `package.json.files` 必须是非空数组，只接受相对 literal file 或 directory；拒绝 glob metacharacter、`.npmignore`、bundled dependencies、symlink 和依赖 lifecycle script 的 packaging。 |
 | Pack 内容 | 目录递归展开；始终包含 root `package.json` 以及 root README、LICENSE、LICENCE、NOTICE files；始终排除 `.git`、`.locus`、`node_modules`、`locus.lock`、生成 archive 和 package root 外路径。packed view 仍必须包含声明的唯一 `locus.entry`。 |
 | Pack 确定性 | tar entries 位于 `package/`，使用 slash path 并按字典序排列；owner、mtime 和 gzip metadata 规范化，只包含 regular files/directories。相同输入必须产生相同 tgz 和 integrity。 |
-| CLI 命令 | `locus-pkg` 提供 `install [<package-spec>...]`、`uninstall <package>...`、`update [<package>...]`、`list`、`pack`、`publish`、`version` 和 `--version`。通用 option `--json`、`--registry <url>`、`--offline`、`--frozen-lockfile` 可位于命令前后。 |
-| CLI 错误 | 显式 install 与 frozen 组合、publish 与 offline/frozen 组合、mutation command 缺少必需名称都是 exit 2 usage error；validation、network、protocol 和 transaction failure 是 exit 1。JSON failure 固定向 stderr 写 `{"error":"..."}`，且不得泄漏 credential 或物理 cache 路径。 |
-| CLI root | install/uninstall/update/list 从当前目录向上寻找同时包含 package.json 和 root Scope manifest 的最近目录。pack/publish 寻找最近含合法 `locus.entry` 的 package.json，并以 entry 所在目录作为唯一 Scope root。 |
+| CLI 契约 | `locus-pkg` 的指令、参数、项目查找、输出和退出状态以 [CLI 公共契约](protocol/CLI.md#package-管理)为准。 |
 | Dependency 变更 | 显式 install 保留用户给出的 specifier；bare name 保存 `^<resolved-version>`。install/uninstall 只修改 `dependencies`，保留其他 package.json fields，并用 two-space JSON 与 trailing newline 写回。uninstall/update 只接受 direct dependency name；update 保持 declared constraint。 |
 | Resolution 更新 | install 只解锁新增或改变的 roots，named update 只解锁指定 direct roots 的 closures，unnamed update 解锁全部 roots，uninstall 删除指定 roots；其他有效 lock subgraphs 保持不变。每个 constraint 选择最高匹配版本。 |
 | List、pack、publish | list 只读取 lock/store 并输出 resolved dependency tree；每个 node 含 `name`、`version`、`identity` 和递归 `dependencies`。pack 将 `@example/app@1.0.0` 写为 package root 下的 `example-app-1.0.0.tgz`。publish 在 `.locus/tmp` pack、发布 `latest`，并删除临时 tgz。 |
