@@ -13,6 +13,8 @@ Locus Scope 将具有身份的事物及其关系组织成有边界的图。Entit
 | [使用npm](documents/使用npm.md) | 已有 Node.js 项目；沿用 npm 或 pnpm 的安装、lockfile 和缓存。 | `locus-scope-node` |
 | [使用独立CLI](documents/使用独立CLI.md) | 非 Node.js 项目；只使用本地 Scope；由 Locus 管理 Package lock 和离线缓存。 | `locus-scope`、`locus-pkg` |
 
+> 注意，当前 `@locus/scope` 仅示例，尚未发布到公共 npm Registry。所以 npm 方式不完全可用。
+
 从创建第一个 Scope 开始，请阅读[基本使用](documents/基本使用.md)。
 
 <details>
