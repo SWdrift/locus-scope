@@ -1,0 +1,5 @@
+entities:
+  - id: application
+    type: service
+relations:
+  - [application, uses, base:database]

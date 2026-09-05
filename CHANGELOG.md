@@ -2,6 +2,23 @@
 
 本文件记录 `locus-scope` 各发布版本的用户可见变更。
 
+## Unreleased
+
+## [1.0.0] - 2026-09-05
+
+### Added
+
+- npm-compatible Package 分发：Pure `locus-pkg` 的 install/uninstall/update/list/pack/publish，以及 npm/pnpm 的 `@locus/scope` 与五个平台 host package。
+- importer-relative 多版本解析、严格 `locus.lock`、项目内 integrity store、offline/frozen transaction 和 Verdaccio 开发/E2E 工具。
+- project-local Inno Setup 6 管理脚本，固定下载校验、portable 安装位置和 release 默认编译器。
+
+### Changed
+
+- Package identity 固定为 `npm:<name>@<version>`；bare Scope Import 由声明它的 package dependency context 解析。
+- Windows installer 只分发两个 standalone CLI；Registry server 改为独立的项目基础设施。
+- 交付定义集中到 `packaging/`；仓库脚本统一采用 `<domain>-<action>.ps1` 命名。
+- 仓库任务统一通过根 package scripts 执行；跨平台编排迁移到 Node，Windows 专用实现集中到 `scripts/windows/`，工具配置不再使用 `.tools/`。
+
 ## [0.1.1] - 2026-09-04
 
 ### Added

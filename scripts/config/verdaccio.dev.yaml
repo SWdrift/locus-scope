@@ -1,0 +1,37 @@
+storage: __STORAGE_PATH__
+
+web:
+  enable: false
+
+auth:
+  htpasswd:
+    file: __AUTH_PATH__
+    max_users: 100
+
+uplinks:
+  npmjs:
+    url: https://registry.npmjs.org/
+
+packages:
+  "@*/*":
+    access: $all
+    publish: $authenticated
+    unpublish: $authenticated
+    proxy: npmjs
+  "**":
+    access: $all
+    publish: $authenticated
+    unpublish: $authenticated
+    proxy: npmjs
+
+log:
+  type: file
+  path: __LOG_PATH__
+  level: http
+
+security:
+  api:
+    legacy: false
+  web:
+    sign:
+      expiresIn: 1h

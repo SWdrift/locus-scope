@@ -1,0 +1,8 @@
+{
+  "name": "@example/app",
+  "version": "1.0.0",
+  "files": ["package.json", "locus.yaml", "entities.locus.yaml"],
+  "dependencies": {"@example/base": "^1.0.0", "@example/helper": "1.0.0"},
+  "locus": {"entry": "locus.yaml"},
+  "exports": {".": "./entities.locus.yaml", "./package.json": "./package.json"}
+}

@@ -1,0 +1,6 @@
+id: modern
+imports:
+  base: "@example/base"
+exports:
+  - modern-service
+  - base:database

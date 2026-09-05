@@ -9,41 +9,34 @@ import (
 	"testing"
 
 	"locus-scope/internal/buildinfo"
-	"locus-scope/internal/packages"
+	"locus-scope/internal/purepkg"
 )
 
-func TestRunInstallsLocalScopeWithFlagsAfterCommand(t *testing.T) {
-	root := filepath.Join("..", "..", "temp", "e2e-run", "pkg-cli-unit")
-	if err := os.RemoveAll(root); err != nil {
-		t.Fatalf("clear test root: %v", err)
-	}
+func TestRunInstallsEmptyProjectWithFlagsAfterCommand(t *testing.T) {
+	root := cliTestDirectory(t, "install")
 	project := filepath.Join(root, "project")
-	dockerConfig := filepath.Join(root, "docker")
-	if err := os.MkdirAll(project, 0o755); err != nil {
-		t.Fatalf("create project: %v", err)
-	}
-	if err := os.MkdirAll(dockerConfig, 0o755); err != nil {
-		t.Fatalf("create Docker config directory: %v", err)
-	}
-	if err := os.WriteFile(filepath.Join(project, "locus.yaml"), []byte("id: cli\n"), 0o644); err != nil {
-		t.Fatalf("write manifest: %v", err)
-	}
-	if err := os.WriteFile(filepath.Join(dockerConfig, "config.json"), []byte("{}\n"), 0o644); err != nil {
-		t.Fatalf("write Docker config: %v", err)
-	}
+	writeCLITestFile(t, filepath.Join(project, "package.json"), "{\n  \"name\": \"example-project\",\n  \"version\": \"1.0.0\",\n  \"dependencies\": {},\n  \"locus\": {\"entry\": \"locus.yaml\"}\n}\n")
+	writeCLITestFile(t, filepath.Join(project, "locus.yaml"), "id: cli\n")
 	t.Setenv("HOME", root)
 	t.Setenv("USERPROFILE", root)
-	t.Setenv("DOCKER_CONFIG", dockerConfig)
 
+	original, err := os.Getwd()
+	if err != nil {
+		t.Fatal(err)
+	}
+	if err := os.Chdir(project); err != nil {
+		t.Fatal(err)
+	}
+	t.Cleanup(func() { _ = os.Chdir(original) })
 	var stdout, stderr bytes.Buffer
-	if code := run([]string{"install", "--scope", project, "--json"}, &stdout, &stderr); code != 0 {
+	if code := run([]string{"install", "--json"}, &stdout, &stderr); code != 0 {
 		t.Fatalf("run exit code = %d, stderr = %s", code, stderr.String())
 	}
-	var result packages.InstallResult
+	var result purepkg.InstallResult
 	if err := json.Unmarshal(stdout.Bytes(), &result); err != nil {
 		t.Fatalf("decode output %q: %v", stdout.String(), err)
 	}
-	if !result.Valid || result.Scopes != 1 {
+	if !result.Valid || result.Scopes != 1 || result.Packages != 0 {
 		t.Fatalf("install output = %#v", result)
 	}
 	if _, err := os.Stat(filepath.Join(project, "locus.lock")); err != nil {
@@ -64,15 +57,17 @@ func TestRunReportsJSONUsageFailure(t *testing.T) {
 	}
 }
 
-func TestRunRejectsInvalidPublishInvocation(t *testing.T) {
+func TestRunRejectsInvalidMutationOptions(t *testing.T) {
 	tests := []struct {
 		name      string
 		arguments []string
 		want      string
 	}{
-		{name: "missing target", arguments: []string{"publish"}, want: "requires exactly one OCI target"},
-		{name: "multiple targets", arguments: []string{"publish", "oci://registry.example/one:v1", "oci://registry.example/two:v1"}, want: "requires exactly one OCI target"},
-		{name: "frozen", arguments: []string{"--frozen", "publish", "oci://registry.example/package:v1"}, want: "only valid with install"},
+		{name: "explicit frozen install", arguments: []string{"install", "@example/app@^1", "--frozen-lockfile"}, want: "cannot be used with explicit install"},
+		{name: "missing uninstall name", arguments: []string{"uninstall"}, want: "requires at least one"},
+		{name: "offline publish", arguments: []string{"publish", "--offline"}, want: "does not support"},
+		{name: "frozen publish", arguments: []string{"--frozen-lockfile", "publish"}, want: "does not support"},
+		{name: "list argument", arguments: []string{"list", "extra"}, want: "does not accept positional"},
 	}
 	for _, test := range tests {
 		t.Run(test.name, func(t *testing.T) {
@@ -87,17 +82,38 @@ func TestRunRejectsInvalidPublishInvocation(t *testing.T) {
 	}
 }
 
-func TestHelpIncludesPublishUsage(t *testing.T) {
+func TestFindRootsWalksToMatchingAncestor(t *testing.T) {
+	root := cliTestDirectory(t, "roots")
+	project := filepath.Join(root, "project")
+	nested := filepath.Join(project, "nested", "work")
+	writeCLITestFile(t, filepath.Join(project, "package.json"), "{\"name\":\"project\",\"version\":\"1.0.0\",\"locus\":{\"entry\":\"locus.yaml\"}}\n")
+	writeCLITestFile(t, filepath.Join(project, "locus.yaml"), "id: project\n")
+	if err := os.MkdirAll(nested, 0o755); err != nil {
+		t.Fatal(err)
+	}
+	projectRoot, err := findProjectRoot(nested)
+	if err != nil || projectRoot != project {
+		t.Fatalf("findProjectRoot = %q, %v", projectRoot, err)
+	}
+	packageRoot, err := findPackageRoot(nested)
+	if err != nil || packageRoot != project {
+		t.Fatalf("findPackageRoot = %q, %v", packageRoot, err)
+	}
+}
+
+func TestHelpIncludesNpmLifecycleCommands(t *testing.T) {
 	var stdout, stderr bytes.Buffer
 	if code := run([]string{"help"}, &stdout, &stderr); code != 0 {
 		t.Fatalf("run exit code = %d, stderr = %s", code, stderr.String())
 	}
-	if !strings.Contains(stdout.String(), "publish <oci-tag>") {
-		t.Fatalf("help output = %q", stdout.String())
+	for _, fragment := range []string{"install [<package-spec>...]", "uninstall <package>...", "--frozen-lockfile", "--registry <url>"} {
+		if !strings.Contains(stdout.String(), fragment) {
+			t.Fatalf("help output %q does not contain %q", stdout.String(), fragment)
+		}
 	}
 }
 
-func TestRunShowsVersionWithoutScope(t *testing.T) {
+func TestRunShowsVersionWithoutProject(t *testing.T) {
 	for _, arguments := range [][]string{{"version"}, {"--version"}} {
 		var stdout, stderr bytes.Buffer
 		if code := run(arguments, &stdout, &stderr); code != 0 {
@@ -122,5 +138,30 @@ func TestRunShowsVersionWithoutScope(t *testing.T) {
 	}
 	if info.Name != "locus-pkg" || info.Version != buildinfo.Version {
 		t.Fatalf("version output = %#v", info)
+	}
+}
+
+func cliTestDirectory(t *testing.T, name string) string {
+	t.Helper()
+	root, err := filepath.Abs(filepath.Join("..", "..", "temp", "pkg-cli-unit", name))
+	if err != nil {
+		t.Fatal(err)
+	}
+	if err := os.RemoveAll(root); err != nil {
+		t.Fatal(err)
+	}
+	if err := os.MkdirAll(root, 0o755); err != nil {
+		t.Fatal(err)
+	}
+	return root
+}
+
+func writeCLITestFile(t *testing.T, path, content string) {
+	t.Helper()
+	if err := os.MkdirAll(filepath.Dir(path), 0o755); err != nil {
+		t.Fatal(err)
+	}
+	if err := os.WriteFile(path, []byte(content), 0o644); err != nil {
+		t.Fatal(err)
 	}
 }

@@ -2,390 +2,572 @@ package e2e_test
 
 import (
 	"bytes"
-	"context"
 	"encoding/json"
-	"net"
-	"net/http"
-	"net/http/httptest"
-	"net/url"
+	"fmt"
 	"os"
-	"os/exec"
 	"path/filepath"
 	"runtime"
+	"sort"
 	"strings"
-	"sync"
 	"testing"
-	"time"
-
-	"github.com/distribution/distribution/v3/configuration"
-	"github.com/distribution/distribution/v3/registry/handlers"
-	_ "github.com/distribution/distribution/v3/registry/storage/driver/inmemory"
-	"gopkg.in/yaml.v3"
-	"locus-scope/internal/packages"
 )
 
-func TestPackageCLIClosure(t *testing.T) {
-	configurationData := "version: 0.1\nlog:\n  level: error\nstorage:\n  inmemory: {}\n"
-	registryConfiguration, err := configuration.Parse(strings.NewReader(configurationData))
-	if err != nil {
-		t.Fatalf("parse registry configuration: %v", err)
-	}
-	requests := &requestRecorder{next: handlers.NewApp(context.Background(), registryConfiguration)}
-	server := httptest.NewServer(requests)
-	runRoot := repositoryPath("temp", "e2e-run", "package")
-	defer func() {
-		server.Close()
-		requests.write(t, filepath.Join(runRoot, "registry", "requests.log"))
-	}()
+func TestNPMPackageLifecycle(t *testing.T) {
+	h := newNPMLifecycleHarness(t)
+	fixtureRoot := repositoryPath("test", "e2e", "case", "npm")
+	publishedRoot := filepath.Join(h.root, "fixtures", "published")
 
-	runPackageCLIClosure(t, server.URL, runRoot)
+	base10 := publishFixture(t, h, "base-1.0.0", filepath.Join(fixtureRoot, "packages", "base", "1.0.0"), filepath.Join(publishedRoot, "base-1.0.0"))
+	base20 := publishFixture(t, h, "base-2.0.0", filepath.Join(fixtureRoot, "packages", "base", "2.0.0"), filepath.Join(publishedRoot, "base-2.0.0"))
+	publishFixture(t, h, "helper-1.0.0", filepath.Join(fixtureRoot, "packages", "helper"), filepath.Join(publishedRoot, "helper"))
+	publishFixture(t, h, "app-1.0.0", filepath.Join(fixtureRoot, "packages", "app"), filepath.Join(publishedRoot, "app"))
+	publishFixture(t, h, "modern-1.0.0", filepath.Join(fixtureRoot, "packages", "modern"), filepath.Join(publishedRoot, "modern"))
+
+	basePackument := getPackument(t, h.endpoint, "@example/base", "")
+	if len(basePackument.Versions) != 2 || basePackument.Versions["1.0.0"].Dist.Integrity == "" || basePackument.Versions["2.0.0"].Dist.Integrity == "" {
+		t.Fatalf("base packument does not expose the initially published versions: %#v", basePackument.Versions)
+	}
+	appPackument := getPackument(t, h.endpoint, "@example/app", "")
+	appMetadata := appPackument.Versions["1.0.0"]
+	if appMetadata.Dependencies["@example/base"] != "^1.0.0" || appMetadata.Dependencies["@example/helper"] != "1.0.0" {
+		t.Fatalf("app dependency metadata = %#v", appMetadata.Dependencies)
+	}
+	baseArchive := fetchBytes(t, basePackument.Versions["1.0.0"].Dist.Tarball)
+	verifyIntegrity(t, basePackument.Versions["1.0.0"].Dist.Integrity, baseArchive)
+	if !containsString(tarFileNames(t, baseArchive), "package/package.json") || !containsString(tarFileNames(t, baseArchive), "package/locus.yaml") {
+		t.Fatalf("downloaded base tarball does not contain its npm and Scope manifests")
+	}
+	if !bytes.Contains(base10.stdout, []byte("@example/base@1.0.0")) || !bytes.Contains(base20.stdout, []byte("@example/base@2.0.0")) {
+		t.Fatalf("standard npm publish output did not identify published base versions")
+	}
+	h.npmPublish("immutable-version-conflict", filepath.Join(publishedRoot, "base-1.0.0"), h.authEnv).failure(t, "immutable version conflict")
+
+	existingProject := filepath.Join(h.root, "projects", "pure-existing")
+	materializeFixture(t, filepath.Join(fixtureRoot, "consumer"), existingProject)
+	initialInstall := h.pure("pure-install-initial", existingProject, h.authEnv, h.pkg,
+		"--json", "--registry", h.endpoint, "install", "@example/app@^1", "@example/modern@^1").success(t, "initial Pure install")
+	assertInstallResult(t, initialInstall, 5, 5, 5, 4)
+	initialLock := fileBytes(t, filepath.Join(existingProject, "locus.lock"))
+	assertLockContains(t, initialLock,
+		"npm:@example/app@1.0.0", "npm:@example/modern@1.0.0", "npm:@example/helper@1.0.0",
+		"npm:@example/base@1.0.0", "npm:@example/base@2.0.0")
+	if bytes.Contains(initialLock, []byte("npm:@example/base@1.1.0")) {
+		t.Fatalf("initial lock unexpectedly selected unpublished base 1.1.0")
+	}
+	if directories := directoryNames(t, filepath.Join(existingProject, ".locus", "packages")); len(directories) != 5 {
+		t.Fatalf("Pure store directories = %d, want 5: %v", len(directories), directories)
+	}
+	initialSnapshot := pureQuerySnapshot(t, h, "pure-initial", existingProject)
+	if bytes.Contains(initialSnapshot, []byte("@example/helper")) {
+		t.Fatalf("ordinary helper package entered the Scope graph: %s", initialSnapshot)
+	}
+	assertResolvedOwner(t, h, existingProject, "app:base:database", "npm:@example/base@1.0.0", "resolve-app-base-v1")
+	assertResolvedOwner(t, h, existingProject, "modern:base:database", "npm:@example/base@2.0.0", "resolve-modern-base-v2")
+	if err := os.WriteFile(filepath.Join(h.results, "initial-locus.lock"), initialLock, 0o644); err != nil {
+		t.Fatalf("persist initial lock: %v", err)
+	}
+
+	base11Published := filepath.Join(publishedRoot, "base-1.1.0")
+	materializeFixture(t, filepath.Join(fixtureRoot, "packages", "base", "1.1.0"), base11Published)
+	h.npmPublish("publish-base-1.1.0", base11Published, h.authEnv, "--tag", "legacy").success(t, "publish base-1.1.0")
+	newProject := filepath.Join(h.root, "projects", "pure-new")
+	materializeFixture(t, filepath.Join(fixtureRoot, "consumer"), newProject)
+	h.pure("pure-install-new", newProject, h.authEnv, h.pkg,
+		"--json", "--registry", h.endpoint, "install").success(t, "new Pure install")
+	newLock := fileBytes(t, filepath.Join(newProject, "locus.lock"))
+	assertLockContains(t, newLock, "npm:@example/base@1.1.0", "npm:@example/base@2.0.0")
+
+	h.pure("pure-existing-locked-install", existingProject, h.authEnv, h.pkg,
+		"--json", "--registry", h.endpoint, "install").success(t, "locked Pure reinstall")
+	if after := fileBytes(t, filepath.Join(existingProject, "locus.lock")); !bytes.Equal(initialLock, after) {
+		t.Fatalf("ordinary install drifted an existing valid lock\nbefore:\n%s\nafter:\n%s", initialLock, after)
+	}
+	updateOutput := h.pure("pure-update-app", existingProject, h.authEnv, h.pkg,
+		"--json", "--registry", h.endpoint, "update", "@example/app").success(t, "named Pure update")
+	var updateResult struct {
+		Added, Removed, Updated []string
+	}
+	decodeJSON(t, updateOutput, &updateResult)
+	for _, unchanged := range []string{"npm:@example/modern@1.0.0", "npm:@example/base@2.0.0"} {
+		if containsString(updateResult.Added, unchanged) || containsString(updateResult.Removed, unchanged) || containsString(updateResult.Updated, unchanged) {
+			t.Fatalf("named app update reported unchanged modern closure %q: %#v", unchanged, updateResult)
+		}
+	}
+	updatedLock := fileBytes(t, filepath.Join(existingProject, "locus.lock"))
+	assertLockContains(t, updatedLock, "npm:@example/base@1.1.0", "npm:@example/base@2.0.0")
+	if bytes.Contains(updatedLock, []byte("npm:@example/base@1.0.0")) {
+		t.Fatalf("named app update retained its obsolete base 1.0.0 closure:\n%s", updatedLock)
+	}
+	assertResolvedOwner(t, h, existingProject, "app:base:database", "npm:@example/base@1.1.0", "resolve-app-base-v1-1")
+	updatedSnapshot := pureQuerySnapshot(t, h, "pure-updated", existingProject)
+
+	projectManifestPath := filepath.Join(existingProject, "package.json")
+	stableManifest := fileBytes(t, projectManifestPath)
+	stableLock := append([]byte(nil), updatedLock...)
+	var changedManifest map[string]any
+	decodeJSON(t, stableManifest, &changedManifest)
+	changedManifest["dependencies"].(map[string]any)["@example/app"] = "^9.0.0"
+	writeJSONFile(t, projectManifestPath, changedManifest)
+	frozenManifest := fileBytes(t, projectManifestPath)
+	h.pure("pure-frozen-mismatch", existingProject, h.authEnv, h.pkg,
+		"--json", "--registry", h.endpoint, "--frozen-lockfile", "install").failure(t, "frozen mismatch")
+	if !bytes.Equal(frozenManifest, fileBytes(t, projectManifestPath)) || !bytes.Equal(stableLock, fileBytes(t, filepath.Join(existingProject, "locus.lock"))) {
+		t.Fatalf("frozen mismatch changed package.json or locus.lock")
+	}
+	if err := os.WriteFile(projectManifestPath, stableManifest, 0o644); err != nil {
+		t.Fatalf("restore stable package.json after frozen assertion: %v", err)
+	}
+
+	packedSource := filepath.Join(h.root, "fixtures", "pure-published")
+	writeLocusPackage(t, packedSource, "@example/pure-published", "1.0.0", nil,
+		map[string]string{".": "./entities.locus.yaml", "./package.json": "./package.json"}, false)
+	packOutput := h.pure("locus-pkg-pack", packedSource, h.authEnv, h.pkg, "--json", "pack").success(t, "locus-pkg pack")
+	var packResult struct {
+		Name, Version, Filename, Integrity string
+		Files                              []string
+	}
+	decodeJSON(t, packOutput, &packResult)
+	if packResult.Name != "@example/pure-published" || packResult.Version != "1.0.0" || packResult.Filename == "" || len(packResult.Files) < 3 {
+		t.Fatalf("pack result = %#v", packResult)
+	}
+	packedArchive := fileBytes(t, filepath.Join(packedSource, packResult.Filename))
+	verifyIntegrity(t, packResult.Integrity, packedArchive)
+	if !containsString(tarFileNames(t, packedArchive), "package/entities.locus.yaml") {
+		t.Fatalf("locus-pkg pack omitted declared Scope content")
+	}
+	publishOutput := h.pure("locus-pkg-publish", packedSource, h.authEnv, h.pkg,
+		"--json", "--registry", h.endpoint, "publish").success(t, "locus-pkg publish")
+	var publishResult struct {
+		Name, Version, Registry, Integrity string
+	}
+	decodeJSON(t, publishOutput, &publishResult)
+	if publishResult.Name != packResult.Name || publishResult.Version != packResult.Version || publishResult.Integrity != packResult.Integrity {
+		t.Fatalf("publish result = %#v, pack result = %#v", publishResult, packResult)
+	}
+	h.pure("locus-pkg-publish-conflict", packedSource, h.authEnv, h.pkg,
+		"--json", "--registry", h.endpoint, "publish").failure(t, "locus-pkg immutable version conflict")
+	publishedPackument := getPackument(t, h.endpoint, "@example/pure-published", "")
+	publishedArchive := fetchBytes(t, publishedPackument.Versions["1.0.0"].Dist.Tarball)
+	verifyIntegrity(t, publishResult.Integrity, publishedArchive)
+	installPackedWithManagers(t, h)
+
+	publishFixture(t, h, "private-1.0.0", filepath.Join(fixtureRoot, "packages", "private"), filepath.Join(publishedRoot, "private"))
+	h.run("private-npm-view-missing-token", h.root, h.anonEnv, h.npm,
+		"view", "@example/private", "version", "--registry", h.endpoint).failure(t, "private npm view without token")
+	h.run("private-npm-view-wrong-token", h.root, h.wrongEnv, h.npm,
+		"view", "@example/private", "version", "--registry", h.endpoint).failure(t, "private npm view with wrong token")
+	privateVersion := h.run("private-npm-view-authenticated", h.root, h.authEnv, h.npm,
+		"view", "@example/private", "version", "--registry", h.endpoint).success(t, "authenticated private npm view")
+	if strings.TrimSpace(string(privateVersion)) != "1.0.0" {
+		t.Fatalf("authenticated private version = %q", privateVersion)
+	}
+	privateMissing := createLocalProject(t, filepath.Join(h.root, "projects", "private-missing"), "private-missing", nil)
+	beforeMissing := snapshotTransaction(t, privateMissing)
+	h.pure("private-pure-missing-token", privateMissing, h.anonEnv, h.pkg,
+		"--json", "--registry", h.endpoint, "install", "@example/private@1.0.0").failure(t, "private Pure install without token")
+	assertTransactionUnchanged(t, privateMissing, beforeMissing)
+	privateWrong := createLocalProject(t, filepath.Join(h.root, "projects", "private-wrong"), "private-wrong", nil)
+	beforeWrong := snapshotTransaction(t, privateWrong)
+	h.pure("private-pure-wrong-token", privateWrong, h.wrongEnv, h.pkg,
+		"--json", "--registry", h.endpoint, "install", "@example/private@1.0.0").failure(t, "private Pure install with wrong token")
+	assertTransactionUnchanged(t, privateWrong, beforeWrong)
+	privateAuth := createLocalProject(t, filepath.Join(h.root, "projects", "private-authenticated"), "private-authenticated", nil)
+	h.pure("private-pure-authenticated", privateAuth, h.authEnv, h.pkg,
+		"--json", "--registry", h.endpoint, "install", "@example/private@1.0.0").success(t, "authenticated private Pure install")
+	assertLockContains(t, fileBytes(t, filepath.Join(privateAuth, "locus.lock")), "npm:@example/private@1.0.0")
+
+	publishFailureFixtures(t, h)
+	failureProject := createLocalProject(t, filepath.Join(h.root, "projects", "failed-installs"), "failed-installs", nil)
+	assertFailedInstallRollback(t, h, failureProject, h.endpoint, "@failure/unsupported@1.0.0", "failure-unsupported-spec")
+	assertFailedInstallRollback(t, h, failureProject, h.endpoint, "@failure/duplicate@1.0.0", "failure-duplicate-scope")
+	assertFailedInstallRollback(t, h, failureProject, h.endpoint, "@failure/blocked@1.0.0", "failure-blocked-exports")
+	assertFailedInstallRollback(t, h, failureProject, h.endpoint, "@failure/unsafe@1.0.0", "failure-unsafe-tar")
+	mismatchRegistry := integrityMismatchRegistry(t, h.endpoint, "@failure/integrity", "1.0.0")
+	if err := os.WriteFile(filepath.Join(h.root, "registry", "integrity-proxy.txt"), []byte(mismatchRegistry.URL+"\n"), 0o644); err != nil {
+		t.Fatalf("persist integrity mismatch endpoint: %v", err)
+	}
+	assertFailedInstallRollback(t, h, failureProject, mismatchRegistry.URL, "@failure/integrity@1.0.0", "failure-integrity-mismatch")
+	mismatchRegistry.Close()
+
+	platformPackage, platformHostName := currentPlatformPackage(t)
+	platformSource := filepath.Join(h.root, "fixtures", "node-platform")
+	materializeFixture(t, repositoryPath("packaging", "npm", platformPackage), platformSource)
+	platformBin := filepath.Join(platformSource, "bin")
+	if err := os.MkdirAll(platformBin, 0o755); err != nil {
+		t.Fatalf("create platform package bin: %v", err)
+	}
+	if err := copyFile(h.host, filepath.Join(platformBin, platformHostName), 0o755); err != nil {
+		t.Fatalf("stage platform host: %v", err)
+	}
+	h.npmPublish("publish-node-platform", platformSource, h.authEnv).success(t, "publish current Node platform package")
+	nodePackageSource := filepath.Join(h.root, "fixtures", "locus-scope-node")
+	materializeFixture(t, repositoryPath("packaging", "npm", "locus-scope"), nodePackageSource)
+	h.npmPublish("publish-locus-scope-node", nodePackageSource, h.authEnv).success(t, "publish @locus/scope")
+	var nodePackageManifest struct {
+		Version string `json:"version"`
+	}
+	decodeJSON(t, fileBytes(t, filepath.Join(nodePackageSource, "package.json")), &nodePackageManifest)
+
+	npmNodeConsumer := createNodeConsumer(t, filepath.Join(h.root, "projects", "node-npm"), filepath.Join(fixtureRoot, "consumer"), nodePackageManifest.Version)
+	h.npmInstall("node-npm-install", npmNodeConsumer, h.authEnv).success(t, "npm Node consumer install")
+	npmSnapshot := nodeQuerySnapshot(t, h, "node-npm", npmNodeConsumer)
+	pnpmNodeConsumer := createNodeConsumer(t, filepath.Join(h.root, "projects", "node-pnpm"), filepath.Join(fixtureRoot, "consumer"), nodePackageManifest.Version)
+	h.pnpmInstall("node-pnpm-install", pnpmNodeConsumer, h.authEnv).success(t, "pnpm Node consumer install")
+	assertSymlink(t, filepath.Join(pnpmNodeConsumer, "node_modules", "@locus", "scope"), "pnpm @locus/scope installation")
+	pnpmSnapshot := nodeQuerySnapshot(t, h, "node-pnpm", pnpmNodeConsumer)
+	if !bytes.Equal(updatedSnapshot, npmSnapshot) || !bytes.Equal(updatedSnapshot, pnpmSnapshot) {
+		t.Fatalf("Pure/npm/pnpm normalized query results differ\nPure: %s\nnpm: %s\npnpm: %s", updatedSnapshot, npmSnapshot, pnpmSnapshot)
+	}
+	if err := os.WriteFile(filepath.Join(h.results, "normalized-query.json"), updatedSnapshot, 0o644); err != nil {
+		t.Fatalf("persist normalized query comparison: %v", err)
+	}
+
+	blockedNodeConsumer := createLocalProject(t, filepath.Join(h.root, "projects", "node-blocked-exports"), "node-blocked-exports",
+		map[string]string{"blocked": "@failure/blocked"})
+	var blockedManifest map[string]any
+	decodeJSON(t, fileBytes(t, filepath.Join(blockedNodeConsumer, "package.json")), &blockedManifest)
+	blockedManifest["dependencies"] = map[string]string{"@failure/blocked": "1.0.0", "@locus/scope": nodePackageManifest.Version}
+	writeJSONFile(t, filepath.Join(blockedNodeConsumer, "package.json"), blockedManifest)
+	h.npmInstall("node-blocked-install", blockedNodeConsumer, h.authEnv).success(t, "install blocked-export Node fixture")
+	h.run("node-blocked-exports", blockedNodeConsumer, h.authEnv, h.node,
+		filepath.Join(blockedNodeConsumer, "node_modules", "@locus", "scope", "bin", "locus-scope-node.mjs"),
+		"--scope", blockedNodeConsumer, "--json", "validate").failure(t, "Node blocked package.json export")
+
+	h.registry.stop(t)
+	offlineLock := fileBytes(t, filepath.Join(existingProject, "locus.lock"))
+	h.pure("pure-offline-frozen", existingProject, h.authEnv, h.pkg,
+		"--json", "--offline", "--frozen-lockfile", "install").success(t, "offline frozen Pure install")
+	if !bytes.Equal(offlineLock, fileBytes(t, filepath.Join(existingProject, "locus.lock"))) {
+		t.Fatalf("offline frozen install changed locus.lock")
+	}
+	offlineSnapshot := pureQuerySnapshot(t, h, "pure-offline", existingProject)
+	if !bytes.Equal(updatedSnapshot, offlineSnapshot) {
+		t.Fatalf("offline queries differ from online Pure result\nonline: %s\noffline: %s", updatedSnapshot, offlineSnapshot)
+	}
+
+	assertNoSecret(t, h.token, filepath.Join(h.root, "projects"), h.results)
 }
 
-func TestZotPackageCLIClosure(t *testing.T) {
-	endpoint := os.Getenv("LOCUS_TEST_REGISTRY")
-	if endpoint == "" {
-		t.Skip("LOCUS_TEST_REGISTRY is not set")
-	}
-	endpoint = requireLoopbackHTTP(t, endpoint)
-	runPackageCLIClosure(t, endpoint, repositoryPath("temp", "e2e-run", "zot-package"))
+type npmPackument struct {
+	Versions map[string]struct {
+		Dependencies map[string]string `json:"dependencies"`
+		Dist         struct {
+			Tarball   string `json:"tarball"`
+			Integrity string `json:"integrity"`
+		} `json:"dist"`
+	} `json:"versions"`
 }
 
-func runPackageCLIClosure(t *testing.T, endpoint, runRoot string) {
+func publishFixture(t *testing.T, h *npmLifecycleHarness, name, source, destination string) commandResult {
 	t.Helper()
-	endpoint = requireLoopbackHTTP(t, endpoint)
-	if err := os.RemoveAll(runRoot); err != nil {
-		t.Fatalf("clear package E2E root: %v", err)
-	}
-	for _, directory := range []string{
-		filepath.Join(runRoot, "bin"),
-		filepath.Join(runRoot, "registry", "sources"),
-		filepath.Join(runRoot, "results"),
-		filepath.Join(runRoot, "docker"),
-		filepath.Join(runRoot, "home"),
-	} {
-		if err := os.MkdirAll(directory, 0o755); err != nil {
-			t.Fatalf("create E2E directory: %v", err)
-		}
-	}
-	if err := os.WriteFile(filepath.Join(runRoot, "docker", "config.json"), []byte("{}\n"), 0o644); err != nil {
-		t.Fatalf("write isolated Docker config: %v", err)
-	}
-	if err := os.WriteFile(filepath.Join(runRoot, "registry", "endpoint.txt"), []byte(endpoint+"\n"), 0o644); err != nil {
-		t.Fatalf("write registry endpoint: %v", err)
-	}
+	materializeFixture(t, source, destination)
+	result := h.npmPublish("publish-"+name, destination, h.authEnv)
+	result.success(t, "publish "+name)
+	return result
+}
 
-	registryHost := strings.TrimPrefix(endpoint, "http://")
-	fixtureRoot := repositoryPath("test", "e2e", "case", "package")
-	project := filepath.Join(runRoot, "project")
-	packageA := filepath.Join(runRoot, "registry", "sources", "package-a")
-	packageB := filepath.Join(runRoot, "registry", "sources", "package-b")
-	materializeSource(t, filepath.Join(fixtureRoot, "project"), project, registryHost)
-	materializeSource(t, filepath.Join(fixtureRoot, "package-a"), packageA, registryHost)
-	materializeSource(t, filepath.Join(fixtureRoot, "package-b"), packageB, registryHost)
+func getPackument(t *testing.T, endpoint, name, token string) npmPackument {
+	t.Helper()
+	var packument npmPackument
+	fetchJSON(t, endpoint+"/"+strings.ReplaceAll(name, "/", "%2f"), token, &packument)
+	return packument
+}
 
-	ctx, cancel := context.WithTimeout(context.Background(), 2*time.Minute)
-	defer cancel()
-	suffix := ""
-	if runtime.GOOS == "windows" {
-		suffix = ".exe"
-	}
-	pkgBinary := filepath.Join(runRoot, "bin", "locus-pkg"+suffix)
-	scopeBinary := filepath.Join(runRoot, "bin", "locus-scope"+suffix)
-	buildBinary(t, ctx, pkgBinary, "./cmd/locus-pkg")
-	buildBinary(t, ctx, scopeBinary, "./cmd/locus-scope")
-	environment := isolatedEnvironment(runRoot)
-
-	targetA := "oci://" + registryHost + "/locus/package-a:latest"
-	targetB := "oci://" + registryHost + "/locus/package-b:latest"
-	publishWorkingDirectory := filepath.Join(packageB, ".locus", "publish-working-directory")
-	if err := os.MkdirAll(publishWorkingDirectory, 0o755); err != nil {
-		t.Fatalf("create nested publish working directory: %v", err)
-	}
-	firstBOutput := runBinaryAt(t, ctx, environment, publishWorkingDirectory, runRoot, "publish-b-first", pkgBinary, "--json", "publish", targetB)
-	var firstB packages.PublishResult
-	decodeJSON(t, firstBOutput, &firstB)
-	if firstB.Target != targetB {
-		t.Fatalf("first package B target = %q, want %q", firstB.Target, targetB)
-	}
-	repeatedBOutput := runBinaryAt(t, ctx, environment, publishWorkingDirectory, runRoot, "publish-b-repeat", pkgBinary, "publish", targetB)
-	if !bytes.Contains(repeatedBOutput, []byte("published: "+targetB+"\n")) ||
-		!bytes.Contains(repeatedBOutput, []byte("digest: "+firstB.Digest+"\n")) {
-		t.Fatalf("unchanged package B output = %q", repeatedBOutput)
-	}
-	entitiesPath := filepath.Join(packageB, "entities.locus.yaml")
-	entitiesData, err := os.ReadFile(entitiesPath)
-	if err != nil {
-		t.Fatalf("read package B entities: %v", err)
-	}
-	entitiesData = bytes.ReplaceAll(entitiesData, []byte("postgres"), []byte("cockroachdb"))
-	if err := os.WriteFile(entitiesPath, entitiesData, 0o644); err != nil {
-		t.Fatalf("update package B entities: %v", err)
-	}
-	secondBOutput := runBinary(t, ctx, environment, runRoot, "publish-b-update", pkgBinary, "--scope", packageB, "publish", targetB, "--json")
-	var secondB packages.PublishResult
-	decodeJSON(t, secondBOutput, &secondB)
-	if secondB.Target != targetB || secondB.Digest == firstB.Digest {
-		t.Fatalf("updated package B result = %#v, first digest = %q", secondB, firstB.Digest)
-	}
-	packageAOutput := runBinary(t, ctx, environment, runRoot, "publish-a", pkgBinary, "--scope", packageA, "publish", targetA, "--json")
-	var publishedA packages.PublishResult
-	decodeJSON(t, packageAOutput, &publishedA)
-	if publishedA.Target != targetA {
-		t.Fatalf("package A target = %q, want %q", publishedA.Target, targetA)
-	}
-	packageADigest := "oci://" + registryHost + "/locus/package-a@" + publishedA.Digest
-	packageBDigest := "oci://" + registryHost + "/locus/package-b@" + secondB.Digest
-	firstOutput := runBinary(t, ctx, environment, runRoot, "install-first", pkgBinary, "install", "--scope", project, "--json")
-	var first packages.InstallResult
-	decodeJSON(t, firstOutput, &first)
-	assertInstallResult(t, first, 2, 0, 2, 2)
-
-	lockPath := filepath.Join(project, "locus.lock")
-	lockData, err := os.ReadFile(lockPath)
-	if err != nil {
-		t.Fatalf("read installed lock: %v", err)
-	}
-	var lock packages.Lock
-	if err := yaml.Unmarshal(lockData, &lock); err != nil {
-		t.Fatalf("decode installed lock: %v", err)
-	}
-	if lock.Version != 1 || len(lock.Packages) != 2 {
-		t.Fatalf("installed lock = %#v\n%s", lock, lockData)
-	}
-	keyA := "oci://" + registryHost + "/locus/package-a:latest"
-	keyB := "oci://" + registryHost + "/locus/package-b:latest"
-	if lock.Packages[keyA].Resolved != packageADigest || lock.Packages[keyB].Resolved != packageBDigest {
-		t.Fatalf("installed lock resolutions = %#v", lock.Packages)
-	}
-	materializedB := filepath.Join(project, ".locus", "packages", strings.Replace(secondB.Digest, ":", "-", 1), "entities.locus.yaml")
-	materializedBData, err := os.ReadFile(materializedB)
-	if err != nil {
-		t.Fatalf("read updated materialized package B: %v", err)
-	}
-	if !bytes.Contains(materializedBData, []byte("cockroachdb")) {
-		t.Fatalf("materialized package B did not contain the published update: %s", materializedBData)
-	}
-	if strings.Index(string(lockData), keyA) > strings.Index(string(lockData), keyB) {
-		t.Fatalf("lock entries are not sorted:\n%s", lockData)
-	}
-	if err := os.WriteFile(filepath.Join(runRoot, "results", "locus.lock"), lockData, 0o644); err != nil {
-		t.Fatalf("persist lock result: %v", err)
-	}
-
-	entries, err := os.ReadDir(filepath.Join(project, ".locus", "packages"))
-	if err != nil {
-		t.Fatalf("read materialized packages: %v", err)
-	}
-	directories := 0
-	for _, entry := range entries {
-		if entry.IsDir() && !strings.HasPrefix(entry.Name(), ".extract-") {
-			directories++
-		}
-	}
-	if directories != 2 {
-		t.Fatalf("materialized package directories = %d, want 2", directories)
-	}
-
-	secondOutput := runBinary(t, ctx, environment, runRoot, "install-second", pkgBinary, "--scope", project, "install", "--json")
-	var second packages.InstallResult
-	decodeJSON(t, secondOutput, &second)
-	assertInstallResult(t, second, 0, 2, 0, 0)
-
-	beforeInfo, err := os.Stat(lockPath)
-	if err != nil {
-		t.Fatalf("stat lock before frozen install: %v", err)
-	}
-	beforeData := append([]byte(nil), lockData...)
-	frozenOutput := runBinary(t, ctx, environment, runRoot, "install-frozen", pkgBinary, "install", "--frozen", "--json", "--scope", project)
-	var frozen packages.InstallResult
-	decodeJSON(t, frozenOutput, &frozen)
-	assertInstallResult(t, frozen, 0, 2, 0, 0)
-	afterData, err := os.ReadFile(lockPath)
-	if err != nil {
-		t.Fatalf("read lock after frozen install: %v", err)
-	}
-	afterInfo, err := os.Stat(lockPath)
-	if err != nil {
-		t.Fatalf("stat lock after frozen install: %v", err)
-	}
-	if !bytes.Equal(beforeData, afterData) || !beforeInfo.ModTime().Equal(afterInfo.ModTime()) {
-		t.Fatalf("frozen install changed lock bytes or timestamp")
-	}
-
-	validateOutput := runBinary(t, ctx, environment, runRoot, "scope-validate", scopeBinary, "--scope", project, "--json", "validate")
-	var validation struct {
+func assertInstallResult(t *testing.T, output []byte, packages, scopes, entities, relations int) {
+	t.Helper()
+	var result struct {
 		Valid     bool `json:"valid"`
+		Packages  int  `json:"packages"`
 		Scopes    int  `json:"scopes"`
 		Entities  int  `json:"entities"`
 		Relations int  `json:"relations"`
 	}
-	decodeJSON(t, validateOutput, &validation)
-	if !validation.Valid || validation.Scopes != 4 || validation.Entities != 2 || validation.Relations != 1 {
-		t.Fatalf("validation output = %#v", validation)
+	decodeJSON(t, output, &result)
+	if !result.Valid || result.Packages != packages || result.Scopes != scopes || result.Entities != entities || result.Relations != relations {
+		t.Fatalf("install result = %#v", result)
 	}
+}
 
-	resolveOutput := runBinary(t, ctx, environment, runRoot, "scope-resolve", scopeBinary, "--scope", project, "--json", "resolve", "a:sub:b:database")
-	var resolution struct {
+func assertLockContains(t *testing.T, lock []byte, identities ...string) {
+	t.Helper()
+	for _, identity := range identities {
+		if !bytes.Contains(lock, []byte(identity)) {
+			t.Fatalf("lock does not contain %q:\n%s", identity, lock)
+		}
+	}
+}
+
+func assertResolvedOwner(t *testing.T, h *npmLifecycleHarness, project, reference, owner, name string) {
+	t.Helper()
+	output := h.pure(name, project, h.authEnv, h.scope,
+		"--scope", project, "--json", "resolve", reference).success(t, name)
+	var result struct {
 		Entity struct {
 			Scope string `json:"scope"`
 			ID    string `json:"id"`
 		} `json:"entity"`
 	}
-	decodeJSON(t, resolveOutput, &resolution)
-	if resolution.Entity.Scope != packageBDigest || resolution.Entity.ID != "database" {
-		t.Fatalf("resolution output = %#v, want owner %q", resolution, packageBDigest)
+	decodeJSON(t, output, &result)
+	if result.Entity.Scope != owner || result.Entity.ID != "database" {
+		t.Fatalf("resolve %s = %#v, want database owned by %s", reference, result.Entity, owner)
 	}
 }
 
-func materializeSource(t *testing.T, source, destination, registryHost string) {
+func pureQuerySnapshot(t *testing.T, h *npmLifecycleHarness, name, project string) []byte {
 	t.Helper()
-	if err := os.CopyFS(destination, os.DirFS(source)); err != nil {
-		t.Fatalf("copy source fixture %s: %v", source, err)
-	}
-	if err := filepath.WalkDir(destination, func(path string, entry os.DirEntry, err error) error {
-		if err != nil || entry.IsDir() {
-			return err
-		}
-		data, err := os.ReadFile(path)
-		if err != nil {
-			return err
-		}
-		data = bytes.ReplaceAll(data, []byte("{{REGISTRY}}"), []byte(registryHost))
-		return os.WriteFile(path, data, 0o644)
-	}); err != nil {
-		t.Fatalf("materialize source fixture %s: %v", source, err)
-	}
+	return querySnapshot(t, func(suffix string, arguments ...string) []byte {
+		return h.pure(name+"-"+suffix, project, h.authEnv, h.scope,
+			append([]string{"--scope", project, "--json"}, arguments...)...).success(t, name+" "+suffix)
+	})
 }
 
-func buildBinary(t *testing.T, ctx context.Context, output, packagePath string) {
+func nodeQuerySnapshot(t *testing.T, h *npmLifecycleHarness, name, project string) []byte {
 	t.Helper()
-	command := exec.CommandContext(ctx, "go", "build", "-o", output, packagePath)
-	command.Dir = repositoryPath()
-	if buildOutput, err := command.CombinedOutput(); err != nil {
-		t.Fatalf("build %s: %v\n%s", packagePath, err, buildOutput)
-	}
+	adapter := filepath.Join(project, "node_modules", "@locus", "scope", "bin", "locus-scope-node.mjs")
+	return querySnapshot(t, func(suffix string, arguments ...string) []byte {
+		return h.run(name+"-"+suffix, project, h.authEnv, h.node,
+			append([]string{adapter, "--scope", project, "--json"}, arguments...)...).success(t, name+" "+suffix)
+	})
 }
 
-func runBinary(t *testing.T, ctx context.Context, environment []string, runRoot, name, binary string, arguments ...string) []byte {
+func querySnapshot(t *testing.T, run func(string, ...string) []byte) []byte {
 	t.Helper()
-	return runBinaryAt(t, ctx, environment, repositoryPath(), runRoot, name, binary, arguments...)
-}
-
-func runBinaryAt(t *testing.T, ctx context.Context, environment []string, workingDirectory, runRoot, name, binary string, arguments ...string) []byte {
-	t.Helper()
-	command := exec.CommandContext(ctx, binary, arguments...)
-	command.Dir = workingDirectory
-	command.Env = environment
-	var stdout, stderr bytes.Buffer
-	command.Stdout = &stdout
-	command.Stderr = &stderr
-	err := command.Run()
-	if writeErr := os.WriteFile(filepath.Join(runRoot, "results", name+".stdout"), stdout.Bytes(), 0o644); writeErr != nil {
-		t.Fatalf("persist %s stdout: %v", name, writeErr)
+	queries := []struct {
+		name      string
+		arguments []string
+	}{
+		{"scopes", []string{"scope", "list"}},
+		{"entities", []string{"entity", "list"}},
+		{"relations", []string{"relation", "list"}},
 	}
-	if writeErr := os.WriteFile(filepath.Join(runRoot, "results", name+".stderr"), stderr.Bytes(), 0o644); writeErr != nil {
-		t.Fatalf("persist %s stderr: %v", name, writeErr)
+	result := make(map[string]any, len(queries))
+	for _, query := range queries {
+		var decoded any
+		decodeJSON(t, run(query.name, query.arguments...), &decoded)
+		result[query.name] = normalizeQueryValue(decoded)
 	}
+	body, err := json.Marshal(result)
 	if err != nil {
-		t.Fatalf("run %s: %v\nstdout:\n%s\nstderr:\n%s", name, err, stdout.Bytes(), stderr.Bytes())
+		t.Fatalf("encode normalized query snapshot: %v", err)
 	}
-	return stdout.Bytes()
+	return body
 }
 
-func isolatedEnvironment(runRoot string) []string {
-	overrides := map[string]string{
-		"HOME":           filepath.Join(runRoot, "home"),
-		"USERPROFILE":    filepath.Join(runRoot, "home"),
-		"DOCKER_CONFIG":  filepath.Join(runRoot, "docker"),
-		"XDG_CACHE_HOME": filepath.Join(runRoot, "home", ".cache"),
-		"APPDATA":        filepath.Join(runRoot, "home", "AppData", "Roaming"),
-		"LOCALAPPDATA":   filepath.Join(runRoot, "home", "AppData", "Local"),
-		"HTTP_PROXY":     "",
-		"HTTPS_PROXY":    "",
-		"ALL_PROXY":      "",
-		"NO_PROXY":       "127.0.0.1,localhost,::1",
-	}
-	environment := make([]string, 0, len(os.Environ())+len(overrides))
-	for _, value := range os.Environ() {
-		name, _, _ := strings.Cut(value, "=")
-		matched := false
-		for override := range overrides {
-			if strings.EqualFold(name, override) {
-				matched = true
-				break
-			}
+func normalizeQueryValue(value any) any {
+	switch typed := value.(type) {
+	case string:
+		if strings.HasPrefix(typed, "file://") {
+			return "file://<root>"
 		}
-		if !matched {
-			environment = append(environment, value)
+		return typed
+	case []any:
+		for index := range typed {
+			typed[index] = normalizeQueryValue(typed[index])
 		}
-	}
-	for name, value := range overrides {
-		environment = append(environment, name+"="+value)
-	}
-	return environment
-}
-
-func assertInstallResult(t *testing.T, result packages.InstallResult, resolved, reused, fetched, materialized int) {
-	t.Helper()
-	if !result.Valid || result.Resolved != resolved || result.Reused != reused || result.Fetched != fetched || result.Materialized != materialized || result.Scopes != 4 || result.Entities != 2 || result.Relations != 1 {
-		t.Fatalf("install result = %#v", result)
+		return typed
+	case map[string]any:
+		for key := range typed {
+			typed[key] = normalizeQueryValue(typed[key])
+		}
+		return typed
+	default:
+		return value
 	}
 }
 
-func decodeJSON(t *testing.T, data []byte, destination any) {
+func installPackedWithManagers(t *testing.T, h *npmLifecycleHarness) {
 	t.Helper()
-	if err := json.Unmarshal(data, destination); err != nil {
-		t.Fatalf("decode JSON %q: %v", data, err)
-	}
-}
-
-func requireLoopbackHTTP(t *testing.T, endpoint string) string {
-	t.Helper()
-	parsed, err := url.Parse(endpoint)
-	if err != nil || parsed.Scheme != "http" || parsed.Host == "" || parsed.User != nil || parsed.RawQuery != "" || parsed.Fragment != "" || parsed.Path != "" && parsed.Path != "/" {
-		t.Fatalf("registry endpoint must be a loopback http URL, got %q", endpoint)
-	}
-	host := parsed.Hostname()
-	if !strings.EqualFold(host, "localhost") {
-		ip := net.ParseIP(host)
-		if ip == nil || !ip.IsLoopback() {
-			t.Fatalf("registry endpoint must be loopback, got %q", endpoint)
+	for _, manager := range []struct {
+		name    string
+		install func(string, string, []string, ...string) commandResult
+	}{
+		{"npm", h.npmInstall},
+		{"pnpm", h.pnpmInstall},
+	} {
+		root := filepath.Join(h.root, "projects", "packed-"+manager.name)
+		writeJSONFile(t, filepath.Join(root, "package.json"), map[string]any{"name": "packed-" + manager.name, "version": "1.0.0", "private": true})
+		manager.install("packed-"+manager.name+"-install", root, h.authEnv, "@example/pure-published@1.0.0").success(t, manager.name+" packed-package install")
+		manifest := fileBytes(t, filepath.Join(root, "node_modules", "@example", "pure-published", "package.json"))
+		if !bytes.Contains(manifest, []byte(`"version": "1.0.0"`)) && !bytes.Contains(manifest, []byte(`"version":"1.0.0"`)) {
+			t.Fatalf("%s installed unexpected packed package manifest: %s", manager.name, manifest)
+		}
+		if manager.name == "pnpm" {
+			assertSymlink(t, filepath.Join(root, "node_modules", "@example", "pure-published"), "pnpm packed package installation")
 		}
 	}
-	return strings.TrimSuffix(endpoint, "/")
 }
 
-func repositoryPath(parts ...string) string {
-	root, err := filepath.Abs(filepath.Join("..", ".."))
+func createLocalProject(t *testing.T, root, name string, imports map[string]string) string {
+	t.Helper()
+	writeJSONFile(t, filepath.Join(root, "package.json"), map[string]any{"name": name, "version": "1.0.0", "private": true})
+	aliases := make([]string, 0, len(imports))
+	for alias := range imports {
+		aliases = append(aliases, alias)
+	}
+	sort.Strings(aliases)
+	manifest := "id: " + name + "\n"
+	if len(aliases) != 0 {
+		manifest += "imports:\n"
+		for _, alias := range aliases {
+			manifest += fmt.Sprintf("  %s: %q\n", alias, imports[alias])
+		}
+	}
+	manifest += "exports:\n  - root\n"
+	if err := os.WriteFile(filepath.Join(root, "locus.yaml"), []byte(manifest), 0o644); err != nil {
+		t.Fatalf("write local project Scope: %v", err)
+	}
+	if err := os.WriteFile(filepath.Join(root, "entities.locus.yaml"), []byte("entities:\n  - id: root\n"), 0o644); err != nil {
+		t.Fatalf("write local project entity: %v", err)
+	}
+	return root
+}
+
+type transactionSnapshot struct {
+	packageJSON []byte
+	lockExists  bool
+	lock        []byte
+	store       []string
+}
+
+func snapshotTransaction(t *testing.T, project string) transactionSnapshot {
+	t.Helper()
+	snapshot := transactionSnapshot{packageJSON: fileBytes(t, filepath.Join(project, "package.json")), store: directoryNames(t, filepath.Join(project, ".locus", "packages"))}
+	lock, err := os.ReadFile(filepath.Join(project, "locus.lock"))
+	if err == nil {
+		snapshot.lockExists = true
+		snapshot.lock = lock
+	} else if !os.IsNotExist(err) {
+		t.Fatalf("read transaction lock: %v", err)
+	}
+	return snapshot
+}
+
+func assertTransactionUnchanged(t *testing.T, project string, before transactionSnapshot) {
+	t.Helper()
+	if !bytes.Equal(before.packageJSON, fileBytes(t, filepath.Join(project, "package.json"))) {
+		t.Fatalf("failed operation changed package.json in %s", project)
+	}
+	afterLock, err := os.ReadFile(filepath.Join(project, "locus.lock"))
+	if before.lockExists {
+		if err != nil || !bytes.Equal(before.lock, afterLock) {
+			t.Fatalf("failed operation changed locus.lock in %s: %v", project, err)
+		}
+	} else if !os.IsNotExist(err) {
+		t.Fatalf("failed operation created locus.lock in %s", project)
+	}
+	if afterStore := directoryNames(t, filepath.Join(project, ".locus", "packages")); !equalStrings(before.store, afterStore) {
+		t.Fatalf("failed operation changed committed store in %s: before=%v after=%v", project, before.store, afterStore)
+	}
+}
+
+func assertFailedInstallRollback(t *testing.T, h *npmLifecycleHarness, project, registry, spec, name string) {
+	t.Helper()
+	before := snapshotTransaction(t, project)
+	result := h.pure(name, project, h.authEnv, h.pkg, "--json", "--registry", registry, "install", spec)
+	result.failure(t, name)
+	if len(bytes.TrimSpace(result.stderr)) == 0 {
+		t.Fatalf("%s returned no observable error", name)
+	}
+	assertTransactionUnchanged(t, project, before)
+}
+
+func publishFailureFixtures(t *testing.T, h *npmLifecycleHarness) {
+	t.Helper()
+	root := filepath.Join(h.root, "fixtures", "failures")
+	integrity := filepath.Join(root, "integrity")
+	writeLocusPackage(t, integrity, "@failure/integrity", "1.0.0", nil,
+		map[string]string{".": "./entities.locus.yaml", "./package.json": "./package.json"}, false)
+	h.npmPublish("publish-failure-integrity", integrity, h.authEnv).success(t, "publish integrity fixture")
+	unsupported := filepath.Join(root, "unsupported")
+	writeLocusPackage(t, unsupported, "@failure/unsupported", "1.0.0", map[string]string{"@example/helper": "file:../helper"},
+		map[string]string{".": "./entities.locus.yaml", "./package.json": "./package.json"}, false)
+	h.npmPublish("publish-failure-unsupported", unsupported, h.authEnv).success(t, "publish unsupported spec fixture")
+	duplicate := filepath.Join(root, "duplicate")
+	writeLocusPackage(t, duplicate, "@failure/duplicate", "1.0.0", nil,
+		map[string]string{".": "./entities.locus.yaml", "./package.json": "./package.json"}, true)
+	h.npmPublish("publish-failure-duplicate", duplicate, h.authEnv).success(t, "publish duplicate Scope fixture")
+	blocked := filepath.Join(root, "blocked")
+	writeLocusPackage(t, blocked, "@failure/blocked", "1.0.0", nil,
+		map[string]string{".": "./entities.locus.yaml"}, false)
+	h.npmPublish("publish-failure-blocked", blocked, h.authEnv).success(t, "publish blocked exports fixture")
+	unsafeArchive, unsafeManifest := makeUnsafeTarball(t, "@failure/unsafe", "1.0.0")
+	publishRawPackage(t, h.endpoint, h.token, "@failure/unsafe", "1.0.0", unsafeArchive, unsafeManifest)
+}
+
+func createNodeConsumer(t *testing.T, destination, source, locusVersion string) string {
+	t.Helper()
+	materializeFixture(t, source, destination)
+	var manifest map[string]any
+	decodeJSON(t, fileBytes(t, filepath.Join(destination, "package.json")), &manifest)
+	dependencies := manifest["dependencies"].(map[string]any)
+	dependencies["@locus/scope"] = locusVersion
+	writeJSONFile(t, filepath.Join(destination, "package.json"), manifest)
+	return destination
+}
+
+func currentPlatformPackage(t *testing.T) (string, string) {
+	t.Helper()
+	suffix := ""
+	if runtime.GOOS == "windows" {
+		suffix = ".exe"
+	}
+	var platform string
+	switch runtime.GOOS + "/" + runtime.GOARCH {
+	case "windows/amd64":
+		platform = "win32-x64"
+	case "linux/amd64":
+		platform = "linux-x64"
+	case "linux/arm64":
+		platform = "linux-arm64"
+	case "darwin/amd64":
+		platform = "darwin-x64"
+	case "darwin/arm64":
+		platform = "darwin-arm64"
+	default:
+		t.Fatalf("current platform %s/%s is outside the published @locus/scope matrix", runtime.GOOS, runtime.GOARCH)
+	}
+	return "locus-scope-" + platform, "locus-scope-node-host" + suffix
+}
+
+func copyFile(source, destination string, mode os.FileMode) error {
+	body, err := os.ReadFile(source)
 	if err != nil {
-		panic(err)
+		return err
 	}
-	return filepath.Join(append([]string{root}, parts...)...)
+	if err := os.MkdirAll(filepath.Dir(destination), 0o755); err != nil {
+		return err
+	}
+	return os.WriteFile(destination, body, mode)
 }
 
-type requestRecorder struct {
-	mu    sync.Mutex
-	next  http.Handler
-	lines []string
-}
-
-func (r *requestRecorder) ServeHTTP(response http.ResponseWriter, request *http.Request) {
-	r.mu.Lock()
-	r.lines = append(r.lines, request.Method+" "+request.URL.RequestURI())
-	r.mu.Unlock()
-	r.next.ServeHTTP(response, request)
-}
-
-func (r *requestRecorder) write(t *testing.T, path string) {
+func assertSymlink(t *testing.T, path, description string) {
 	t.Helper()
-	r.mu.Lock()
-	data := []byte(strings.Join(r.lines, "\n") + "\n")
-	r.mu.Unlock()
-	if err := os.MkdirAll(filepath.Dir(path), 0o755); err != nil {
-		t.Errorf("create request log directory: %v", err)
-		return
+	information, err := os.Lstat(path)
+	if err != nil {
+		t.Fatalf("inspect %s: %v", description, err)
 	}
-	if err := os.WriteFile(path, data, 0o644); err != nil {
-		t.Errorf("write request log: %v", err)
+	if information.Mode()&os.ModeSymlink == 0 {
+		t.Fatalf("%s at %s is not a pnpm symlink/junction", description, path)
 	}
+}
+
+func containsString(values []string, want string) bool {
+	for _, value := range values {
+		if value == want {
+			return true
+		}
+	}
+	return false
+}
+
+func equalStrings(left, right []string) bool {
+	if len(left) != len(right) {
+		return false
+	}
+	for index := range left {
+		if left[index] != right[index] {
+			return false
+		}
+	}
+	return true
 }

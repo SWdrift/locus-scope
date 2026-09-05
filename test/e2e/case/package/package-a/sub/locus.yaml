@@ -1,5 +1,0 @@
-id: package-a-sub
-imports:
-  b: oci://{{REGISTRY}}/locus/package-b:latest
-exports:
-  - b:database

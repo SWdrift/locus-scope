@@ -1,6 +1,6 @@
 ---
 name: locus-use
-description: "指导用户从安装 Locus Scope 到创建、验证、查询和安装 Package，并解释 Entity、Relation、Scope、Import、Export、ownership 与离线复现理念。用于入门、安装后配置、基本使用、Package 消费或理念说明。"
+description: "指导用户从安装 Locus Scope 到创建、验证、查询和安装 npm Package，并解释 Entity、Relation、Scope、Import、Export、ownership、Pure 与 npm/pnpm 环境及离线复现。用于入门、安装后配置、基本使用、Package 消费或理念说明。"
 metadata:
   domain: locus-scope
 ---
@@ -9,55 +9,55 @@ metadata:
 
 ## 目标
 
-用最短路径让用户安装 CLI、创建第一个 Scope、查询 Entity 图，并按需安装 OCI Package。先给可执行步骤，再解释支撑这些步骤的模型和理念。
+用最短路径让用户安装 CLI、创建第一个 Scope、查询 Entity 图，并按需在 Pure Locus 或 npm/pnpm 环境安装 Package。先给可执行步骤，再解释模型和环境边界。
 
-## 安装
+## 选择安装环境
 
-### Windows 发布包
+### Windows 独立 CLI
 
-运行 `locus-setup-windows-amd64.exe`，至少选择 `locus-scope`。需要发布或安装 OCI Package 时同时选择 `locus-pkg`；需要本机 Registry 时选择 Zot。安装目录固定为 `%USERPROFILE%\.locus`。
+运行 `locus-setup-windows-amd64.exe`，至少选择 `locus-scope`；需要 Pure Locus Package lifecycle 时同时选择 `locus-pkg`。安装目录固定为 `%USERPROFILE%\.locus`，安装器可把 `bin` 加入当前用户 `PATH`。
 
-安装器可以把 `%USERPROFILE%\.locus\bin` 加入当前用户 `PATH`。若未选择该任务，使用完整路径调用 CLI，或由用户自行配置 PATH。安装包包含所选组件，安装时不要求 Go、pnpm、PowerShell 7 或联网。
-
-安装后新开一个终端。`--help` 只能确认命令入口可调用：
-
-```text
-locus-scope --help
-```
-
-版本兼容检查不能只依赖 `--help`。先创建目录 `locus-smoke/`，并在其中写入只含以下内容的 `locus-smoke/locus.yaml`：
+安装包只含独立 CLI，不含 Registry，也不要求 Go、Node.js、pnpm 或联网。安装后新开终端，创建只含以下内容的 `smoke/locus.yaml`：
 
 ```yaml
 id: smoke
 ```
 
-再执行真实加载和验证：
+执行真实加载：
 
 ```text
-locus-scope --scope ./locus-smoke validate
+locus-scope --scope ./smoke validate
 ```
 
-需要发布或安装 Package 时，再确认 `locus-pkg --help` 可调用。只安装 `locus-scope` 时，没有 `locus-pkg` 是预期行为。
+### npm / pnpm
+
+Node.js 20.6+ 项目安装 adapter：
+
+```text
+pnpm add @locus/scope
+# 或
+npm install @locus/scope
+```
+
+入口是 `locus-scope-node`。它从 importer 的 package manager 环境发现 Package，将 descriptor 交给同一 Go Scope 核心；JavaScript 不解析 Locus definitions。
 
 ### 仓库开发环境
 
-从源码工作时在仓库根目录运行：
-
 ```powershell
-pwsh -File scripts/deploy-local.ps1
+pnpm run deploy
 ```
 
-CLI 位于 `temp/local/bin/`。只有明确需要写入当前用户安装目录时才使用 `-User`；需要本地 Zot 时追加 `-WithZot` 并单独启动它。
+独立 CLI 位于 `temp/local/bin/`。只有明确需要写用户目录时才运行 `pnpm run deploy:user`。本地 Registry 由根 package scripts 管理，不属于 CLI 部署或安装包。
 
-## 创建和使用第一个 Scope
+## 创建和查询 Scope
 
-建立目录和 `locus.yaml`：
+建立 `app/locus.yaml`：
 
 ```yaml
 id: app
 ```
 
-在同一目录或普通子目录添加 `entities.locus.yaml`：
+添加 `app/entities.locus.yaml`：
 
 ```yaml
 entities:
@@ -83,61 +83,67 @@ locus-scope --scope ./app relation list
 locus-scope --scope ./app resolve database
 ```
 
-进入 Scope 目录后可以省略 `--scope`。CLI 会从当前目录向父目录寻找最近的 Scope manifest。Agent 或脚本应追加 `--json` 获取字段和顺序稳定的输出。
+进入 Scope 目录后可省略 `--scope`。CLI 沿祖先链寻找最近的 Scope manifest。Agent 或脚本追加 `--json` 获取字段与顺序稳定的输出。
 
-Relation 的定义输入和 CLI JSON 输出不是同一种表示：
+Relation 的 definition input 和 CLI JSON output 不同：
 
-- YAML definition document 使用三元组 `[from, relation, to]`。
-- `locus-scope --json relation list` 输出解析后的对象；`from` 和 `to` 都包含 owner 的 `scope_id`、Source identity `scope` 和 Entity `id`。
-- `--json` 只选择 CLI 输出格式，不会改变 definition document 的输入语法。
+- YAML 使用三元组 `[from, relation, to]`。
+- `relation list --json` 输出解析后的对象；`from` / `to` 含 owner 的 `scope_id`、Source identity `scope` 与 Entity `id`。
+- `--json` 只切换 CLI 输出，不改变 definition document 语法。
 
-例如，上述 YAML 的 JSON 查询结果形如：
+## 本地 Scope 组合
 
-```json
-{
-  "relations": [
-    {
-      "from": {
-        "scope_id": "app",
-        "scope": "file:///project/app",
-        "id": "backend"
-      },
-      "name": "uses",
-      "to": {
-        "scope_id": "app",
-        "scope": "file:///project/app",
-        "id": "database"
-      }
-    }
-  ]
-}
-```
-
-## 组合本地 Scope
-
-在 root Scope 的 manifest 中为另一个 Scope 声明 Import：
+root Scope 通过相对路径导入另一个本地 Scope：
 
 ```yaml
 id: app
-
 imports:
     infra: ../infra
 ```
 
-导入内容始终通过 Projection 前缀访问，例如 `infra:database`。目标 Scope 未显式 export 的成员不可见。
+Import 创建带 alias 的 Projection。访问 `infra:database` 时，目标必须显式 export `database`。本地 Source identity 使用规范 `file://` URL。
 
-## 安装并使用 Package
+## 准备可消费的 Locus Package
 
-假设远端 Package 的 root Scope 已显式 export `database`。项目仍通过 Import 声明该 Package，不引入另一套依赖文件：
+一个可分发 npm Package 对应一个 Scope。其 `package.json` 至少声明：
+
+```json
+{
+  "name": "@example/infra",
+  "version": "1.0.0",
+  "files": ["locus.yaml", "resources.locus.yaml"],
+  "locus": {"entry": "locus.yaml"},
+  "exports": {"./package.json": "./package.json"}
+}
+```
+
+packed tree 中 `locus.entry` 必须是唯一 Scope manifest。分发 Package 不允许本地/绝对 Import；bare Import 必须对应 `dependencies`。存在 `exports` 时必须导出 `./package.json`，否则 Node adapter 会拒绝该 Locus Package。
+
+consumer Scope 只写 bare npm Package 名，不带版本或 subpath：
 
 ```yaml
 id: app
-
 imports:
-    infra: oci://registry.example.com/locus/infra:v1
+    infra: "@example/infra"
 ```
 
-在 root Scope 中执行：
+版本范围属于同目录的 `package.json.dependencies`：
+
+```json
+{
+  "name": "example-app",
+  "private": true,
+  "dependencies": {
+    "@example/infra": "^1.0.0"
+  }
+}
+```
+
+解析后的 Package Source identity 是 `npm:@example/infra@1.2.3`。Import alias 只是 root Scope 中的 Projection 名，不决定 identity。
+
+## Pure Locus 消费
+
+独立工具直接解析 npm Registry SemVer graph：
 
 ```text
 locus-pkg install
@@ -145,44 +151,96 @@ locus-scope validate
 locus-scope resolve infra:database
 ```
 
-`locus-pkg install` 解析完整 Package 依赖闭包，生成或更新 `locus.lock`，并把内容物化到 `.locus/packages/`。之后 `locus-scope` 只读取 manifest、lock 和项目物化目录，不访问 Registry 或用户级 OCI cache。
-
-CI 或严格复现使用：
+也可由命令添加依赖：
 
 ```text
-locus-pkg install --frozen
+locus-pkg install @example/infra@^1.0.0
+locus-pkg update @example/infra
+locus-pkg uninstall @example/infra
+locus-pkg list
 ```
 
-`--frozen` 要求现有 lock 与完整依赖一致，不修改 lock；本地缺失的已锁内容仍可按 digest 获取。
+Pure Locus 保持三类状态：
 
-### CI
+- `package.json`：直接依赖范围。
+- `locus.lock`：完整、确定的 Package graph 与 tarball integrity。
+- `.locus/cache` / `.locus/packages`：项目内按 integrity 保存的 tgz 和展开内容。
 
-项目应把 Workspace 验证放进 CI：
+普通 JavaScript Package 仍锁定和安装，但不进入 Scope graph。只有带有效 `locus.entry` 的 Package 及其直接 Locus edges 会形成 Package environment。
+
+CI 严格复现：
 
 ```text
-locus-pkg install --frozen
+locus-pkg install --frozen-lockfile
 locus-scope --json validate
 ```
 
-没有 OCI Package 依赖时可以省略第一条。`validate` 检查声明文件、可达 Scope、可见性、引用和 Relation 等静态图语义；它不读取实际部署状态，因此不能检查或证明 provisioning 结果、运行状态或部署漂移。
+完全离线：
+
+```text
+locus-pkg install --offline --frozen-lockfile
+locus-scope --json validate
+```
+
+`--frozen-lockfile` 不改写 `package.json` 或 lock；`--offline` 禁止 metadata 和 tarball 请求。缺少完整 lock/cache/store 时应重新联网安装，而不是手工拼装目录。
+
+## npm / pnpm 消费
+
+package manager 同时安装 Locus Package 和 adapter：
+
+```text
+pnpm add @example/infra @locus/scope
+pnpm exec locus-scope-node validate
+pnpm exec locus-scope-node resolve infra:database
+```
+
+或：
+
+```text
+npm install @example/infra @locus/scope
+npx locus-scope-node validate
+```
+
+adapter 对 root importer 及每个已发现 Locus Package 分别做 importer-relative resolution，因此 npm hoisting、重复物理副本与 pnpm symlink layout 不改变 identity/edge 语义。多份相同 `name@version` 在 entry 与已解析 Locus edges 相同时合并；语义不同则明确失败。
+
+不要让 Node workflow 读取 Pure `.locus/packages`，也不要让 Pure workflow 扫描 `node_modules`。两种环境共享 Go Scope/Graph 语义，各自由自己的 dependency manager 提供 Package graph。
+
+## Registry 与本地开发
+
+Pure Locus 的 Registry 选择顺序为 `--registry`、`NPM_CONFIG_REGISTRY`、项目 `.npmrc`、用户 `.npmrc`；匹配 scope 的 registry 配置优先。认证使用 `_authToken` 或 `NPM_TOKEN`。凭据不得进入 Package、lock、`.locus` 或输出。
+
+仓库开发 Registry：
+
+```powershell
+pnpm install --frozen-lockfile
+pnpm run registry:start
+pnpm run registry:status
+```
+
+它仅监听 `http://127.0.0.1:4873/`；匿名读取允许，发布需要认证。若需登录，用隔离 userconfig：
+
+```powershell
+$env:NPM_CONFIG_USERCONFIG = Join-Path $PWD 'temp\verdaccio-dev\userconfig'
+npm adduser --auth-type=legacy --registry http://127.0.0.1:4873/
+```
+
+脚本不写 `.npmrc`，不重定向 package-manager cache/store。结束时运行 `stop`；只有明确删除全部开发 Registry state 时才运行 `reset -Force`。
 
 ## 理念
 
-- **Entity 图优先**：Entity 表示任何需要独立身份、属性或关系的对象；Relation 是两个 Entity 之间的有向语义边。
-- **最小核心与开放属性**：Entity 只有 `id` 必需，其余属性是对 Core 不透明的开放数据。`validate` 不替业务执行 Entity 属性中的端口范围、业务路径、环境策略或其他领域校验；需要这些约束的项目应在自己的 schema、策略或 CI 中实现。
-- **Scope 是边界**：Scope 同时提供 ownership、命名和可见性边界。Entity 在所属 Scope 内唯一，默认私有，只有显式 Export 才公开。
-- **组合而非复制**：Import 创建带别名的 Projection，不展平、不复制 Entity，也不改变原始 ownership。Scope 可以继续 Import、Export 和重新组合。
-- **来源决定身份**：manifest `id`、Import alias 和路径写法都不是 Source identity。本地 Source 使用规范 `file://` identity；Package 使用不可变 OCI manifest digest。
-- **声明与快照分离**：manifest 声明 OCI reference，`locus.lock` 把可变 tag 固定到 digest，`.locus/packages` 保存项目可直接加载的内容。
-- **安装联网，使用离线**：获取和缓存属于 `locus-pkg install`；验证和查询属于 `locus-scope`。日常读取不隐式访问 Registry，结果不会随远端 tag 漂移。
-- **开放基础设施**：分发复用 OCI Registry 与 ORAS 生态。Locus 不自建 Registry Server、账号系统、SemVer solver 或隐式依赖模型。
-- **描述而非执行**：Locus 负责描述、组合、分发和查询 Entity 图，不负责 provisioning，也不负责把声明状态与实际系统持续 reconciliation。
+- **Entity graph 优先**：Entity 表示需独立身份、属性或关系的对象；Relation 是 Entity 间有向语义边。
+- **Scope 是边界**：Entity 在所属 Scope 内唯一，默认私有，只有显式 Export 才公开。
+- **组合而非复制**：Import 创建 Projection，不展平、不复制，也不改变原始 ownership。
+- **来源决定身份**：本地 Source 使用 `file://`；Package 使用不可变的 `npm:<name>@<version>`。
+- **声明与快照分离**：Scope 声明 Package 名，`package.json` 声明范围，环境 lock 固定解析结果。
+- **安装联网，查询离线**：Package manager 负责获取与物化；Scope 查询不隐式访问 Registry。
+- **描述而非执行**：Locus 不负责 provisioning、运行状态或 deployment drift reconciliation。
 
 ## 常见边界
 
-- `locus-scope install` 不是有效命令；Package 安装命令是 `locus-pkg install`。
-- `locus-scope validate` 验证完整 reachable graph，不只检查 root manifest。
-- `validate` 不执行 provisioning、reconciliation 或实际部署漂移检查，也不替项目验证开放属性中的领域策略。
-- `:` 分隔 imported Projection，`/` 表示 Scope 内 Group 路径。
-- 同名 manifest ID 不代表同一 Scope；ownership 和 Source identity 仍由实际来源决定。
-- 缺少 lock entry 或 `.locus/packages` 内容时，先运行 `locus-pkg install`，不要手工拼装物化目录。
+- `locus-scope install` 不是命令；Pure Package 安装使用 `locus-pkg install`。
+- bare Import 只能是合法 npm Package 名；不能携带 `@version` 或 `/subpath`。
+- `locus-scope validate` 验证完整 reachable Workspace，不只检查 root manifest。
+- `:` 分隔 imported Projection，`/` 表示 Scope 内 Group path。
+- 同名 manifest ID 不代表同一 Scope；ownership 与 Source identity 由真实来源决定。
+- 本地 Scope 可用相对 Import；分发 Package 内任何本地/绝对 Import 都无效。

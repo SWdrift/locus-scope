@@ -1,0 +1,25 @@
+{
+  "name": "@locus/scope",
+  "version": "1.0.0",
+  "description": "Locus Scope command for npm and pnpm package environments",
+  "license": "MIT",
+  "type": "module",
+  "engines": {
+    "node": ">=20.6"
+  },
+  "exports": {},
+  "bin": {
+    "locus-scope-node": "bin/locus-scope-node.mjs"
+  },
+  "files": [
+    "bin",
+    "lib"
+  ],
+  "optionalDependencies": {
+    "@locus/scope-darwin-arm64": "1.0.0",
+    "@locus/scope-darwin-x64": "1.0.0",
+    "@locus/scope-linux-arm64": "1.0.0",
+    "@locus/scope-linux-x64": "1.0.0",
+    "@locus/scope-win32-x64": "1.0.0"
+  }
+}

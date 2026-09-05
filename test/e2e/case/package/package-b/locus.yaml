@@ -1,3 +1,0 @@
-id: package-b
-exports:
-  - database

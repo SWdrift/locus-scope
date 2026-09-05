@@ -1,0 +1,18 @@
+{
+  "name": "@locus/scope-darwin-x64",
+  "version": "1.0.0",
+  "description": "macOS x64 host for @locus/scope",
+  "license": "MIT",
+  "os": [
+    "darwin"
+  ],
+  "cpu": [
+    "x64"
+  ],
+  "exports": {
+    "./package.json": "./package.json"
+  },
+  "files": [
+    "bin/locus-scope-node-host"
+  ]
+}
