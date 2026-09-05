@@ -7,7 +7,7 @@ param(
 Set-StrictMode -Version Latest
 $ErrorActionPreference = 'Stop'
 
-$RepositoryRoot = (Resolve-Path (Join-Path $PSScriptRoot '..')).Path
+$RepositoryRoot = (Resolve-Path (Join-Path $PSScriptRoot '../..')).Path
 $TempRoot = Join-Path $RepositoryRoot 'temp'
 New-Item -ItemType Directory -Force -Path $TempRoot | Out-Null
 $tempItem = Get-Item -LiteralPath $TempRoot -Force

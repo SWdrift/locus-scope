@@ -44,10 +44,10 @@ npm install @locus/scope
 ### 仓库开发环境
 
 ```powershell
-pwsh -File scripts/local-deploy.ps1
+pnpm run deploy
 ```
 
-独立 CLI 位于 `temp/local/bin/`。只有明确需要写用户目录时才加 `-User`。本地 Registry 另由 `scripts/npm-registry.ps1` 管理，不属于 CLI 部署或安装包。
+独立 CLI 位于 `temp/local/bin/`。只有明确需要写用户目录时才运行 `pnpm run deploy:user`。本地 Registry 由根 package scripts 管理，不属于 CLI 部署或安装包。
 
 ## 创建和查询 Scope
 
@@ -212,9 +212,9 @@ Pure Locus 的 Registry 选择顺序为 `--registry`、`NPM_CONFIG_REGISTRY`、�
 仓库开发 Registry：
 
 ```powershell
-pwsh -File scripts/npm-registry.ps1 install
-pwsh -File scripts/npm-registry.ps1 start
-pwsh -File scripts/npm-registry.ps1 status
+pnpm install --frozen-lockfile
+pnpm run registry:start
+pnpm run registry:status
 ```
 
 它仅监听 `http://127.0.0.1:4873/`；匿名读取允许，发布需要认证。若需登录，用隔离 userconfig：

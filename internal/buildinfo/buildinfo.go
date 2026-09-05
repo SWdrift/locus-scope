@@ -6,7 +6,7 @@ import (
 	"io"
 )
 
-// Version is replaced from the repository VERSION file by scripts/local-build.ps1.
+// Version is replaced from the repository VERSION file by pnpm run build.
 var Version = "development"
 
 // WriteVersion writes one CLI's build version in text or stable JSON form.

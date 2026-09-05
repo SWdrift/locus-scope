@@ -10,7 +10,7 @@ param(
 Set-StrictMode -Version Latest
 $ErrorActionPreference = 'Stop'
 
-$RepositoryRoot = (Resolve-Path (Join-Path $PSScriptRoot '..')).Path
+$RepositoryRoot = (Resolve-Path (Join-Path $PSScriptRoot '../..')).Path
 $TempRoot = Join-Path $RepositoryRoot 'temp'
 New-Item -ItemType Directory -Force -Path $TempRoot | Out-Null
 $tempItem = Get-Item -LiteralPath $TempRoot -Force
@@ -22,7 +22,7 @@ if ([string]::IsNullOrWhiteSpace($HOME)) {
 }
 $ExistingUninstaller = Join-Path $HOME '.locus\installer\unins000.exe'
 if (Test-Path -LiteralPath $ExistingUninstaller -PathType Leaf) {
-    throw 'Locus is already installed for the current user; run pwsh -File scripts/user-uninstall.ps1 before installing again'
+    throw 'Locus is already installed for the current user; run pnpm run user:uninstall before installing again'
 }
 if ([string]::IsNullOrWhiteSpace($SetupPath)) {
     $SetupPath = Join-Path $RepositoryRoot 'temp\release\windows-amd64\locus-setup-windows-amd64.exe'

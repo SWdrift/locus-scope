@@ -27,15 +27,19 @@ packaging/
     └── locus.iss
 
 scripts/
-├── inno-setup.ps1
-├── local-build.ps1
-├── local-clean.ps1
-├── local-deploy.ps1
-├── npm-registry.ps1
-├── release-package.ps1
-├── test-run.ps1
-├── user-install.ps1
-└── user-uninstall.ps1
+├── build.mjs
+├── clean.mjs
+├── deploy.mjs
+├── registry.mjs
+├── test.mjs
+├── branch-sync.mjs
+├── config/
+├── lib/
+└── windows/
+    ├── inno-setup.ps1
+    ├── release.ps1
+    ├── user-install.ps1
+    └── user-uninstall.ps1
 ```
 
 ## 依赖
@@ -62,6 +66,8 @@ flowchart LR
 
 - `internal/` 只按稳定职责建立 package，不使用 `utils`、`common`、`src` 或按文件类型分组。
 - `packaging/` 聚合全部交付包定义；npm package source 位于 `packaging/npm/`，Windows installer 定义位于 `packaging/windows/`。
+- 根 `package.json` 的 package scripts 是仓库任务的唯一公共入口；跨平台实现位于 `scripts/*.mjs`，Windows 专用实现位于 `scripts/windows/`。
+- 仓库任务使用的工具配置和静态配置放在 `scripts/config/`，下载工具只放在 `temp/tools/`。
 - package manager 与 delivery adapter 不得复制 Scope、Entity、Relation、Import、ownership 或 Workspace 语义。
 - 项目级 Verdaccio 与测试状态只写 `temp/`；Node package-manager cache/store 继续使用机器级全局配置。
 - 根 `VERSION` 是 standalone 与六个 npm package 的发行版本真相。

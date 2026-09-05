@@ -35,14 +35,14 @@ npm install @locus/scope
 
 ### 从源码构建
 
-要求 Go 1.26+ 与 PowerShell 7：
+要求 Go 1.26+、Node.js 20.6+ 和根 `package.json` 固定的 pnpm：
 
 ```powershell
-pwsh -File scripts/local-build.ps1
-pwsh -File scripts/local-deploy.ps1
+pnpm run build
+pnpm run deploy
 ```
 
-产物位于 `temp/local/bin/`。只有明确需要写入用户目录时才运行 `pwsh -File scripts/local-deploy.ps1 -User`。脚本不修改 `PATH`，详情见 [`scripts/README.md`](scripts/README.md)。
+产物位于 `temp/local/bin/`。只有明确需要写入用户目录时才运行 `pnpm run deploy:user`。脚本不修改 `PATH`，详情见 [`scripts/README.md`](scripts/README.md)。
 
 ## 创建 Scope
 
@@ -215,12 +215,12 @@ Registry 选择顺序是 `--registry`、`NPM_CONFIG_REGISTRY`、项目 `.npmrc`�
 仓库开发使用固定版本的 project-local Registry：
 
 ```powershell
-pwsh -File scripts/npm-registry.ps1 install
-pwsh -File scripts/npm-registry.ps1 start
-pwsh -File scripts/npm-registry.ps1 status
-pwsh -File scripts/npm-registry.ps1 logs
-pwsh -File scripts/npm-registry.ps1 stop
-pwsh -File scripts/npm-registry.ps1 reset -Force
+pnpm install --frozen-lockfile
+pnpm run registry:start
+pnpm run registry:status
+pnpm run registry:logs
+pnpm run registry:stop
+pnpm run registry:reset
 ```
 
 服务只监听 `http://127.0.0.1:4873/`，状态、认证文件、storage 和日志只写入 `temp/verdaccio-dev/`。匿名读取允许，发布必须认证。脚本不会创建仓库或用户 `.npmrc`，也不会重定向 npm/pnpm cache 或 store。

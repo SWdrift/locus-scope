@@ -7,8 +7,30 @@
     "node": ">=20.6"
   },
   "scripts": {
-    "check:links": "remark \"*.md\" \".agents/skills/*/SKILL.md\" \"documents/**/*.md\" \"scripts/**/*.md\" \"test/**/*.md\" \"test/e2e/case/**/.locus/**/*.md\" --frail --rc-path .tools/markdown/remark.config.js",
-    "test:node": "node --test packaging/npm/locus-scope/test/*.test.mjs"
+    "build": "node scripts/build.mjs",
+    "clean": "node scripts/clean.mjs",
+    "clean:user": "node scripts/clean.mjs --user",
+    "deploy": "node scripts/deploy.mjs",
+    "deploy:user": "node scripts/deploy.mjs --user",
+    "test": "node scripts/test.mjs all",
+    "test:e2e": "node scripts/test.mjs e2e",
+    "test:node": "node --test packaging/npm/locus-scope/test/*.test.mjs",
+    "check": "pnpm run check:links",
+    "check:links": "remark \"*.md\" \".agents/skills/*/SKILL.md\" \"documents/**/*.md\" \"scripts/**/*.md\" \"test/**/*.md\" \"test/e2e/case/**/.locus/**/*.md\" --frail --rc-path scripts/config/remark.config.mjs",
+    "release": "pwsh -NoProfile -File scripts/windows/release.ps1",
+    "registry:start": "node scripts/registry.mjs start",
+    "registry:status": "node scripts/registry.mjs status",
+    "registry:logs": "node scripts/registry.mjs logs",
+    "registry:logs:follow": "node scripts/registry.mjs logs --follow",
+    "registry:stop": "node scripts/registry.mjs stop",
+    "registry:reset": "node scripts/registry.mjs reset --force",
+    "inno:install": "pwsh -NoProfile -File scripts/windows/inno-setup.ps1 install",
+    "inno:status": "pwsh -NoProfile -File scripts/windows/inno-setup.ps1 status",
+    "inno:path": "pwsh -NoProfile -File scripts/windows/inno-setup.ps1 path",
+    "inno:reset": "pwsh -NoProfile -File scripts/windows/inno-setup.ps1 reset -Force",
+    "user:install": "pwsh -NoProfile -File scripts/windows/user-install.ps1",
+    "user:uninstall": "pwsh -NoProfile -File scripts/windows/user-uninstall.ps1",
+    "branch:sync": "node scripts/branch-sync.mjs"
   },
   "devDependencies": {
     "remark-cli": "^12.0.1",

@@ -4,6 +4,10 @@
 
 ## Unreleased
 
+### Changed
+
+- 仓库任务统一通过根 package scripts 执行；跨平台编排迁移到 Node，Windows 专用实现集中到 `scripts/windows/`，工具配置不再使用 `.tools/`。
+
 ## [1.0.0] - 2026-09-05
 
 

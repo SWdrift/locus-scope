@@ -7,7 +7,7 @@ param(
 Set-StrictMode -Version Latest
 $ErrorActionPreference = 'Stop'
 
-$RepositoryRoot = (Resolve-Path (Join-Path $PSScriptRoot '..')).Path
+$RepositoryRoot = (Resolve-Path (Join-Path $PSScriptRoot '../..')).Path
 $VersionFile = Join-Path $RepositoryRoot 'VERSION'
 $ProjectVersion = (Get-Content -LiteralPath $VersionFile -Raw).Trim()
 if ([string]::IsNullOrWhiteSpace($Version)) {
@@ -83,7 +83,7 @@ function Resolve-Iscc {
     Assert-File $InnoManagerPath
     $managedPath = & $InnoManagerPath path
     if ([string]::IsNullOrWhiteSpace($managedPath)) {
-        throw 'managed Inno Setup is unavailable; run pwsh -File scripts/inno-setup.ps1 install'
+        throw 'managed Inno Setup is unavailable; run pnpm run inno:install'
     }
     return (Resolve-Path -LiteralPath $managedPath).Path
 }
@@ -212,9 +212,13 @@ try {
     $env:CGO_ENABLED = '0'
     $env:GOOS = 'windows'
     $env:GOARCH = 'amd64'
-    $buildResult = & (Join-Path $PSScriptRoot 'local-build.ps1') -PassThru
+    & node (Join-Path $RepositoryRoot 'scripts\build.mjs')
+    if ($LASTEXITCODE -ne 0) {
+        throw "node scripts/build.mjs exited with code $LASTEXITCODE"
+    }
+    $artifactRoot = Join-Path $RepositoryRoot 'temp\build\windows-amd64'
     foreach ($fileName in 'locus-pkg.exe', 'locus-scope.exe') {
-        $source = Join-Path $buildResult.ArtifactRoot $fileName
+        $source = Join-Path $artifactRoot $fileName
         Assert-File $source
         Copy-Item -LiteralPath $source -Destination (Join-Path $StageBinRoot $fileName)
     }

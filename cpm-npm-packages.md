@@ -46,7 +46,7 @@
 
 - 开发 Verdaccio 默认监听 `127.0.0.1:4873`，使用 `temp/verdaccio-dev/`；E2E 使用独立的 `temp/e2e-run/npm/registry/` 和动态环回端口。
 - 开发 Registry 允许匿名读取，publish 需要认证；E2E 使用确定性测试账户，凭据只写入 `temp/e2e-run/`。
-- `scripts/npm-registry.ps1` 提供项目级 `install`、`start`、`stop`、`status`、`logs` 和 `reset`；`start` 后台运行并等待健康检查，`reset` 要求显式 `-Force`。
+- 根 package scripts 提供项目级 `registry:start`、`registry:stop`、`registry:status`、`registry:logs` 和 `registry:reset`；`start` 后台运行并等待健康检查，`reset` 是显式破坏性入口。
 - 停止操作必须验证目标是脚本启动的 Verdaccio，不得仅按端口杀死进程。
 
 ## Release

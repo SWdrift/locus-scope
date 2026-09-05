@@ -13,7 +13,7 @@ if (-not $IsWindows) {
     throw 'Inno Setup management is supported only on Windows'
 }
 
-$RepositoryRoot = (Resolve-Path (Join-Path $PSScriptRoot '..')).Path
+$RepositoryRoot = (Resolve-Path (Join-Path $PSScriptRoot '../..')).Path
 $Version = '6.7.3'
 $InstallerSha256 = '9c73c3bae7ed48d44112a0f48e66742c00090bdb5bef71d9d3c056c66e97b732'
 $DownloadUri = 'https://github.com/jrsoftware/issrc/releases/download/is-6_7_3/innosetup-6.7.3.exe'
@@ -103,7 +103,7 @@ function Get-ManagedCompilerPath {
         Assert-Installation
     }
     catch {
-        throw "managed Inno Setup $Version is unavailable; run pwsh -File scripts/inno-setup.ps1 install: $($_.Exception.Message)"
+        throw "managed Inno Setup $Version is unavailable; run pnpm run inno:install: $($_.Exception.Message)"
     }
     return $CompilerPath
 }
@@ -139,7 +139,7 @@ function Install-InnoSetup {
             return
         }
         catch {
-            throw "managed Inno Setup state is invalid; run pwsh -File scripts/inno-setup.ps1 reset -Force before reinstalling: $($_.Exception.Message)"
+            throw "managed Inno Setup state is invalid; run pnpm run inno:reset before reinstalling: $($_.Exception.Message)"
         }
     }
 

@@ -82,8 +82,8 @@ Registry 选择顺序：
 仓库开发环境使用 project-local Verdaccio：
 
 ```powershell
-pwsh -File scripts/npm-registry.ps1 install
-pwsh -File scripts/npm-registry.ps1 start
+pnpm install --frozen-lockfile
+pnpm run registry:start
 ```
 
 它只监听 `http://127.0.0.1:4873/`，匿名读取允许，发布要求认证。把开发登录隔离在 temp state，而不是改真实用户配置：
@@ -98,10 +98,10 @@ locus-pkg publish
 完成后：
 
 ```powershell
-pwsh -File scripts/npm-registry.ps1 stop
+pnpm run registry:stop
 ```
 
-脚本不写 `.npmrc`，也不重定向 package-manager cache/store。state、storage、auth 和日志都在 `temp/verdaccio-dev/`；需要清空时显式运行 `reset -Force`。
+脚本不写 `.npmrc`，也不重定向 package-manager cache/store。state、storage、auth 和日志都在 `temp/verdaccio-dev/`；需要清空时运行 `pnpm run registry:reset`。
 
 ## 发布语义
 
