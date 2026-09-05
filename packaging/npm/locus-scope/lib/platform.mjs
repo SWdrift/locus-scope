@@ -4,11 +4,11 @@ import path from 'node:path';
 
 const requireFromPackage = createRequire(import.meta.url);
 const SUPPORTED_HOSTS = new Map([
-  ['darwin/arm64', '@locus/scope-darwin-arm64'],
-  ['darwin/x64', '@locus/scope-darwin-x64'],
-  ['linux/arm64', '@locus/scope-linux-arm64'],
-  ['linux/x64', '@locus/scope-linux-x64'],
-  ['win32/x64', '@locus/scope-win32-x64'],
+  ['darwin/arm64', '@sundw/locus-scope-darwin-arm64'],
+  ['darwin/x64', '@sundw/locus-scope-darwin-x64'],
+  ['linux/arm64', '@sundw/locus-scope-linux-arm64'],
+  ['linux/x64', '@sundw/locus-scope-linux-x64'],
+  ['win32/x64', '@sundw/locus-scope-win32-x64'],
 ]);
 
 export function platformPackageName(platform, architecture) {
@@ -32,7 +32,7 @@ export async function locatePlatformHost({
     packageJson = resolvePackageJson(`${packageName}/package.json`);
   } catch (error) {
     throw new Error(
-      `required platform package ${packageName} is not installed; reinstall @locus/scope with optional dependencies enabled`,
+      `required platform package ${packageName} is not installed; reinstall @sundw/locus-scope with optional dependencies enabled`,
       { cause: error },
     );
   }
@@ -54,7 +54,7 @@ export async function locatePlatformHost({
     platformManifest.cpu[0] !== architecture
   ) {
     throw new Error(
-      `platform package ${packageName} does not match @locus/scope ${adapterManifest.version} for ${platform}/${architecture}`,
+      `platform package ${packageName} does not match @sundw/locus-scope ${adapterManifest.version} for ${platform}/${architecture}`,
     );
   }
 

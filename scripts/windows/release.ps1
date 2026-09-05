@@ -34,11 +34,11 @@ $InnoManagerPath = Join-Path $PSScriptRoot 'inno-setup.ps1'
 $LdFlags = "-X locus-scope/internal/buildinfo.Version=$Version"
 
 $PlatformPackages = @(
-    [pscustomobject]@{ Directory = 'locus-scope-win32-x64'; Name = '@locus/scope-win32-x64'; NpmOS = 'win32'; NpmCPU = 'x64'; GoOS = 'windows'; GoArch = 'amd64'; Binary = 'locus-scope-node-host.exe' },
-    [pscustomobject]@{ Directory = 'locus-scope-linux-x64'; Name = '@locus/scope-linux-x64'; NpmOS = 'linux'; NpmCPU = 'x64'; GoOS = 'linux'; GoArch = 'amd64'; Binary = 'locus-scope-node-host' },
-    [pscustomobject]@{ Directory = 'locus-scope-linux-arm64'; Name = '@locus/scope-linux-arm64'; NpmOS = 'linux'; NpmCPU = 'arm64'; GoOS = 'linux'; GoArch = 'arm64'; Binary = 'locus-scope-node-host' },
-    [pscustomobject]@{ Directory = 'locus-scope-darwin-x64'; Name = '@locus/scope-darwin-x64'; NpmOS = 'darwin'; NpmCPU = 'x64'; GoOS = 'darwin'; GoArch = 'amd64'; Binary = 'locus-scope-node-host' },
-    [pscustomobject]@{ Directory = 'locus-scope-darwin-arm64'; Name = '@locus/scope-darwin-arm64'; NpmOS = 'darwin'; NpmCPU = 'arm64'; GoOS = 'darwin'; GoArch = 'arm64'; Binary = 'locus-scope-node-host' }
+    [pscustomobject]@{ Directory = 'locus-scope-win32-x64'; Name = '@sundw/locus-scope-win32-x64'; NpmOS = 'win32'; NpmCPU = 'x64'; GoOS = 'windows'; GoArch = 'amd64'; Binary = 'locus-scope-node-host.exe' },
+    [pscustomobject]@{ Directory = 'locus-scope-linux-x64'; Name = '@sundw/locus-scope-linux-x64'; NpmOS = 'linux'; NpmCPU = 'x64'; GoOS = 'linux'; GoArch = 'amd64'; Binary = 'locus-scope-node-host' },
+    [pscustomobject]@{ Directory = 'locus-scope-linux-arm64'; Name = '@sundw/locus-scope-linux-arm64'; NpmOS = 'linux'; NpmCPU = 'arm64'; GoOS = 'linux'; GoArch = 'arm64'; Binary = 'locus-scope-node-host' },
+    [pscustomobject]@{ Directory = 'locus-scope-darwin-x64'; Name = '@sundw/locus-scope-darwin-x64'; NpmOS = 'darwin'; NpmCPU = 'x64'; GoOS = 'darwin'; GoArch = 'amd64'; Binary = 'locus-scope-node-host' },
+    [pscustomobject]@{ Directory = 'locus-scope-darwin-arm64'; Name = '@sundw/locus-scope-darwin-arm64'; NpmOS = 'darwin'; NpmCPU = 'arm64'; GoOS = 'darwin'; GoArch = 'arm64'; Binary = 'locus-scope-node-host' }
 )
 
 function Assert-File {
@@ -251,7 +251,7 @@ try {
     $scopeSourceRoot = Join-Path $RepositoryRoot 'packaging\npm\locus-scope'
     $scopeStageRoot = Join-Path $NpmStageRoot 'locus-scope'
     Copy-PackageSource -Source $scopeSourceRoot -Destination $scopeStageRoot
-    Set-StagedPackageVersion -PackageRoot $scopeStageRoot -ExpectedName '@locus/scope' -SynchronizeOptionalDependencies
+    Set-StagedPackageVersion -PackageRoot $scopeStageRoot -ExpectedName '@sundw/locus-scope' -SynchronizeOptionalDependencies
     Invoke-PackagePack -PackageRoot $scopeStageRoot
 }
 finally {

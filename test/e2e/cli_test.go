@@ -202,7 +202,7 @@ func TestNPMPackageLifecycle(t *testing.T) {
 	h.npmPublish("publish-node-platform", platformSource, h.authEnv).success(t, "publish current Node platform package")
 	nodePackageSource := filepath.Join(h.root, "fixtures", "locus-scope-node")
 	materializeFixture(t, repositoryPath("packaging", "npm", "locus-scope"), nodePackageSource)
-	h.npmPublish("publish-locus-scope-node", nodePackageSource, h.authEnv).success(t, "publish @locus/scope")
+	h.npmPublish("publish-locus-scope-node", nodePackageSource, h.authEnv).success(t, "publish @sundw/locus-scope")
 	var nodePackageManifest struct {
 		Version string `json:"version"`
 	}
@@ -213,7 +213,7 @@ func TestNPMPackageLifecycle(t *testing.T) {
 	npmSnapshot := nodeQuerySnapshot(t, h, "node-npm", npmNodeConsumer)
 	pnpmNodeConsumer := createNodeConsumer(t, filepath.Join(h.root, "projects", "node-pnpm"), filepath.Join(fixtureRoot, "consumer"), nodePackageManifest.Version)
 	h.pnpmInstall("node-pnpm-install", pnpmNodeConsumer, h.authEnv).success(t, "pnpm Node consumer install")
-	assertSymlink(t, filepath.Join(pnpmNodeConsumer, "node_modules", "@locus", "scope"), "pnpm @locus/scope installation")
+	assertSymlink(t, filepath.Join(pnpmNodeConsumer, "node_modules", "@sundw", "locus-scope"), "pnpm @sundw/locus-scope installation")
 	pnpmSnapshot := nodeQuerySnapshot(t, h, "node-pnpm", pnpmNodeConsumer)
 	if !bytes.Equal(updatedSnapshot, npmSnapshot) || !bytes.Equal(updatedSnapshot, pnpmSnapshot) {
 		t.Fatalf("Pure/npm/pnpm normalized query results differ\nPure: %s\nnpm: %s\npnpm: %s", updatedSnapshot, npmSnapshot, pnpmSnapshot)
@@ -226,11 +226,11 @@ func TestNPMPackageLifecycle(t *testing.T) {
 		map[string]string{"blocked": "@failure/blocked"})
 	var blockedManifest map[string]any
 	decodeJSON(t, fileBytes(t, filepath.Join(blockedNodeConsumer, "package.json")), &blockedManifest)
-	blockedManifest["dependencies"] = map[string]string{"@failure/blocked": "1.0.0", "@locus/scope": nodePackageManifest.Version}
+	blockedManifest["dependencies"] = map[string]string{"@failure/blocked": "1.0.0", "@sundw/locus-scope": nodePackageManifest.Version}
 	writeJSONFile(t, filepath.Join(blockedNodeConsumer, "package.json"), blockedManifest)
 	h.npmInstall("node-blocked-install", blockedNodeConsumer, h.authEnv).success(t, "install blocked-export Node fixture")
 	h.run("node-blocked-exports", blockedNodeConsumer, h.authEnv, h.node,
-		filepath.Join(blockedNodeConsumer, "node_modules", "@locus", "scope", "bin", "locus-scope-node.mjs"),
+		filepath.Join(blockedNodeConsumer, "node_modules", "@sundw", "locus-scope", "bin", "locus-scope-node.mjs"),
 		"--scope", blockedNodeConsumer, "--json", "validate").failure(t, "Node blocked package.json export")
 
 	h.registry.stop(t)
@@ -323,7 +323,7 @@ func pureQuerySnapshot(t *testing.T, h *npmLifecycleHarness, name, project strin
 
 func nodeQuerySnapshot(t *testing.T, h *npmLifecycleHarness, name, project string) []byte {
 	t.Helper()
-	adapter := filepath.Join(project, "node_modules", "@locus", "scope", "bin", "locus-scope-node.mjs")
+	adapter := filepath.Join(project, "node_modules", "@sundw", "locus-scope", "bin", "locus-scope-node.mjs")
 	return querySnapshot(t, func(suffix string, arguments ...string) []byte {
 		return h.run(name+"-"+suffix, project, h.authEnv, h.node,
 			append([]string{adapter, "--scope", project, "--json"}, arguments...)...).success(t, name+" "+suffix)
@@ -500,7 +500,7 @@ func createNodeConsumer(t *testing.T, destination, source, locusVersion string) 
 	var manifest map[string]any
 	decodeJSON(t, fileBytes(t, filepath.Join(destination, "package.json")), &manifest)
 	dependencies := manifest["dependencies"].(map[string]any)
-	dependencies["@locus/scope"] = locusVersion
+	dependencies["@sundw/locus-scope"] = locusVersion
 	writeJSONFile(t, filepath.Join(destination, "package.json"), manifest)
 	return destination
 }
@@ -524,7 +524,7 @@ func currentPlatformPackage(t *testing.T) (string, string) {
 	case "darwin/arm64":
 		platform = "darwin-arm64"
 	default:
-		t.Fatalf("current platform %s/%s is outside the published @locus/scope matrix", runtime.GOOS, runtime.GOARCH)
+		t.Fatalf("current platform %s/%s is outside the published @sundw/locus-scope matrix", runtime.GOOS, runtime.GOARCH)
 	}
 	return "locus-scope-" + platform, "locus-scope-node-host" + suffix
 }

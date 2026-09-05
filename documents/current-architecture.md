@@ -55,12 +55,12 @@ flowchart LR
     H[cmd/locus-scope-node-host] --> PE
     H --> CLI
     CLI --> S
-    JS[@locus/scope adapter] --> H
+    JS[@sundw/locus-scope adapter] --> H
 ```
 
 `internal/scope` 是唯一 Scope/Graph semantic core，不依赖 npm、package.json、lock、cache、Node 或 Registry 类型。`internal/packageenv` 是 resolved package graph 到 `scope.Resolver` 的唯一 adapter。`internal/npm` 只负责 npm protocol、SemVer、Registry、SRI、archive 和 pack/publish artifact。`internal/purepkg` 负责 Pure Locus lock/store/resolution/transaction。`internal/scopecli` 提供两个 Go entrypoint 共用的 query/validation dispatcher。
 
-`@locus/scope` 只构造 importer-relative descriptor、选择 platform host 并转发进程 I/O；不解析 Locus definitions。standalone `locus-scope` 使用 Pure Locus lock/store，Node host 使用 npm/pnpm 已安装环境，但二者进入相同 `packageenv`、`scope.Load` 和 `scopecli`。
+`@sundw/locus-scope` 只构造 importer-relative descriptor、选择 platform host 并转发进程 I/O；不解析 Locus definitions。standalone `locus-scope` 使用 Pure Locus lock/store，Node host 使用 npm/pnpm 已安装环境，但二者进入相同 `packageenv`、`scope.Load` 和 `scopecli`。
 
 ## 目录规则
 

@@ -2,13 +2,17 @@
 
 本文件记录 `locus-scope` 各发布版本的用户可见变更。
 
-## Unreleased
+## [1.0.1] - 2026-09-05
+
+### Changed
+
+- 六个 `@sundw/locus-scope*` npm Package 补充 GitHub repository、homepage 和 issues 元数据，项目首页增加 npm 主包入口。
 
 ## [1.0.0] - 2026-09-05
 
 ### Added
 
-- npm-compatible Package 分发：Pure `locus-pkg` 的 install/uninstall/update/list/pack/publish，以及 npm/pnpm 的 `@locus/scope` 与五个平台 host package。
+- npm-compatible Package 分发：Pure `locus-pkg` 的 install/uninstall/update/list/pack/publish，以及 npm/pnpm 的 `@sundw/locus-scope` 与五个平台 host package。
 - importer-relative 多版本解析、严格 `locus.lock`、项目内 integrity store、offline/frozen transaction 和 Verdaccio 开发/E2E 工具。
 - project-local Inno Setup 6 管理脚本，固定下载校验、portable 安装位置和 release 默认编译器。
 

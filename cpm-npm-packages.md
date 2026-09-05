@@ -18,10 +18,10 @@
 ## 双模式
 
 - Pure Locus 使用 standalone `locus-pkg` 和 `locus-scope`，不依赖 Node/npm/pnpm executable；`.locus/packages`、`.locus/cache` 和 `locus.lock` 只属于该模式。
-- npm ecosystem 模式由 npm/pnpm 管理 package environment、dependency resolution、cache 和原生 lockfile；`@locus/scope` 与 `locus-scope-node` 不创建、修改或依赖 `locus.lock`。
-- `@locus/scope` 是薄 Node adapter，首选通过子进程复用 Go 核心。JavaScript 不复制 Scope、Entity、Relation、Import、ownership 或 Workspace 语义。
+- npm ecosystem 模式由 npm/pnpm 管理 package environment、dependency resolution、cache 和原生 lockfile；`@sundw/locus-scope` 与 `locus-scope-node` 不创建、修改或依赖 `locus.lock`。
+- `@sundw/locus-scope` 是薄 Node adapter，首选通过子进程复用 Go 核心。JavaScript 不复制 Scope、Entity、Relation、Import、ownership 或 Workspace 语义。
 - 两种模式共享同一种 Locus package 和 Scope/Graph 语义；区别只在 package installation/resolution 来源。
-- `@locus/scope` 首版只承诺 `locus-scope-node` CLI 与稳定 JSON 输出，不承诺返回完整 Workspace 的 Node 程序 API。
+- `@sundw/locus-scope` 首版只承诺 `locus-scope-node` CLI 与稳定 JSON 输出，不承诺返回完整 Workspace 的 Node 程序 API。
 - npm package 通过平台专用 package 携带 Go engine；首版平台矩阵为 Windows x64、Linux x64/arm64、macOS x64/arm64。
 - Node adapter 首版一次性构造 importer-relative package environment descriptor，通过有版本的单次 JSON stdin/stdout 协议调用 Go 子进程；不引入双向 RPC。
 
@@ -52,7 +52,7 @@
 ## Release
 
 - 根 `VERSION` 是整个发行批次的版本真相；release 流程写入或校验各 npm package 的 `package.json.version`。
-- `@locus/scope` 与所有平台 package 使用相同版本，平台 `optionalDependencies` 使用精确版本。
+- `@sundw/locus-scope` 与所有平台 package 使用相同版本，平台 `optionalDependencies` 使用精确版本。
 
 ## 决策权限
 
