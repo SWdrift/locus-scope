@@ -8,8 +8,8 @@ import { locatePlatformHost, platformPackageName } from '../lib/platform.mjs';
 import { captureStream, testDirectory, writeJson } from './helpers.mjs';
 
 test('platform lookup selects only the exact supported package and validates its manifest', async (t) => {
-  assert.equal(platformPackageName('win32', 'x64'), '@locus/scope-win32-x64');
-  assert.equal(platformPackageName('linux', 'arm64'), '@locus/scope-linux-arm64');
+  assert.equal(platformPackageName('win32', 'x64'), '@sundw/locus-scope-win32-x64');
+  assert.equal(platformPackageName('linux', 'arm64'), '@sundw/locus-scope-linux-arm64');
   assert.throws(() => platformPackageName('win32', 'arm64'), /unsupported platform win32\/arm64/);
 
   const root = await testDirectory(t, 'platform');
@@ -18,8 +18,8 @@ test('platform lookup selects only the exact supported package and validates its
   const host = path.join(packageRoot, 'bin', 'locus-scope-node-host');
   await mkdir(path.dirname(host), { recursive: true });
   await writeJson(packageJson, {
-    name: '@locus/scope-linux-x64',
-    version: '1.0.0',
+    name: '@sundw/locus-scope-linux-x64',
+    version: '1.0.1',
     os: ['linux'],
     cpu: ['x64'],
   });
@@ -35,7 +35,7 @@ test('platform lookup selects only the exact supported package and validates its
   );
 
   await writeJson(packageJson, {
-    name: '@locus/scope-linux-x64',
+    name: '@sundw/locus-scope-linux-x64',
     version: '9.9.9',
     os: ['linux'],
     cpu: ['x64'],
@@ -46,12 +46,12 @@ test('platform lookup selects only the exact supported package and validates its
       architecture: 'x64',
       resolvePackageJson: () => packageJson,
     }),
-    /does not match @locus\/scope 1\.0\.0 for linux\/x64/,
+    /does not match @sundw\/locus-scope 1\.0\.1 for linux\/x64/,
   );
 
   await writeJson(packageJson, {
-    name: '@locus/scope-linux-x64',
-    version: '1.0.0',
+    name: '@sundw/locus-scope-linux-x64',
+    version: '1.0.1',
     os: ['linux'],
     cpu: ['x64'],
   });
@@ -73,7 +73,7 @@ test('platform lookup selects only the exact supported package and validates its
         throw new Error('not installed');
       },
     }),
-    /reinstall @locus\/scope with optional dependencies enabled/,
+    /reinstall @sundw\/locus-scope with optional dependencies enabled/,
   );
 });
 

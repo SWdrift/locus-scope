@@ -1,18 +1,18 @@
 # npm 模式
 
-npm 模式由 npm 或 pnpm 管理 Package 版本、lockfile、下载缓存和 `node_modules`，由 `@locus/scope` 提供查询入口。它适合现有 Node.js 项目、需要复用 npm 工具链的项目，以及同时包含 JavaScript Package 和 Locus Package 的依赖图。
+npm 模式由 npm 或 pnpm 管理 Package 版本、lockfile、下载缓存和 `node_modules`，由 `@sundw/locus-scope` 提供查询入口。它适合现有 Node.js 项目、需要复用 npm 工具链的项目，以及同时包含 JavaScript Package 和 Locus Package 的依赖图。
 
 ## 安装
 
 要求 Node.js 20.6 或更新版本。在项目中安装 Node adapter：
 
 ```text
-pnpm add @locus/scope
+pnpm add @sundw/locus-scope
 # 或
-npm install @locus/scope
+npm install @sundw/locus-scope
 ```
 
-`@locus/scope` 提供 `locus-scope-node`。先创建最小 Scope：
+`@sundw/locus-scope` 提供 `locus-scope-node`。先创建最小 Scope：
 
 ```yaml
 # locus.yaml
@@ -34,7 +34,7 @@ npx locus-scope-node validate
 Locus Package 是包含 `locus.entry` 的标准 npm Package。使用 pnpm：
 
 ```text
-pnpm add @example/infra @locus/scope
+pnpm add @example/infra @sundw/locus-scope
 pnpm exec locus-scope-node validate
 pnpm exec locus-scope-node resolve infra:database
 ```
@@ -42,7 +42,7 @@ pnpm exec locus-scope-node resolve infra:database
 使用 npm：
 
 ```text
-npm install @example/infra @locus/scope
+npm install @example/infra @sundw/locus-scope
 npx locus-scope-node validate
 npx locus-scope-node resolve infra:database
 ```

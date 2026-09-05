@@ -20,20 +20,20 @@ importers:
 
   packaging/npm/locus-scope:
     optionalDependencies:
-      '@locus/scope-darwin-arm64':
-        specifier: 1.0.0
+      '@sundw/locus-scope-darwin-arm64':
+        specifier: 1.0.1
         version: link:../locus-scope-darwin-arm64
-      '@locus/scope-darwin-x64':
-        specifier: 1.0.0
+      '@sundw/locus-scope-darwin-x64':
+        specifier: 1.0.1
         version: link:../locus-scope-darwin-x64
-      '@locus/scope-linux-arm64':
-        specifier: 1.0.0
+      '@sundw/locus-scope-linux-arm64':
+        specifier: 1.0.1
         version: link:../locus-scope-linux-arm64
-      '@locus/scope-linux-x64':
-        specifier: 1.0.0
+      '@sundw/locus-scope-linux-x64':
+        specifier: 1.0.1
         version: link:../locus-scope-linux-x64
-      '@locus/scope-win32-x64':
-        specifier: 1.0.0
+      '@sundw/locus-scope-win32-x64':
+        specifier: 1.0.1
         version: link:../locus-scope-win32-x64
 
   packaging/npm/locus-scope-darwin-arm64: {}

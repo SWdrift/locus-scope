@@ -34,9 +34,9 @@ locus-scope --scope ./smoke validate
 Node.js 20.6+ 项目安装 adapter：
 
 ```text
-pnpm add @locus/scope
+pnpm add @sundw/locus-scope
 # 或
-npm install @locus/scope
+npm install @sundw/locus-scope
 ```
 
 入口是 `locus-scope-node`。它从 importer 的 package manager 环境发现 Package，将 descriptor 交给同一 Go Scope 核心；JavaScript 不解析 Locus definitions。
@@ -189,7 +189,7 @@ locus-scope --json validate
 package manager 同时安装 Locus Package 和 adapter：
 
 ```text
-pnpm add @example/infra @locus/scope
+pnpm add @example/infra @sundw/locus-scope
 pnpm exec locus-scope-node validate
 pnpm exec locus-scope-node resolve infra:database
 ```
@@ -197,7 +197,7 @@ pnpm exec locus-scope-node resolve infra:database
 或：
 
 ```text
-npm install @example/infra @locus/scope
+npm install @example/infra @sundw/locus-scope
 npx locus-scope-node validate
 ```
 

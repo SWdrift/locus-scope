@@ -154,14 +154,14 @@ locus-scope validate --json
 Node consumer 让 package manager 负责解析、安装、cache 和原生 lockfile：
 
 ```text
-npm install @locus/scope @example/app @example/modern
+npm install @sundw/locus-scope @example/app @example/modern
 npx locus-scope-node validate --json
 ```
 
 或：
 
 ```text
-pnpm add @locus/scope @example/app @example/modern
+pnpm add @sundw/locus-scope @example/app @example/modern
 pnpm exec locus-scope-node validate --json
 ```
 
@@ -210,7 +210,7 @@ pnpm exec locus-scope-node validate --json
 | Resolution 更新 | install 只解锁新增或改变的 roots，named update 只解锁指定 direct roots 的 closures，unnamed update 解锁全部 roots，uninstall 删除指定 roots；其他有效 lock subgraphs 保持不变。每个 constraint 选择最高匹配版本。 |
 | List、pack、publish | list 只读取 lock/store 并输出 resolved dependency tree；每个 node 含 `name`、`version`、`identity` 和递归 `dependencies`。pack 将 `@example/app@1.0.0` 写为 package root 下的 `example-app-1.0.0.tgz`。publish 在 `.locus/tmp` pack、发布 `latest`，并删除临时 tgz。 |
 | CLI 成功输出 | install/uninstall/update JSON 包含 `valid`、`root`、`added`、`removed`、`updated`、`reused`、`fetched`、`installed`、`packages`、`scopes`、`entities`、`relations`；list 包含 `root` 和递归 `dependencies` nodes；pack 包含 `name`、`version`、`filename`、`integrity`、`files`；publish 包含 `name`、`version`、`registry`、`integrity`。文本模式报告同一事实。 |
-| Node 公开面 | 首版 `@locus/scope` 是 ESM，只公开 `locus-scope-node` CLI，不公开 Node Workspace API 或 lifecycle install script。支持 Windows x64、Linux x64/arm64、macOS x64/arm64；五个 exact-version optional platform packages 只携带对应 Go host。unsupported、missing 或 version/platform-mismatched host package 必须产生稳定 adapter error。 |
+| Node 公开面 | 首版 `@sundw/locus-scope` 是 ESM，只公开 `locus-scope-node` CLI，不公开 Node Workspace API 或 lifecycle install script。支持 Windows x64、Linux x64/arm64、macOS x64/arm64；五个 exact-version optional platform packages 只携带对应 Go host。unsupported、missing 或 version/platform-mismatched host package 必须产生稳定 adapter error。 |
 | Node root | adapter 应用与 standalone `locus-scope` 相同的显式 `--scope` 或最近 ancestor manifest 规则；只读取该 Scope root 中的 package.json 作为 root importer，并在发给 host 前移除 root-selection options。 |
 | Node 解析 | 对每个 importer 使用 `createRequire(pathToFileURL(importerPackageJson)).resolve(name + "/package.json")`。失败时可以解析 bare JavaScript entry 后向上寻找 matching package.json；有 `locus.entry` 的 package 必须能通过 package.json subpath 解析。不得推测、扫描或拼接 `node_modules` 或 pnpm store 路径。 |
 | Node descriptor | 从 root importer 开始递归解析每个已发现 Locus package 的直接 dependencies；普通 npm package 不进入 descriptor。无法暴露 package root 的普通 dependency 可省略，之后若 Scope Import 引用它则按 missing importer edge 失败。物理多副本的同一 identity 仅在 entry 与 resolved Locus edges 一致时合并，并选择字典序最小 canonical real path；否则 launch 前失败。descriptor maps 必须确定性排序。 |

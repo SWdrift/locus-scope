@@ -40,7 +40,7 @@ temp/
         └── package tarballs
 ```
 
-`inno-setup.ps1 install` 下载并验证固定版本 installer，以 portable 模式把 Inno Setup 默认安装到项目 `temp/tools/inno-6.7.3/`；不建立全局安装或系统卸载项。`release-package.ps1` 默认通过该管理脚本取得已验证的 `ISCC.exe`，只有显式 `-IsccPath` 或 `ISCC_PATH` 才覆盖它；随后从根 `VERSION` 构建两个 standalone CLI、Windows zip、installer 和 checksums，同时把 `locus-scope-node-host` 交叉构建到 `packaging/npm/` 的五个平台 npm package staging 目录并用 `pnpm pack` 生成 `@locus/scope` 及 platform tarball。npm tarball 是独立发布面，不进入 Windows installer。
+`inno-setup.ps1 install` 下载并验证固定版本 installer，以 portable 模式把 Inno Setup 默认安装到项目 `temp/tools/inno-6.7.3/`；不建立全局安装或系统卸载项。`release-package.ps1` 默认通过该管理脚本取得已验证的 `ISCC.exe`，只有显式 `-IsccPath` 或 `ISCC_PATH` 才覆盖它；随后从根 `VERSION` 构建两个 standalone CLI、Windows zip、installer 和 checksums，同时把 `locus-scope-node-host` 交叉构建到 `packaging/npm/` 的五个平台 npm package staging 目录并用 `pnpm pack` 生成 `@sundw/locus-scope` 及 platform tarball。npm tarball 是独立发布面，不进入 Windows installer。
 
 ## 用户安装目录
 
