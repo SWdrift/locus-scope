@@ -2,19 +2,19 @@
 
 ## 简述
 
-locus-scope 提供两个 Scope 查询入口和一个 Package 管理入口：
+locus-scope 提供两个 Workspace 检查入口和一个 Package 管理入口：
 
 - `locus-scope`：从本地文件、`locus.lock` 和 `.locus/` 加载 Workspace。
 - `locus-scope-node`：从 npm 或 pnpm 已安装的依赖加载 Workspace。
 - `locus-pkg`：安装、更新、打包和发布 npm-compatible Locus Package。
 
-`locus-scope` 与 `locus-scope-node` 的查询指令和输出语义相同。
+`locus-scope` 与 `locus-scope-node` 的检查指令和输出语义相同。
 
 ## 职责
 
 本文是 CLI 指令、参数、输出和退出状态的公共契约。Scope 数据结构见[核心协议](PROTOCOL.md)；Package 格式、lock/store 和 Registry 规则见[Package 设计](../Package设计.md)；入门步骤见[基本使用](../../基本使用.md)。
 
-## Scope 查询
+## Workspace 检查
 
 以下指令同时适用于 `locus-scope` 和 `locus-scope-node`。
 
@@ -80,4 +80,4 @@ locus-scope 提供两个 Scope 查询入口和一个 Package 管理入口：
 - `--json` 同时约束成功与失败输出；凭据不得出现在任何输出中。
 - exit code `0` 表示成功。
 - exit code `1` 表示加载、验证、网络、协议或事务失败。
-- exit code `2` 表示未知指令、未知参数、缺少参数、不允许的参数组合或无效的查询输入。
+- exit code `2` 表示未知指令、未知参数、缺少参数、不允许的参数组合或无效的命令输入。

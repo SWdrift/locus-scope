@@ -1,6 +1,6 @@
 # 独立 CLI 模式
 
-独立 CLI 模式直接运行 `locus-scope` 和 `locus-pkg`，不依赖 Node.js、npm 或 pnpm。它适合只需要描述和查询 Entity 图的项目、非 JavaScript 项目，以及希望由 Locus 自己管理 Package lock 和离线缓存的环境。
+独立 CLI 模式直接运行 `locus-scope` 和 `locus-pkg`，不依赖 Node.js、npm 或 pnpm。它适合只需要描述和检查 Entity 图的项目、非 JavaScript 项目，以及希望由 Locus 自己管理 Package lock 和离线缓存的环境。
 
 ## 安装
 
@@ -25,7 +25,7 @@ locus-scope --scope ./app validate
 
 ## 使用本地 Scope
 
-`locus-scope` 负责加载、验证和查询 Scope：
+`locus-scope` 负责加载、验证和检查 Workspace：
 
 ```text
 locus-scope --scope ./app validate
@@ -33,7 +33,7 @@ locus-scope --scope ./app entity list
 locus-scope --scope ./app relation list
 ```
 
-进入 `app` 或其子目录后可以省略 `--scope`。完整的建模和查询步骤见[基本使用](基本使用.md)。
+进入 `app` 或其子目录后可以省略 `--scope`。完整的建模和检查步骤见[基本使用](基本使用.md)。
 
 只使用本地 Scope 时不需要 `package.json`、`locus.lock` 或 `.locus/`。
 

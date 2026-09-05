@@ -1,4 +1,4 @@
-// Package scopecli implements the shared Scope query command dispatcher.
+// Package scopecli implements the shared Workspace inspection command dispatcher.
 package scopecli
 
 import (
@@ -327,7 +327,7 @@ func writeFailure(output io.Writer, jsonOutput bool, err error) {
 }
 
 // Usage is the stable locus-scope command help.
-const Usage = `locus-scope loads and queries local Scope workspaces.
+const Usage = `locus-scope loads and inspects local Scope workspaces.
 
 Usage:
   locus-scope [--scope <dir>] [--json] validate

@@ -6,7 +6,7 @@ Locus Package 使用标准 npm-compatible package 作为唯一分发模型。一
 
 ## 职责
 
-本文定义 package metadata、Import 与 identity、npm Registry、pack/publish、Pure Locus lock/store/事务、Node adapter、私有 Go host 和 `locus-pkg` 命令契约。Entity、Scope、Export、Projection、Relation 和 Group 语义仍以[核心协议](protocol/PROTOCOL.md)为唯一权威来源；本地 Scope 发现、Workspace 装配和查询语义见[Scope 设计](Scope设计.md)。
+本文定义 package metadata、Import 与 identity、npm Registry、pack/publish、Pure Locus lock/store/事务、Node adapter、私有 Go host 和 `locus-pkg` 命令契约。Entity、Scope、Export、Projection、Relation 和 Group 语义仍以[核心协议](protocol/PROTOCOL.md)为唯一权威来源；本地 Scope 发现、Workspace 装配和检查语义见[Scope 设计](Scope设计.md)。
 
 ## 架构与数据流
 
@@ -84,7 +84,7 @@ locus-pkg publish --registry https://registry.example.com/
 
 `pack` 生成 `example-app-1.0.0.tgz`，其内容是标准 npm 可安装 tarball；`publish` 对相同 packed view 做校验并发布 `latest`。成功结果包含 name、version、Registry 和 SHA-512 integrity。相同 `name@version` 已存在时返回 immutable-version conflict，而不是覆盖已发布内容。
 
-## example：Pure Locus 安装、锁定并离线查询
+## example：Pure Locus 安装、锁定并离线检查
 
 本地 consumer 的 root Scope 可以继续使用本地 Import，也可以用 bare name 引用 `package.json.dependencies` 中的 Package：
 
@@ -224,7 +224,7 @@ pnpm exec locus-scope-node validate --json
 | --- | --- |
 | Importer-relative 多版本 | 同一 consumer 可同时解析 `@example/base` 1.x 与 2.x；两个 `npm:` identity、dependency edges 和 ownership 均正确。 |
 | 普通 npm dependency | dependency 安装并进入 lock/store，但不进入 Scope graph、descriptor 或 Scope 统计。 |
-| 稳定解析 | 新版本发布后已有 lock 不漂移；named update 只更新目标 root closure；frozen mismatch 不修改 bytes；Registry 停止后 offline 仍可查询同一 Workspace。 |
+| 稳定解析 | 新版本发布后已有 lock 不漂移；named update 只更新目标 root closure；frozen mismatch 不修改 bytes；Registry 停止后 offline 仍可检查同一 Workspace。 |
 | 双环境一致 | npm 与 pnpm 都能安装同一 Locus package，`locus-scope-node` 的规范 Scope、Entity 和 Relation JSON 与 Pure Locus 一致。 |
 | 标准发布消费 | `locus-pkg pack` 产物可被标准 npm/pnpm 安装；publish 后 packument、tgz、integrity 和 immutable conflict 符合 npm 行为。 |
 | 安全失败 | 缺失或错误 token、integrity mismatch、unsafe archive、unsupported spec、重复 Scope manifest、blocked package.json export、冲突 identity 和事务中途失败都在相应提交边界前失败；token 不泄漏，原文件 bytes 和有效 store 不变。 |

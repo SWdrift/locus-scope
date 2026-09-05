@@ -2,7 +2,7 @@
 
 ## 简述
 
-v1 从一个本地 root Scope 开始，沿 Imports 读取全部依赖，验证 Export 和 Relation，最终得到可查询的内存 Workspace。本文通过基本 Scope 装配和显式 Group 两个示例说明文件如何变成 Workspace。
+v1 从一个本地 root Scope 开始，沿 Imports 读取全部依赖，验证 Export 和 Relation，最终得到可检查的内存 Workspace。本文通过基本 Scope 装配和显式 Group 两个示例说明文件如何变成 Workspace。
 
 ## 职责
 
@@ -114,7 +114,7 @@ relations:
 
 ## CLI
 
-`locus-scope` 和 `locus-scope-node` 是完整 Workspace 的薄查询入口。指令、参数、输出和退出状态以 [CLI 公共契约](protocol/CLI.md#scope-查询)为准；除 `help` 和 `version` 外，查询前必须先加载并验证全部可达 Scope。
+`locus-scope` 和 `locus-scope-node` 是完整 Workspace 的薄检查入口。指令、参数、输出和退出状态以 [CLI 公共契约](protocol/CLI.md#workspace-检查)为准；除 `help` 和 `version` 外，执行检查前必须先加载并验证全部可达 Scope。
 
 ## 验收
 
@@ -125,6 +125,6 @@ relations:
 - 基本装配示例必须得到以 `app` 为 Root、包含 1 个 Scope、2 个 Entity 和 1 条 Relation 的 Workspace。
 - Group 示例必须得到 `api`、`backend/api` 和 `backend/worker`，并把同文档内的短 Relation 引用展开到 `backend` Group。
 - 再次 Export、私有成员、显式 Group、循环 Import、相同 Manifest ID 的不同来源、重复 Entity ID 和无效 reference 的成功或失败边界都有 fixture 证明；错误包含对应文件、声明或 Scope 上下文。
-- 构建后的真实 CLI 能完成上述验证和查询；完整测试分层、fixture、隔离规则与执行命令见[测试设计](测试设计.md)。
+- 构建后的真实 CLI 能完成上述验证和检查；完整测试分层、fixture、隔离规则与执行命令见[测试设计](测试设计.md)。
 - 普通本地项目无需 `package.json`；bare package Import 缺少可用 package environment 时，诊断明确要求运行 `locus-pkg install`。
 - `version`、`--version` 及其 JSON 输出无需有效 Scope，并返回构建时注入的版本。
