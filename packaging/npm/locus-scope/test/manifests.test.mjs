@@ -2,7 +2,6 @@ import assert from 'node:assert/strict';
 import { readFile } from 'node:fs/promises';
 import test from 'node:test';
 
-const VERSION = '1.0.1';
 const MATRIX = [
   ['darwin-arm64', 'darwin', 'arm64', 'bin/locus-scope-node-host'],
   ['darwin-x64', 'darwin', 'x64', 'bin/locus-scope-node-host'],
@@ -21,9 +20,10 @@ const PROJECT_LINKS = {
   },
 };
 
-test('@sundw/locus-scope publishes only its CLI with exact platform dependencies', async () => {
+test('@sundw/locus-scope source manifest defers release versions to VERSION', async () => {
   const manifest = await readManifest(new URL('../package.json', import.meta.url));
-  assert.equal(manifest.version, VERSION);
+  assert.equal(manifest.version, undefined);
+  assert.equal(manifest.private, true);
   assertProjectLinks(manifest);
   assert.equal(manifest.type, 'module');
   assert.deepEqual(manifest.engines, { node: '>=20.6' });
@@ -32,7 +32,7 @@ test('@sundw/locus-scope publishes only its CLI with exact platform dependencies
   assert.deepEqual(manifest.files, ['bin', 'lib']);
   assert.deepEqual(
     manifest.optionalDependencies,
-    Object.fromEntries(MATRIX.map(([suffix]) => [`@sundw/locus-scope-${suffix}`, VERSION])),
+    Object.fromEntries(MATRIX.map(([suffix]) => [`@sundw/locus-scope-${suffix}`, 'workspace:*'])),
   );
 });
 
@@ -40,7 +40,8 @@ test('platform package manifests match the five-platform host matrix', async () 
   for (const [suffix, operatingSystem, architecture, host] of MATRIX) {
     const manifest = await readManifest(new URL(`../../locus-scope-${suffix}/package.json`, import.meta.url));
     assert.equal(manifest.name, `@sundw/locus-scope-${suffix}`);
-    assert.equal(manifest.version, VERSION);
+    assert.equal(manifest.version, undefined);
+    assert.equal(manifest.private, true);
     assertProjectLinks(manifest);
     assert.deepEqual(manifest.os, [operatingSystem]);
     assert.deepEqual(manifest.cpu, [architecture]);

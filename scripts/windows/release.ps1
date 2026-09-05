@@ -138,6 +138,12 @@ function Set-StagedPackageVersion {
     if ($manifest.name -ne $ExpectedName) {
         throw "unexpected package name '$($manifest.name)' in $manifestPath; expected '$ExpectedName'"
     }
+    if ($manifest.PSObject.Properties.Name -contains 'version') {
+        throw "$ExpectedName source manifest must not declare version; VERSION is the release version source"
+    }
+    if ($manifest.private -ne $true) {
+        throw "$ExpectedName source manifest must be private"
+    }
     if (-not [string]::IsNullOrWhiteSpace($ExpectedOS)) {
         if (@($manifest.os).Count -ne 1 -or $manifest.os[0] -ne $ExpectedOS -or
             @($manifest.cpu).Count -ne 1 -or $manifest.cpu[0] -ne $ExpectedCPU -or
@@ -145,7 +151,8 @@ function Set-StagedPackageVersion {
             throw "$ExpectedName platform constraints or packaged binary path are invalid"
         }
     }
-    $manifest.version = $Version
+    $manifest.PSObject.Properties.Remove('private')
+    $manifest | Add-Member -NotePropertyName version -NotePropertyValue $Version
     if ($SynchronizeOptionalDependencies) {
         if ($null -eq $manifest.optionalDependencies) {
             throw "$ExpectedName must declare platform optionalDependencies"
