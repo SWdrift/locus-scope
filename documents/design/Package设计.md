@@ -2,188 +2,234 @@
 
 ## 简述
 
-Locus Package Infrastructure 把本地 Scope source tree 发布为 OCI artifact，也从 OCI 获取不可变快照，物化到项目后通过统一 Resolver 装配 Workspace。它只扩展 Source 的分发与获取。
+Locus Package 使用标准 npm-compatible package 作为唯一分发模型。一个可分发 npm package 对应一个 Scope；`package.json` 是名称、版本和依赖的唯一真相，`locus.entry` 指向包内唯一的 Scope manifest。Pure Locus 与 npm/pnpm 共享同一套 Go Scope/Graph 语义，只在 package environment 的来源上不同。
 
 ## 职责
 
-本文负责 Package artifact、Source identity、`locus.lock`、OCI cache、项目物化、发布与安装流程、loader 接口，以及 `locus-pkg publish` 和 `locus-pkg install`。不负责定义新依赖模型、SemVer、版本范围、dependency solver、Registry Server、签名或供应链策略。
+本文定义 package metadata、Import 与 identity、npm Registry、pack/publish、Pure Locus lock/store/事务、Node adapter、私有 Go host 和 `locus-pkg` 命令契约。Entity、Scope、Export、Projection、Relation 和 Group 语义仍以[核心协议](protocol/PROTOCOL.md)为唯一权威来源；本地 Scope 发现、Workspace 装配和查询语义见[Scope 设计](Scope设计.md)。
 
-- 协议语义以 [PROTOCOL.md](protocol/PROTOCOL.md) 为唯一权威来源。
+## 架构与数据流
 
-## 术语表
-
-- **[OCI（Open Container Initiative）](https://opencontainers.org/)**：制定容器镜像格式和 Registry 分发协议等开放标准的组织。本文使用 [OCI Image Format Specification](https://github.com/opencontainers/image-spec/blob/main/spec.md) 表示 Package artifact，并使用 OCI Distribution 协议从 Registry 推送和获取它。
-- **OCI digest**：由摘要算法和十六进制摘要组成的内容寻址标识，例如 `sha256:<hex>`；OCI descriptor 使用它校验并定位 manifest、layer 等对象。本文所称 Package digest 和 Package identity 特指 OCI image manifest digest，不是 tag 或 layer digest。
-- **Scope source tree 快照**：某个 root Scope 目录树在特定时刻的不可变副本，包括根 Scope manifest、definition documents，以及目录内通过相对路径组织的子 Scope。它是 Package 实际打包和分发的文件内容，不是协议中的 Scope 对象。
-- **Artifact**：存储在 OCI Registry 中、可通过 OCI descriptor 获取和校验的 Package 分发对象；具体结构由“Package 核心设计”约束。
-- **`Artifact Type`**：OCI image manifest 中标识 artifact 应用类型和处理语义的字段；它不表示 layer 的编码格式。
-- **物化**：将指定 digest 的 Package 从用户级 OCI cache 解包并写入项目的 `.locus/packages/<algorithm>-<digest>/`，形成 Loader 可通过 `LocalPath` 读取的目录。物化只改变 Package 的本地存放形式和位置，不改变其 OCI digest identity。
-- **Registry**：通过 OCI Distribution API 保存和分发 artifact 的服务，例如 Zot、Harbor、GHCR 或云厂商 OCI Registry。
-- **Package reference**：manifest 中指向 Package 的 `oci://` 地址，可以使用可变 tag，也可以直接使用不可变 OCI digest。
-- **Tag**：Registry 中指向某个 manifest 的可变名称，例如 `v1` 或 `latest`；后续发布可以让同一 tag 指向新的 digest，因此 tag 不能作为 Package identity。
-- **`locus.lock`**：root Scope 目录中的解析快照，记录可变 Package reference 当前选定的不可变 digest，使后续安装和离线加载能够复用同一份内容。
-- **`Source`**：基础含义见[Scope 设计术语表](Scope设计.md#术语表)；本文进一步规定 Package Source 的 OCI identity 和项目内物化路径。
-- **Resolver**：基础职责见[Scope 设计术语表](Scope设计.md#术语表)；本文定义安装和离线加载使用的不同实现。
-
-## example：发布共享基础设施
-
-`infra` 目录是待发布 Package 的 root Scope。用户可以显式指定它，并把快照发布到一个带 tag 的 OCI reference：
-
-```text
-locus-pkg --scope ./infra publish oci://registry.example.com/locus/infra:v1
-```
-
-`--scope` 可以省略；此时从当前目录向父目录查找最近的 Scope manifest，并以其所在目录作为 Package root。显式和自动发现只改变 root 的选择方式，不改变 Package 内容或 identity。
-
-执行成功后，目标 tag 指向由该 Scope source tree 构建的不可变 manifest digest，随后可按下文安装示例直接引用。发布输入、artifact 和提交边界统一见 [Package 核心设计](#package-核心设计)，参数与输出见 [CLI](#cli)。
-
-## example：在项目中使用共享基础设施
-
-假设团队已经把基础设施 Scope 发布为：
-
-```text
-oci://registry.example.com/locus/infra:v1
-```
-
-应用项目只需要在 root Scope 的 `locus.yaml` 中声明它：
-
-```yaml
-id: app
-imports:
-    infra: oci://registry.example.com/locus/infra:v1
-```
-
-此时项目只有声明，没有 Package 文件：
-
-```text
-app/
-└── locus.yaml
-```
-
-用户在项目中执行：
-
-```text
-locus-pkg install --scope ./app
-```
-
-安装器解析 `infra:v1` 当前指向的 OCI digest，获取并检查对应 artifact，把内容缓存并物化到项目，装配完整 Workspace 验证所有 Scope，最后提交 `locus.lock`。下图强调参与者、存储位置和安装产物，而不是逐行描述命令调用：粗实线表示安装主链，细实线表示安装后的离线装配，虚线表示复用或回验旁路。
+两种消费方式只负责产生同一种 package environment；从 `packageenv` 开始，Workspace 装配和 CLI 行为完全共用。
 
 ```mermaid
 flowchart LR
-    Registry["OCI Registry<br/>infra:v1 → @sha256:abc"]
-    Cache["用户级 OCI cache<br/>~/.locus/oci"]
+    Source["Locus npm package<br/>package.json + locus.entry"] --> Pack["locus-pkg pack / publish"]
+    Pack --> Registry["npm Registry"]
 
-    subgraph Project["app 项目"]
-        Manifest["locus.yaml<br/>Import infra:v1"]
+    subgraph Pure["Pure Locus"]
+        Root["consumer<br/>package.json + root Scope"]
         Install["locus-pkg install"]
-        Packages[".locus/packages/sha256-abc<br/>已物化 Package"]
-        Lock["locus.lock<br/>infra:v1 → @sha256:abc"]
-        Offline["offline Resolver"]
-        Loader["scope.Load"]
-        Workspace["Workspace"]
+        Lock["locus.lock"]
+        Store[".locus/cache + .locus/packages"]
+        Root --> Install
+        Registry --> Install
+        Install --> Lock
+        Install --> Store
+        Lock --> PureEnv["Go packageenv"]
+        Store --> PureEnv
     end
 
-    Manifest ==>|声明安装目标| Install
-    Lock -.->|复用既有解析| Install
-    Registry ==>|解析并获取| Install
-    Install ==> Cache
-    Cache ==>|校验后物化| Packages
-    Packages -.->|回送装配验证| Install
-    Install ==>|验证成功后提交| Lock
+    subgraph Node["npm / pnpm"]
+        Modules["importer-relative installed packages"]
+        Adapter["locus-scope-node"]
+        Descriptor["one-request JSON descriptor"]
+        Host["platform Go host"]
+        Modules --> Adapter --> Descriptor --> Host
+        Host --> NodeEnv["Go packageenv"]
+    end
 
-    Lock --> Offline
-    Packages --> Offline
-    Offline -->|Package Source| Loader
-    Manifest -->|root Source| Loader
-    Loader --> Workspace
+    PureEnv --> Loader["scope.Load"]
+    NodeEnv --> Loader
+    Loader --> CLI["scopecli<br/>same Scope / Graph result"]
 ```
 
-成功后，项目中出现可重复使用的安装状态：
+## example：发布一个可被两种环境消费的 Package
+
+`@example/app` 的 package root 同时包含标准 npm metadata 和唯一 Scope manifest：
+
+```json
+{
+  "name": "@example/app",
+  "version": "1.0.0",
+  "files": ["index.js", "locus.yaml", "definitions"],
+  "exports": {
+    ".": "./index.js",
+    "./package.json": "./package.json"
+  },
+  "dependencies": {
+    "@example/base": "^1.0.0",
+    "@example/helper": "^2.0.0"
+  },
+  "locus": {
+    "entry": "locus.yaml"
+  }
+}
+```
+
+它的 Scope 只通过 bare npm name 使用直接依赖；普通 JavaScript dependency `@example/helper` 可以安装，但不会进入 Scope graph：
+
+```yaml
+id: example-app
+imports:
+  base: "@example/base"
+```
+
+在 package root 执行：
 
 ```text
-app/
-├── locus.yaml
-├── locus.lock
-└── .locus/
-    └── packages/
-        └── sha256-abc.../
-            ├── locus.yaml
-            └── ...
+locus-pkg pack
+locus-pkg publish --registry https://registry.example.com/
 ```
 
-以后运行 `locus-scope` 时，不再访问 Registry 或用户级 cache，而是使用 `locus.lock` 和 `.locus/packages` 离线装配同一个 Workspace。若 `v1` 后来指向新的 digest，只要现有 lock 条目仍然存在，本项目就继续使用已经锁定的 `sha256:abc...`。
+`pack` 生成 `example-app-1.0.0.tgz`，其内容是标准 npm 可安装 tarball；`publish` 对相同 packed view 做校验并发布 `latest`。成功结果包含 name、version、Registry 和 SHA-512 integrity。相同 `name@version` 已存在时返回 immutable-version conflict，而不是覆盖已发布内容。
 
-第一次安装成功后，`locus.lock` 固定本例 tag 当前对应的 digest：
+## example：Pure Locus 安装、锁定并离线查询
+
+本地 consumer 的 root Scope 可以继续使用本地 Import，也可以用 bare name 引用 `package.json.dependencies` 中的 Package：
+
+```json
+{
+  "private": true,
+  "dependencies": {}
+}
+```
+
+```yaml
+id: consumer
+imports:
+  app: "@example/app"
+  modern: "@example/modern"
+```
+
+一次显式安装同时修改 root `dependencies`、解析每个 importer 的 SemVer graph、写入 integrity-addressed store，并在完整 Workspace 验证后提交 lock：
+
+```text
+locus-pkg install @example/app@^1 @example/modern@^1
+locus-pkg list
+locus-scope validate --json
+```
+
+若 `@example/app@1.0.0` 依赖 `@example/base@^1`，而 `@example/modern@1.0.0` 依赖 `@example/base@^2`，list 中会保留两条 importer-relative edge：
+
+```text
+@example/app@1.0.0
+└── @example/base@1.1.0
+@example/modern@1.0.0
+└── @example/base@2.0.0
+```
+
+lock 的规范结构如下；实际文件必须包含全部 reachable package records，包括没有 `locus` 的普通 npm dependency：
 
 ```yaml
 version: 1
+importers:
+  ".":
+    dependencies:
+      "@example/app":
+        specifier: "^1.0.0"
+        package: "npm:@example/app@1.0.0"
 packages:
-    "oci://registry.example.com/locus/infra:v1":
-        resolved: "oci://registry.example.com/locus/infra@sha256:abc..."
+  "npm:@example/app@1.0.0":
+    registry: "http://127.0.0.1:4873/"
+    resolved: "http://127.0.0.1:4873/@example/app/-/app-1.0.0.tgz"
+    integrity: "sha512-..."
+    dependencies:
+      "@example/base":
+        specifier: "^1.0.0"
+        package: "npm:@example/base@1.1.0"
 ```
 
-## Package 核心设计
+Registry 停止后，以下命令只能复用兼容 lock 与已经验证的 cache/store，不得发起网络请求：
 
-本例必须在完整 Workspace 验证成功后提交 lock 和项目物化状态；以后使用同一 lock 离线装配时，必须得到相同的 Package identity 和 Workspace。
+```text
+locus-pkg install --offline --frozen-lockfile
+locus-scope validate --json
+```
 
-| 边界 | 约束 |
+已有 lock 不会因 Registry 新增匹配版本而漂移；`locus-pkg update @example/app` 只解锁该 direct root 的 closure。
+
+## example：通过 npm 或 pnpm 使用同一个 Scope
+
+Node consumer 让 package manager 负责解析、安装、cache 和原生 lockfile：
+
+```text
+npm install @locus/scope @example/app @example/modern
+npx locus-scope-node validate --json
+```
+
+或：
+
+```text
+pnpm add @locus/scope @example/app @example/modern
+pnpm exec locus-scope-node validate --json
+```
+
+`locus-scope-node` 从 root importer 开始，在每个 importer 自己的解析上下文中发现 Locus dependency，再把一次性 descriptor 交给平台 Go host。npm hoist 与 pnpm symlink 可以产生不同物理目录，但相同 `npm:<name>@<version>`、entry 和 dependency edges 必须得到与 Pure Locus 相同的 Scope、Entity 和 Relation JSON。
+
+## 约束
+
+下表是本设计的规范性边界；示例只用于说明，不放宽这些约束。
+
+| 领域 | 约束 |
 | --- | --- |
-| 依赖图 | Scope graph 只来自 manifest `imports`；Package 不引入依赖清单、SemVer、版本范围或 dependency solver。 |
-| 项目根 | root Scope 目录同时是项目根；`locus.lock` 和 `.locus/packages` 都位于该目录。 |
-| Import 来源 | 本地路径沿用 [Scope 装配核心设计](Scope设计.md#scope-装配核心设计)；Package 内相对路径不得逃出 Package 根目录；跨 Package Import 必须使用 `oci://`。 |
-| Package reference | 支持 tag 和 digest；省略两者等价于 `:latest`。tag 使用规范化后的可变 reference 作为 lock key；直接使用 digest 时跳过 lock；tag 解析结果必须属于同一 Registry 和 repository。 |
-| Package identity | 固定为 OCI image manifest digest；tag、`Manifest.ID`、Import alias、cache 路径和物化路径都不能代替它。 |
-| lock 内容 | `locus.lock` 只记录可变 Package reference 到不可变 digest 的解析结果，不复制 Scope graph。 |
-| 普通安装 | 已有 lock entry 优先复用；缺失时查询 Registry。完整 Workspace 验证成功后，按 key 字典序原子提交全部 reachable entries，并删除不再 reachable 的旧 entry。 |
-| Frozen | lock 的内容和 key 集合必须与完整依赖一致；允许按已锁 digest 获取本地缺失内容，但不得增删改 lock。 |
-| Artifact | 使用 OCI 1.1 image manifest：`schemaVersion` 为 `2`，manifest media type 为 `application/vnd.oci.image.manifest.v1+json`，`artifactType` 固定为 `application/vnd.locus.scope.package.v1`；必需的 `config` 使用内容为 `{}` 的 OCI empty JSON descriptor（`application/vnd.oci.empty.v1+json`）；恰好包含一个 `application/vnd.oci.image.layer.v1.tar+gzip` layer，artifact 根目录直接对应 Package root Scope。 |
-| 发布输入 | 所选 root Scope 目录形成一个 Scope source tree 快照；包内本地 Import 必须使用 `/` 分隔的相对路径且不得逃出 Package root，OCI Import 只保留 reference，不复制依赖 Package。`locus.lock` 和任意 `.locus` 目录属于项目生成状态，不进入 artifact。发布前必须检查快照中的 Scope 文件和 Package 边界。 |
-| 发布产物 | 使用本表规定的 OCI manifest、artifact type 和单 layer 结构。相同 source tree 内容与相关文件 mode 必须产生相同 manifest digest；绝对路径、文件遍历顺序、owner、构建时间和压缩时间不得影响 digest。 |
-| 发布目标 | 必须是无 fragment 的 tag reference；省略 tag 规范化为 `:latest`，digest reference 拒绝。同一 tag 可以重复发布：内容未变时得到同一 digest；内容变化时以 manifest/tag 更新为提交边界，使 tag 原子指向新 digest。旧 digest 的 identity 不变，已有 `locus.lock` 不会因 tag 更新而自动漂移。 |
-| Artifact 校验 | ORAS 必须校验 manifest、config 和 layer descriptor 的 digest 与 size；拒绝错误的 schema version、manifest media type、artifact type、empty config、layer 数量或 layer media type，以及没有唯一 root Scope manifest 的内容。 |
-| 解包 | 流式解压到临时目录；拒绝绝对路径、`.`、`..` 逃逸、反斜杠、重复路径、链接、device、FIFO 和 sparse entry。归档与 Scope 验证全部成功前，不发布目标目录。 |
-| Cache | 用户级共享 cache 使用标准 OCI Image Layout，路径为 `~/.locus/oci/r-<registry>/p-<repository-segment>/...`；Registry 和 repository 路径段必须先解析，再做可逆字节编码。 |
-| 物化 | 通过检查的 Package 写入 `<root>/.locus/packages/<algorithm>-<digest>/`；项目物化集合保持扁平，可由 lock 和 cache 重建。Loader 只读取项目物化目录，不直接读取用户级 cache。 |
-| 已有状态 | 无效的 cache entry 或 digest 物化目录必须报错，不得自动删除或覆盖。 |
-| Source identity | Package root 使用 `oci://registry/repository@sha256:<hex>`；内部 Scope 使用 `oci://registry/repository@sha256:<hex>#/relative/path`，fragment 使用 `/` 和 URL 转义。同一 digest 在不同项目中的 Key 保持一致。 |
-| Resolver | 通用 Source、Resolver 和 Workspace 装配沿用 [Scope 设计](Scope设计.md)。installing Resolver 可以使用本地路径、Package 内相对路径、lock、Registry、用户级 cache 和项目物化目录；offline Resolver 只能使用本地路径、Package 内相对路径、lock 和已有项目物化目录。 |
-| 离线使用 | `locus-scope` 只读取 `locus.lock` 和 `.locus/packages`，不访问 Registry 或用户级 cache，也不修改 lock 和物化内容；缺少 lock entry 或物化目录时失败，诊断以 `run locus-pkg install` 结束。 |
-| 事务边界 | 下载、解包、Workspace 验证或 lock 校验任一步失败时，原 `locus.lock` 保持不变，也不得留下新的目标物化目录。 |
-| Registry | 客户端使用 OCI Distribution 和 ORAS-go，不实现 Registry Server。仅 `localhost` 和环回 IP 自动使用 HTTP，其他 Registry 使用 HTTPS；认证沿用 Docker config 和 credential helper。Zot 是推荐的本地实现，但不是运行时依赖。 |
-
-## CLI
-
-`locus-pkg` 提供：
-
-- `locus-pkg publish <target>`：检查并打包所选 root Scope 的 Package source tree，把 artifact 发布到 OCI tag reference，并返回不可变 manifest digest。
-- `locus-pkg install [--frozen]`：解析完整 reachable graph，获取并物化 Package，验证 Workspace，成功后提交 `locus.lock`。
-    - `--frozen`：要求 lock 内容和 key 集合与完整依赖一致，不修改 lock。
-- `locus-pkg version`：输出构建时注入的 CLI 版本，不发现 Scope，也不读取凭据、cache 或 Registry；`--version` 与其等价。
-
-对于 `publish`、`install` 和 `version`，有 option：
-
-- `--scope <dir>`：用于 `publish` 和 `install`，指定 root Scope；未指定时从当前目录向父目录查找最近的 Scope manifest。
-- `--json`：输出稳定 JSON；`publish` 返回 `target` 和 `digest`，`install` 返回 `valid`、`root`、`resolved`、`reused`、`fetched`、`materialized`、`scopes`、`entities` 和 `relations`，`version` 返回 `name` 和 `version`。
-
-另外：
-
-- option 可以位于子命令前后；`version` 和 `--version` 不要求 Scope，`publish` 的 `<target>` 是子命令的位置参数。
-- 默认文本输出中，`publish` 输出规范化目标和 manifest digest；`install` 输出 root，解析、复用、获取和物化计数，以及 Scope、Entity 和 Relation 数量；`version` 输出 CLI 名称和版本。
+| 分发单元 | 一个可分发 Locus package 必须同时是一个标准 npm package、一个分发单元和一个 Scope。Registry server 不属于 Locus 运行时或 standalone 安装器。 |
+| Metadata 真相 | `package.json.name`、`version` 和 `dependencies` 分别定义 package 名称、版本和可解析依赖。每个下载、解包或 Node 解析得到的 package 都必须严格校验 JSON、name、version 和 dependency fields。 |
+| `locus` metadata | 没有 `locus` 的 package 仍参与安装、lock 和完整依赖图，但不进入 Scope environment。有 `locus` 时只允许相对 package root 且不经 `..` 或 symlink 逃逸的 `locus.entry`；entry 必须指向 packed tree 中唯一的 `locus.yaml`、`locus.yml` 或 `locus.json`，并通过 Scope source 校验；未知 `locus` 字段失败。 |
+| JavaScript 兼容 | `main` 和 JavaScript `exports` 可以并存；存在 `exports` 时，Locus package 必须精确导出 `"./package.json"`，使 importer-relative 解析不依赖物理安装布局。 |
+| Import 分类 | `./`、`../` 和平台绝对路径是本地 Import；合法 bare npm name 是 Package Import。Package Import 不得携带版本或 subpath。普通本地 root Scope 可以使用本地 Import；分发 Package 的 Scope 禁止本地或绝对 Import。 |
+| Import edge | 每个 bare Scope Import 必须是当前 importer 的直接 `dependencies`；解析必须使用 importer context。同名 package 的多个版本可以并存，并分别拥有其 Scope、Entity 和 Relation。 |
+| Scope graph | npm dependency graph 决定可解析 package universe；Scope graph 仍只由各 `locus.entry` 中的 Imports 选择。JavaScript 不解析 Locus definition，也不复制 Scope/Graph 语义。 |
+| Package identity | Scope 的语义 identity 固定为 `npm:<name>@<version>`。Registry、resolved tarball URL、integrity、Import alias、package-manager lock、cache/store 路径和物理安装路径都不得参与 identity。 |
+| 冲突 identity | 同一语义 identity 只能对应一组一致的 entry 和 resolved Locus dependency edges。不同 source/content、root/entry 或 outgoing edges 产生同一 identity 时必须失败，不得通过扩展 identity 或任选副本掩盖冲突。 |
+| Pure dependency 能力 | Pure Locus 首版只解析 Registry SemVer `dependencies`。`peerDependencies`、`optionalDependencies`、npm alias、`file:`、`workspace:`、git 和 URL spec 在被接受的 graph 任一 node 中都失败；`devDependencies` 只用于开发，不解析。 |
+| Pure 环境 | `locus-pkg` 自行解析 Registry graph 并维护项目 `.locus/` 与 `locus.lock`；`locus-scope` 从 lock/store 离线构造同一种 `packageenv`。Pure 路径不得要求或调用 Node、npm、pnpm，也不得读取 package-manager 状态。 |
+| 本地-only Scope | 没有 package.json 的本地-only Scope 仍可由 `locus-scope` 装配。bare Import 缺少相邻 package.json、lock 或 store 时必须失败，并给出以 `run locus-pkg install` 结束的可执行诊断。 |
+| Lock schema | `locus.lock` 必须使用示例中的严格 YAML `version: 1` schema。root importer key 固定为 `"."`，并与当前 `package.json.dependencies` 的名称和 specifier 完全一致；package record 保存 Registry、resolved tgz、SRI integrity 和该版本声明的 dependency edges。 |
+| Lock 规范化 | maps 按 key 字典序编码；拒绝未知字段、重复字段、非规范 identity/specifier/URL/SRI、缺失 target、edge/name mismatch、不可达 node，以及同一 identity 对应不同 source/content 或 edges 的 graph。package key 和 edge target 都必须是规范 `npm:<name>@<version>`；循环 edge 只有在每个 target 都是已声明 node 时才有效。 |
+| Store 定位 | 原始 tgz 位于 `.locus/cache/<algorithm>-<lowercase-hex>.tgz`，解包内容位于 `.locus/packages/<algorithm>-<lowercase-hex>/package/`；hex 来自解码后的 SRI digest bytes，name/version 不选择物理目录。 |
+| Store 复用 | 每次使用 cache 前都重新校验原始 tgz integrity；解包后的 package metadata 必须与 resolved metadata 一致。复用已有 extracted tree 前，必须与该 verified tgz 的安全重解包结果逐字节一致；缺少可验证 cache、已有生成状态无效或内容漂移都失败，不得静默删除或覆盖。 |
+| Archive 安全 | tgz 在发布目标目录前流式解到临时目录；拒绝绝对路径、逃逸路径、反斜杠、重复路径、link、device、FIFO 和 sparse entry。packument 上限 16 MiB、compressed tgz 上限 256 MiB、总解包内容上限 1 GiB、entry 上限 100,000、单文件上限 256 MiB。 |
+| SRI | 下载后必须先对原始 tgz bytes 验证 `dist.integrity`；只接受 SHA-512 或 SHA-256 SRI。integrity 验证、archive 安全、metadata 和 Scope 校验全部成功后才能发布 store 内容。 |
+| Staging | 当前 package.json 与 lock 必须在网络访问前通过校验；metadata resolution、下载、解包、新 dependency map、package.json/lock 变更和完整 Workspace 装配都先在 `.locus/tmp/<operation-id>/` 完成。 |
+| 提交边界 | 完整 Workspace 验证成功后，才原子发布 store 目录并替换 `locus.lock`；显式 install/uninstall 同时原子替换 `package.json`。 |
+| 回滚 | 任一普通失败都必须恢复原 package.json 和 lock bytes，删除本事务新发布的 store 目录，并且不得破坏此前有效的 cache/store。 |
+| 清理 | install/uninstall/update 成功后删除从 root 不可达的 lock nodes 和 extracted package directories；integrity-addressed tgz cache 保留。 |
+| Offline | `--offline` 不得请求 metadata 或 tarball，只能使用完整、兼容的 lock 与 cache/store；缺少任一所需内容即失败。 |
+| Frozen lock | `--frozen-lockfile` 要求 root specifiers 与有效完整 graph 完全匹配，不得修改 package.json、lock 或 graph；可以从 verified cached tgz 恢复缺失 extracted directory。 |
+| Registry 选择 | 优先级依次是命令 `--registry`、`NPM_CONFIG_REGISTRY`、项目 `.npmrc`、用户 `.npmrc`；匹配 package scope 的 `<scope>:registry` 覆盖默认 Registry。用户配置路径遵循 `NPM_CONFIG_USERCONFIG`，配置值支持 `${VAR}` 插值。 |
+| Registry 认证 | token 选择匹配请求 URL 的最长前缀 `//host/path/:_authToken`，其次使用 `NPM_TOKEN`。username/password/login 字段不受支持并明确失败。token 不得写入 package.json、`locus.lock`、`.locus`、日志、文本或 JSON 输出。 |
+| 网络边界 | 只有 loopback hostname 或 IP 可以使用 plain HTTP；其他 Registry 必须使用 HTTPS。Authorization 不得跨 origin 或 redirect 转发。请求超时最多五分钟，并始终受 caller context 的更短 deadline/cancellation 约束。 |
+| Registry client | 必须支持 escaped scoped-package packument/version metadata GET、tarball download 和 npm publish PUT；不调用托管 dependency-resolution service。 |
+| Publish body | npm publish PUT body 包含 package metadata、`dist-tags.latest`、SHA-1 `shasum`、SHA-512 `integrity` 和恰好一个 base64 tarball attachment。HTTP 409 映射为明确的 immutable-version conflict。 |
+| Pack 输入 | `package.json.files` 必须是非空数组，只接受相对 literal file 或 directory；拒绝 glob metacharacter、`.npmignore`、bundled dependencies、symlink 和依赖 lifecycle script 的 packaging。 |
+| Pack 内容 | 目录递归展开；始终包含 root `package.json` 以及 root README、LICENSE、LICENCE、NOTICE files；始终排除 `.git`、`.locus`、`node_modules`、`locus.lock`、生成 archive 和 package root 外路径。packed view 仍必须包含声明的唯一 `locus.entry`。 |
+| Pack 确定性 | tar entries 位于 `package/`，使用 slash path 并按字典序排列；owner、mtime 和 gzip metadata 规范化，只包含 regular files/directories。相同输入必须产生相同 tgz 和 integrity。 |
+| CLI 命令 | `locus-pkg` 提供 `install [<package-spec>...]`、`uninstall <package>...`、`update [<package>...]`、`list`、`pack`、`publish`、`version` 和 `--version`。通用 option `--json`、`--registry <url>`、`--offline`、`--frozen-lockfile` 可位于命令前后。 |
+| CLI 错误 | 显式 install 与 frozen 组合、publish 与 offline/frozen 组合、mutation command 缺少必需名称都是 exit 2 usage error；validation、network、protocol 和 transaction failure 是 exit 1。JSON failure 固定向 stderr 写 `{"error":"..."}`，且不得泄漏 credential 或物理 cache 路径。 |
+| CLI root | install/uninstall/update/list 从当前目录向上寻找同时包含 package.json 和 root Scope manifest 的最近目录。pack/publish 寻找最近含合法 `locus.entry` 的 package.json，并以 entry 所在目录作为唯一 Scope root。 |
+| Dependency 变更 | 显式 install 保留用户给出的 specifier；bare name 保存 `^<resolved-version>`。install/uninstall 只修改 `dependencies`，保留其他 package.json fields，并用 two-space JSON 与 trailing newline 写回。uninstall/update 只接受 direct dependency name；update 保持 declared constraint。 |
+| Resolution 更新 | install 只解锁新增或改变的 roots，named update 只解锁指定 direct roots 的 closures，unnamed update 解锁全部 roots，uninstall 删除指定 roots；其他有效 lock subgraphs 保持不变。每个 constraint 选择最高匹配版本。 |
+| List、pack、publish | list 只读取 lock/store 并输出 resolved dependency tree；每个 node 含 `name`、`version`、`identity` 和递归 `dependencies`。pack 将 `@example/app@1.0.0` 写为 package root 下的 `example-app-1.0.0.tgz`。publish 在 `.locus/tmp` pack、发布 `latest`，并删除临时 tgz。 |
+| CLI 成功输出 | install/uninstall/update JSON 包含 `valid`、`root`、`added`、`removed`、`updated`、`reused`、`fetched`、`installed`、`packages`、`scopes`、`entities`、`relations`；list 包含 `root` 和递归 `dependencies` nodes；pack 包含 `name`、`version`、`filename`、`integrity`、`files`；publish 包含 `name`、`version`、`registry`、`integrity`。文本模式报告同一事实。 |
+| Node 公开面 | 首版 `@locus/scope` 是 ESM，只公开 `locus-scope-node` CLI，不公开 Node Workspace API 或 lifecycle install script。支持 Windows x64、Linux x64/arm64、macOS x64/arm64；五个 exact-version optional platform packages 只携带对应 Go host。unsupported、missing 或 version/platform-mismatched host package 必须产生稳定 adapter error。 |
+| Node root | adapter 应用与 standalone `locus-scope` 相同的显式 `--scope` 或最近 ancestor manifest 规则；只读取该 Scope root 中的 package.json 作为 root importer，并在发给 host 前移除 root-selection options。 |
+| Node 解析 | 对每个 importer 使用 `createRequire(pathToFileURL(importerPackageJson)).resolve(name + "/package.json")`。失败时可以解析 bare JavaScript entry 后向上寻找 matching package.json；有 `locus.entry` 的 package 必须能通过 package.json subpath 解析。不得推测、扫描或拼接 `node_modules` 或 pnpm store 路径。 |
+| Node descriptor | 从 root importer 开始递归解析每个已发现 Locus package 的直接 dependencies；普通 npm package 不进入 descriptor。无法暴露 package root 的普通 dependency 可省略，之后若 Scope Import 引用它则按 missing importer edge 失败。物理多副本的同一 identity 仅在 entry 与 resolved Locus edges 一致时合并，并选择字典序最小 canonical real path；否则 launch 前失败。descriptor maps 必须确定性排序。 |
+| Host request | 私有 host 无 flags 或交互 RPC，从 stdin 读取且只读取一个 version 1 JSON request：`workingDirectory`、`arguments`、含 `scopeRoot`、`packageRoot`、`dependencies` 的 `root`，以及以 `npm:<name>@<version>` 为 key、含绝对 `root`、相对 `entry`、`dependencies` 的 `packages`。拒绝未知字段、unsupported version、trailing JSON、相对或非文件 roots、entry escape 和冲突 identity。 |
+| Host response | host 恰好写一个 `{"version":1,"exitCode":0,"stdout":"...","stderr":"..."}` 形状的 response。协议错误在可能时也返回合法 response 和 exit code 1；正常 host process exit code 等于 enclosed CLI code。adapter 原样转发 stdout、stderr 和 exit code。 |
+| 共用执行核心 | standalone、Pure 和 Node host 最终都调用同一 `packageenv`、`scope.Load` 与 `scopecli`；不得在 JavaScript 或其他入口复制 Scope validation、query 或稳定 JSON view。 |
 
 ## 验收
 
-本设计按以下可观察行为验收：
+| 场景 | 可观察结果 |
+| --- | --- |
+| Importer-relative 多版本 | 同一 consumer 可同时解析 `@example/base` 1.x 与 2.x；两个 `npm:` identity、dependency edges 和 ownership 均正确。 |
+| 普通 npm dependency | dependency 安装并进入 lock/store，但不进入 Scope graph、descriptor 或 Scope 统计。 |
+| 稳定解析 | 新版本发布后已有 lock 不漂移；named update 只更新目标 root closure；frozen mismatch 不修改 bytes；Registry 停止后 offline 仍可查询同一 Workspace。 |
+| 双环境一致 | npm 与 pnpm 都能安装同一 Locus package，`locus-scope-node` 的规范 Scope、Entity 和 Relation JSON 与 Pure Locus 一致。 |
+| 标准发布消费 | `locus-pkg pack` 产物可被标准 npm/pnpm 安装；publish 后 packument、tgz、integrity 和 immutable conflict 符合 npm 行为。 |
+| 安全失败 | 缺失或错误 token、integrity mismatch、unsafe archive、unsupported spec、重复 Scope manifest、blocked package.json export、冲突 identity 和事务中途失败都在相应提交边界前失败；token 不泄漏，原文件 bytes 和有效 store 不变。 |
+| 交付边界 | standalone 安装器只分发 `locus-scope` 与 `locus-pkg`；Registry server 和 Node package 不进入该安装器。 |
 
-- 显式 `--scope ./infra` 能发布该 Scope；省略 `--scope` 时能从嵌套工作目录向上发现最近的 Scope 并发布同一份 Package 内容；
-- 发布到 `oci://registry.example.com/locus/infra:v1` 后，该 tag 指向命令返回的 manifest digest，安装该 reference 能恢复同一份 Scope source tree；
-- 修改 source tree 后再次发布同一 tag，该 tag 改为指向新 digest；新安装解析到新 digest，已有 lock 仍复用原 digest；
-- Package 内本地 Import 使用绝对路径、平台特定分隔符或逃出 root，Scope 文件无效，或 artifact 构建失败时不访问 Registry；推送失败时目标 tag 不得指向未完成的 artifact；
-- 带 OCI Import 的 root Scope 能通过一次 `locus-pkg install` 得到有效 lock、项目物化目录和完整 Workspace；
-- 再次安装复用已有 lock、cache 和物化内容，不改变 Package identity；
-- `--frozen` 在 lock 内容和 key 集合与完整依赖图一致时成功，否则失败且不修改 lock；
-- Package 内相对 Import、跨 Package Import、循环 Import 和相同 `Manifest.ID` 的不同来源均保持正确 ownership；
-- artifact 结构、digest、size、路径或 Scope 内容无效时安装失败，不提交 lock，也不留下目标物化目录；
-- 安装后的 `locus-scope` 能在不访问 Registry 和全局 cache 的情况下装配相同 Workspace。
-- `version`、`--version` 及其 JSON 输出无需 Scope、凭据或 Registry，并返回构建时注入的版本。
-
-测试分层、fixture、OCI E2E、隔离和完成标准见[测试设计](测试设计.md)。
+完整测试注册、fixture、隔离方式和完成命令见[测试设计](测试设计.md)。

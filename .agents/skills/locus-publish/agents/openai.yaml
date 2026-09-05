@@ -1,4 +1,4 @@
 interface:
   display_name: "Locus Scope · 发布 Package"
-  short_description: "检查并把 Scope Package 发布到 OCI Registry。"
-  default_prompt: "使用 $locus-publish 检查 Scope 并发布 OCI Package。"
+  short_description: "检查并把 Scope Package 发布到 npm Registry。"
+  default_prompt: "使用 $locus-publish 检查并发布 npm-compatible Locus Package。"

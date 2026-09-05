@@ -7,7 +7,7 @@
 - 所有读取、写入、生成文件、子进程工作目录、fixtures 和测试状态都必须保留在本仓库工作区内。
 - pnpm、npm 等 Node 包管理器缓存不属于工作区产物，必须沿用机器级全局配置；不得通过脚本、环境变量或配置文件把 store/cache 重定向到仓库内（包括 `temp/.pnpm-store`、`temp/.npm-cache`、`internal/temp/`）。
 - 测试不得读取或修改工作区外的用户配置、凭据、服务、网络状态或文件。
-- 仅在明确验证 Windows 用户级安装/卸载时，执行 `scripts/install-user.ps1` 和 `scripts/uninstall-user.ps1` 可豁免上述工作区边界：允许它们读写当前用户的 `~/.locus/`、用户 `PATH`、开始菜单、计划任务和应用卸载注册信息，并启动或停止该安装目录中的 Zot；安装器日志仍必须写入仓库 `temp/`。
+- 仅在明确验证 Windows 用户级安装/卸载时，执行 `scripts/user-install.ps1` 和 `scripts/user-uninstall.ps1` 可豁免上述工作区边界：允许它们读写当前用户的 `~/.locus/`、用户 `PATH`、开始菜单和应用卸载注册信息；安装器日志仍必须写入仓库 `temp/`。
 
 ## 约定
 

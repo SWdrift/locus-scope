@@ -1,0 +1,6 @@
+entities:
+  - id: root
+    owner: consumer
+relations:
+  - [root, owns, app:application]
+  - [root, owns, modern:modern-service]

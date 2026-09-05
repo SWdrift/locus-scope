@@ -169,7 +169,7 @@ func TestResolverSourceKeyDefinesIdentityAcrossMaterializations(t *testing.T) {
 		t.Fatalf("clear source-key fixture: %v", err)
 	}
 
-	const packageKey = scope.ScopeKey("oci://registry.example/team/package@sha256:aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa")
+	const packageKey = scope.ScopeKey("npm:@example/package@1.0.0")
 	var resolved [2]scope.EntityKey
 	for index, name := range []string{"first", "second"} {
 		rootDirectory := filepath.Join(base, name, "root")

@@ -1,0 +1,3 @@
+id: base-v1
+exports:
+  - database

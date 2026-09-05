@@ -1,77 +1,38 @@
 # Scripts
 
-仓库脚本统一负责构建、测试、CLI 部署和本地 Zot。所有命令都从仓库根目录执行。
+仓库脚本统一负责构建、测试、CLI 部署、project-local Verdaccio 和发布打包。所有命令都从仓库根目录执行。
+脚本名统一为 `<domain>-<action>.ps1`，使同一领域的命令在目录中自然聚合。
+
 
 ## 运行原则
 
-- 默认 target 是仓库工作区，所有产物位于 `temp/`。
-- 只有显式传入 `-User` 才会写入用户的 `~/.locus/`。
-- 用户部署不修改 `PATH`；用户卸载不删除 OCI cache 或其他 `.locus` 状态。
-- PowerShell 要求 7+，Go 最低版本以根目录 `go.mod` 为准。
+- 默认 target 是仓库工作区，临时文件和构建产物只写入 `temp/`。
+- 只有显式传入 `-User` 的部署/清理脚本才会写入当前用户的 `~/.locus/`。
+- 脚本不创建仓库或用户 `.npmrc`，也不通过参数、环境变量或配置把 npm/pnpm cache 或 store 重定向到仓库。
+- `scripts/test-run.ps1` 不启动、停止或读取开发 Registry；E2E 测试拥有自己的隔离 Registry 子进程。
+- PowerShell 要求 7+，Go 最低版本以根目录 `go.mod` 为准，Node.js 要求 20.6+，pnpm 版本由根 `package.json` 固定。
 
-## Scripts
+## 脚本索引
 
 | 脚本 | 默认行为 |
 | --- | --- |
-| `scripts/build.ps1` | 构建 `locus-scope` 和 `locus-pkg`。 |
-| `scripts/deploy-local.ps1` | 构建并把两个 CLI 部署到当前 target。 |
-| `scripts/clean-local.ps1` | 清理当前 target 的 CLI；按需同时卸载 Zot。 |
-| `scripts/zot.ps1` | 安装、校验和管理当前 target 的 Zot。 |
-| `scripts/test.ps1` | 使用仓库内 Zot 执行 Go 测试。 |
-| `scripts/package-release.ps1` | 构建 Windows AMD64 发布制品和 Inno Setup 安装包。 |
-| `scripts/install-user.ps1` | 使用已构建安装包为当前用户安装所选组件。 |
-| `scripts/uninstall-user.ps1` | 卸载当前用户的 Locus 程序并默认保留用户数据。 |
-| `scripts/sync-branches.ps1` | 将 `dev` 合并到 `main` 和 `master`，分别推送到 Gitee 和 GitHub，最后切回 `dev`。 |
+| `scripts/branch-sync.ps1` | 将 `dev` 合并到发布分支并推送，最后切回 `dev`。 |
+| `scripts/inno-setup.ps1` | 管理 project-local Inno Setup 编译器。 |
+| `scripts/local-build.ps1` | 构建独立 `locus-scope` 和 `locus-pkg`。 |
+| `scripts/local-clean.ps1` | 清理当前 target 的独立 CLI。 |
+| `scripts/local-deploy.ps1` | 构建并把两个独立 CLI 部署到当前 target。 |
+| `scripts/npm-registry.ps1` | 安装依赖并管理 project-local Verdaccio。 |
+| `scripts/release-package.ps1` | 生成 Windows 独立制品和六个 npm Package tarball。 |
+| `scripts/test-run.ps1` | 运行 Go 与 Node suites；Registry 生命周期由测试自身负责。 |
+| `scripts/user-install.ps1` | 使用已构建安装包为当前用户安装所选独立 CLI。 |
+| `scripts/user-uninstall.ps1` | 卸载当前用户的独立 CLI 并保留用户项目数据。 |
 
-## Target
-
-| Target | 选择方式 | CLI | Zot |
-| --- | --- | --- | --- |
-| 仓库工作区 | 默认 | `temp/local/bin/` | `temp/zot/` |
-| 当前用户 | `-User` | `~/.locus/bin/` | `~/.locus/zot/` |
-
-`-UserLocusRoot <path>` 可覆盖用户 Locus 根目录，但必须与 `-User` 一起使用，且路径末级必须是 `.locus`。同一操作链中的 deploy、clean 和 Zot 命令必须选择同一个 target。
-
-## 部署与卸载
-
-| 命令 | 效果 |
-| --- | --- |
-| `pwsh -File scripts/deploy-local.ps1` | 构建并部署到 `temp/local/bin/`。 |
-| `pwsh -File scripts/deploy-local.ps1 -User` | 构建并部署到 `~/.locus/bin/`。 |
-| `pwsh -File scripts/deploy-local.ps1 -WithZot` | 部署工作区 CLI，并安装工作区 Zot。 |
-| `pwsh -File scripts/deploy-local.ps1 -User -WithZot` | 部署用户 CLI，并安装用户 Zot。 |
-| `pwsh -File scripts/clean-local.ps1` | 删除 `temp/build/` 和 `temp/local/`，保留 Zot。 |
-| `pwsh -File scripts/clean-local.ps1 -WithZot` | 在默认清理基础上停止并删除 `temp/zot/`。 |
-| `pwsh -File scripts/clean-local.ps1 -User` | 只删除用户目录中的两个 CLI。 |
-| `pwsh -File scripts/clean-local.ps1 -User -WithZot` | 删除用户 CLI，并停止、删除用户 Zot。 |
-
-`deploy-local.ps1` 的 `-WithZot` 只安装 Zot，不启动服务。配合 `-ZotBinary <path>` 可从已有且 SHA-256 匹配的 Zot 二进制离线安装。用户 clean 只删除 `locus-scope`、`locus-pkg` 和显式选择的 Zot，不触碰 `~/.locus/oci`。
-
-## Zot
-
-Zot 固定监听 `127.0.0.1:18080`，同一时间只能运行一个 target 的实例。默认从固定 GitHub Release 下载，并校验版本和 SHA-256。
+## 构建与本地部署
 
 ```powershell
-pwsh -File scripts/zot.ps1 <action> [-User]
+pwsh -File scripts/local-build.ps1
+pwsh -File scripts/local-deploy.ps1
 ```
-
-| Action | 行为 |
-| --- | --- |
-| `install` | 安装二进制并生成配置；`-InstallSource <path>` 可改用本地二进制。 |
-| `verify` | 校验二进制版本、SHA-256 和配置。 |
-| `start` | 后台启动并等待 `/readyz` 与 `/v2/` 可用。 |
-| `status` | 检查记录的进程和 Registry endpoint；省略 action 时执行此项。 |
-| `stop` | 停止由当前 target 管理的后台进程。 |
-| `serve` | 前台运行，直接输出日志。 |
-| `uninstall` | 停止服务并删除该 target 的二进制、配置、日志和 Registry 数据。 |
-
-## 构建与测试
-
-| 命令 | 行为 |
-| --- | --- |
-| `pwsh -File scripts/build.ps1` | 按 `go env GOOS/GOARCH` 构建，使用 `-trimpath`，并从根目录 `VERSION` 向两个 CLI 注入版本。 |
-| `pwsh -File scripts/test.ps1 all` | 使用 `-count=1` 执行 `go test ./...`。 |
-| `pwsh -File scripts/test.ps1 e2e` | 使用 `-count=1` 执行 `go test ./test/e2e`。 |
 
 构建产物位于：
 
@@ -81,62 +42,145 @@ temp/build/<goos>-<goarch>/
 └── locus-pkg[.exe]
 ```
 
-测试前需先运行 `pwsh -File scripts/zot.ps1 install`。测试脚本复用已运行的工作区 Zot，否则临时启动它；同时设置 `LOCUS_TEST_REGISTRY=http://127.0.0.1:18080`，结束时只停止由本次测试启动的实例。`temp/e2e-run/` 保留可复现现场。
-
-## Windows 发布制品
-
-生成带两个 CLI 的压缩包、独立 Zot 和 Windows 安装包：
+默认部署目标是 `temp/local/bin/`。仅在明确需要用户级部署时使用：
 
 ```powershell
-pwsh -File scripts/package-release.ps1
+pwsh -File scripts/local-deploy.ps1 -User
+pwsh -File scripts/local-clean.ps1 -User
 ```
 
-命令从仓库根目录 `VERSION` 读取发布版本；显式 `-Version` 仅用于校验且必须与该文件一致。命令固定构建 `windows/amd64`，下载并校验仓库锁定版本的 Zot，然后调用 Inno Setup 6 的 `ISCC.exe`。`ISCC.exe` 可位于 `PATH` 或 Inno Setup 标准安装目录，也可通过 `-IsccPath <path>` 或 `ISCC_PATH` 指定。离线构建可通过 `-ZotBinary <path>` 使用 SHA-256 匹配的现有 Zot 二进制。
+`-UserLocusRoot <path>` 可覆盖用户 Locus 根目录，但必须与 `-User` 同用，且路径末级必须是 `.locus`。用户清理只删除两个 CLI，不触碰项目或其他用户数据。仓库 target 清理删除 `temp/build/` 和 `temp/local/`：
 
-最终制品位于：
+```powershell
+pwsh -File scripts/local-clean.ps1
+```
+
+## Project-local Verdaccio
+
+Verdaccio 版本由根 `package.json` 与 `pnpm-lock.yaml` 固定，监听 `http://127.0.0.1:4873/`。匿名读取允许，发布必须认证。可复用策略位于 `scripts/internal/verdaccio.dev.yaml`，运行时会把 storage、htpasswd 与日志的绝对路径物化到 `temp/verdaccio-dev/config.yaml`。
+
+```powershell
+pwsh -File scripts/npm-registry.ps1 <action>
+```
+
+| Action | 行为 |
+| --- | --- |
+| `install` | 在仓库根运行 `pnpm install --frozen-lockfile`，并初始化 temp-only state。 |
+| `start` | 启动 project-local Verdaccio，记录进程信息并等待 `/-/ping`。 |
+| `status` | 同时验证 PID、可执行文件、命令行/config ownership 和 endpoint。 |
+| `stop` | 只停止通过上述 ownership 校验的进程；已停止时幂等成功。 |
+| `logs` | 输出 Registry、stdout 和 stderr 日志；`-Follow` 持续跟随。 |
+| `reset` | 先停止 owned process，再删除 `temp/verdaccio-dev/`；必须传 `-Force`。 |
+
+完整开发循环：
+
+```powershell
+pwsh -File scripts/npm-registry.ps1 install
+pwsh -File scripts/npm-registry.ps1 start
+pwsh -File scripts/npm-registry.ps1 status
+pwsh -File scripts/npm-registry.ps1 logs
+pwsh -File scripts/npm-registry.ps1 stop
+pwsh -File scripts/npm-registry.ps1 reset -Force
+```
+
+脚本永远不会写 `.npmrc`。需要测试认证时，显式把 package manager userconfig 放在 state root 中：
+
+```powershell
+$env:NPM_CONFIG_USERCONFIG = Join-Path $PWD 'temp\verdaccio-dev\userconfig'
+npm adduser --auth-type=legacy --registry http://127.0.0.1:4873/
+$env:NPM_CONFIG_REGISTRY = 'http://127.0.0.1:4873/'
+```
+
+这是调用者选择的隔离配置；`npm-registry.ps1` 本身不会创建或修改它。不要设置 `NPM_CONFIG_CACHE`、`PNPM_HOME` 或 `pnpm config set store-dir` 指向仓库。
+
+## 测试
+
+先安装根 Node dependencies：
+
+```powershell
+pwsh -File scripts/npm-registry.ps1 install
+```
+
+然后运行：
+
+```powershell
+pwsh -File scripts/test-run.ps1 e2e
+pwsh -File scripts/test-run.ps1 all
+```
+
+- `e2e` 执行 `go test ./test/e2e -count=1`。E2E 自己创建、验证并停止隔离 Verdaccio，全部状态留在 `temp/e2e-run/npm/`。
+- `all` 执行 `go test ./... -count=1`（包含 E2E）和 `pnpm run test:node`。
+
+测试脚本只检查根 Node dependencies 是否已安装，不读取 `temp/verdaccio-dev/`，也不接管开发者已运行的服务。
+
+## Project-local Inno Setup
+
+Inno Setup 默认以 portable 模式安装到仓库 `temp/tools/inno-6.7.3/`，编译器固定为 `temp/tools/inno-6.7.3/ISCC.exe`。下载的固定版本 installer 缓存在 `temp/tools/innosetup-6.7.3.exe`，安装前校验 SHA-256 和 Authenticode 签名。
+
+```powershell
+pwsh -File scripts/inno-setup.ps1 install
+pwsh -File scripts/inno-setup.ps1 status
+pwsh -File scripts/inno-setup.ps1 path
+pwsh -File scripts/inno-setup.ps1 reset -Force
+```
+
+`install` 幂等安装或验证固定版本；`status` 验证 managed manifest 与 `ISCC.exe` 内容；`path` 只输出已验证的编译器绝对路径；`reset -Force` 删除安装目录但保留已验证的 installer cache，便于离线重装。全部安装、日志和缓存状态都留在项目 `temp/tools/`。
+
+`release-package.ps1` 默认调用该脚本的 `path` action，不搜索系统 `PATH` 或全局安装。只有显式传入 `-IsccPath` 或设置 `ISCC_PATH` 时才覆盖 managed compiler。
+
+## Windows 安装包
+
+生成发布制品：
+
+```powershell
+pwsh -File scripts/release-package.ps1
+```
+
+脚本从根 `VERSION` 读取版本；可选 `-Version` 只能用于一致性校验。默认编译器由 `scripts/inno-setup.ps1` 管理并位于 `temp/tools/inno-6.7.3/ISCC.exe`；首次构建前运行其 `install` action。交付源集中在 `packaging/`：npm package 位于 `packaging/npm/`，Windows installer 定义位于 `packaging/windows/`。
+两个 Windows binary 与 license 先暂存到 `temp/release-stage/windows-amd64/`；最终独立制品位于：
 
 ```text
 temp/release/windows-amd64/
 ├── locus-windows-amd64.zip
-├── zot-windows-amd64.exe
 ├── locus-setup-windows-amd64.exe
 └── SHA256SUMS
 ```
 
-安装包包含两个可选 CLI、可选 Zot、Zot 用户级管理脚本和分发许可证，不在安装时访问网络。安装根目录固定为 `~/.locus/`；可选任务负责配置当前用户 `PATH` 和 Zot 登录自启动。
+安装包只包含 `locus-scope`、`locus-pkg` 和 Locus license。它不分发或管理 Registry，不在安装时联网。安装根固定为 `%USERPROFILE%\.locus`，组件可独立选择，可选任务只负责当前用户 `PATH`。
 
-本机安装和卸载冒烟测试：
+安装/卸载冒烟入口：
 
 ```powershell
-pwsh -File scripts/install-user.ps1
-pwsh -File scripts/uninstall-user.ps1
+pwsh -File scripts/user-install.ps1
+pwsh -File scripts/user-uninstall.ps1
 ```
 
-`install-user.ps1` 默认静默安装两个 CLI 和 Zot、添加当前用户 `PATH`，但不启用 Zot 登录自启动。若当前用户已安装 Locus，脚本会快速失败并提示先运行 `scripts/uninstall-user.ps1`，避免安装器被正在运行的 Zot 或已有文件阻塞。可用 `-Components scope,pkg` 选择组件、`-NoPath` 禁止修改 `PATH`、`-ZotAutoStart` 启用 Zot 登录自启动，或用 `-Interactive` 显示安装向导；`-SetupPath` 可指定其他安装包。
+`user-install.ps1` 默认静默安装两个 CLI 并添加用户 `PATH`；使用 `-Components scope` 或 `-Components pkg` 选择单个组件，`-NoPath` 禁止修改 `PATH`，`-Interactive` 显示安装向导。`user-uninstall.ps1` 默认静默卸载程序并保留用户数据。两个脚本只用于明确的当前用户安装验证，日志写入 `temp/install-user.log` 和 `temp/uninstall-user.log`。
 
-`uninstall-user.ps1` 默认静默卸载并保留 Zot registry 和 OCI cache；`-Interactive` 显示卸载确认及“删除 Zot 仓库数据”选项，`-UninstallerPath` 可指定其他卸载器。两个脚本会修改真实当前用户安装状态，仅用于明确的本机安装验证，日志分别写入 `temp/install-user.log` 和 `temp/uninstall-user.log`。
+## npm Package 发布制品
 
-## 常用工作流
+同一个 release 命令还会把 `locus-scope-node-host` 交叉构建到五个 platform Package，并打包 `@locus/scope`：
 
-仓库内开发：
-
-```powershell
-pwsh -File scripts/deploy-local.ps1 -WithZot
-pwsh -File scripts/zot.ps1 start
-pwsh -File scripts/test.ps1 all
-pwsh -File scripts/clean-local.ps1 -WithZot
+```text
+temp/release/npm/
+├── stage/
+│   ├── locus-scope/
+│   ├── locus-scope-win32-x64/
+│   ├── locus-scope-linux-x64/
+│   ├── locus-scope-linux-arm64/
+│   ├── locus-scope-darwin-x64/
+│   └── locus-scope-darwin-arm64/
+├── locus-scope-<version>.tgz
+├── locus-scope-<platform>-<version>.tgz
+└── SHA256SUMS
 ```
 
-同步发布分支（要求工作区干净；远端目标分支发生分叉时会停止，不自动改写历史）：
+所有 staged manifest 的版本都同步为根 `VERSION`，`@locus/scope` 的五个 optional dependency pins 同步为完全相同的版本。脚本使用 `pnpm pack` 生成标准 tarball，但不会向任何公共 Registry 发布。
+
+## 分支同步
+
+要求工作区干净；远端目标分支分叉时停止，不自动改写历史：
 
 ```powershell
-pwsh -File scripts/sync-branches.ps1
-```
-
-用户安装与卸载：
-
-```powershell
-pwsh -File scripts/deploy-local.ps1 -User -WithZot
-pwsh -File scripts/zot.ps1 start -User
-pwsh -File scripts/clean-local.ps1 -User -WithZot
+pwsh -File scripts/branch-sync.ps1
 ```

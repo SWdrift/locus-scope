@@ -6,7 +6,7 @@ export default {
       remarkValidateLinks,
       {
         repository: false,
-        root: '../..'
+        root: '.'
       }
     ]
   ]

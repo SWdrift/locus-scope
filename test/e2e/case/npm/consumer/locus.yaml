@@ -1,0 +1,7 @@
+id: consumer
+imports:
+  app: "@example/app"
+  modern: "@example/modern"
+exports:
+  - app:application
+  - modern:modern-service

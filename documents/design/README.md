@@ -6,9 +6,9 @@
 
 - [核心协议](protocol/PROTOCOL.md)：权威定义 Entity、Scope、Export、Import、Projection、Relation、Definition document 和 Group。
 - [Scope 设计](Scope设计.md)：以基本 Scope 装配和显式 Group 为例，定义 root 选择、递归 Definition document 发现、目录与嵌套 Scope 边界、Workspace 装配、诊断和 CLI。
-- [Package设计](Package设计.md)：定义 OCI Package、Source identity、发布与安装、lock、cache、项目物化和 source-aware loader。
-- [测试设计](测试设计.md)：登记测试分层、已覆盖场景、fixture、隔离、OCI E2E 和完成标准。
-- [Windows安装包设计](Windows安装包设计.md)：定义 Windows 安装包、发布暂存、最终制品和用户安装目录，以及 Zot 生命周期入口与卸载数据边界。
+- [Package设计](Package设计.md)：定义 npm-compatible Package、双 Package Environment、Registry、lock/store、pack/publish 和 Node bridge。
+- [测试设计](测试设计.md)：登记测试分层、已覆盖场景、fixture、隔离、npm lifecycle E2E 和完成标准。
+- [Windows安装包设计](Windows安装包设计.md)：定义只包含 standalone CLI 的 Windows 安装包、发布暂存、最终制品和用户安装目录。
 
 ## 阅读顺序
 
