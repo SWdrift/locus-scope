@@ -51,8 +51,15 @@
 
 ## Release
 
-- 根 `VERSION` 是整个发行批次的版本真相；release 流程写入或校验各 npm package 的 `package.json.version`。
-- `@sundw/locus-scope` 与所有平台 package 使用相同版本，平台 `optionalDependencies` 使用精确版本。
+- 根 `VERSION` 是整个发行批次的版本真相；仓库内 npm source manifests 不声明 `version`，workspace package edge 使用 `workspace:*`，release staging 注入统一版本和平台 package 的精确 `optionalDependencies`。
+- `@sundw/locus-scope` 与所有平台 package 使用相同版本。
+- Darwin/Linux platform package 在 release staging 中将 Go host 声明为 `bin` target；最终四个 Unix tarball 必须逐一断言 host mode 为 `0755`。
+- npm release 验收从最终 `.tgz` 安装主包与当前平台包，禁用 lifecycle scripts，并执行真实 `locus-scope-node validate --json`。
+
+## Node 诊断
+
+- 有效 host request 在 Workspace 加载前失败时仍遵守 `--json`，由 host response stderr 返回单个 JSON failure。
+- missing direct dependency 的提示由 package environment 决定：Pure 指向 `locus-pkg install`，npm 指向 `pnpm add` 或 `npm install`。
 
 ## 决策权限
 

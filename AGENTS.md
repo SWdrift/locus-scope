@@ -1,6 +1,6 @@
 # AGENTS.md
 
-- 文档系统见 [`documents\design\README.md`](documents\design\README.md)。
+- 文档系统见 [`documents/design/README.md`](documents/design/README.md)。
 
 ## 安全
 
@@ -13,7 +13,7 @@
 
 - 在仓库根目录运行命令。
 - 临时文件和构建产物只能写入 `temp/`。
-- internal\web\ui 可使用 `pnpm --dir internal\web\ui run format` 格式化。
+- internal/web/ui 可使用 `pnpm --dir internal/web/ui run format` 格式化。
 - 使用 `pnpm`。
 
 ## 品味
@@ -23,7 +23,7 @@
 - 强调一致性：优先遵循项目既有的命名、结构、接口和实现模式，不并行引入第二套约定。
 - 仅添加和执行必要测试；测试可观察行为、边界和不变量，不测试基础库或无分支的简单函数。
 - 小段逻辑默认内联。只有当逻辑形成稳定、可复用、可命名的独立概念时才提取函数；不要为了“看起来干净”制造大量没有独立语义的小函数，适当接受重复编码。
-- 编码、修改、评审和重构时遵循 [`.agents\skills\code-smell-guard\SKILL.md`](.agents\skills\code-smell-guard\SKILL.md)，只处理本次变更新增或加重的高置信坏味道，避免机械式重构。
+- 编码、修改、评审和重构时遵循 [`.agents/skills/code-smell-guard/SKILL.md`](.agents/skills/code-smell-guard/SKILL.md)，只处理本次变更新增或加重的高置信坏味道，避免机械式重构。
 
 ## 测试
 

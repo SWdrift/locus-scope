@@ -1,10 +1,12 @@
 import assert from 'node:assert/strict';
-import { mkdir, realpath, writeFile } from 'node:fs/promises';
+import { mkdir, readFile, realpath, writeFile } from 'node:fs/promises';
 import path from 'node:path';
 import test from 'node:test';
 import { main } from '../lib/cli.mjs';
 import { discoverScopeRoot, parseRootOptions } from '../lib/options.mjs';
 import { captureStream, testDirectory } from './helpers.mjs';
+
+const VERSION = (await readFile(new URL('../../../../VERSION', import.meta.url), 'utf8')).trim();
 
 test('root options work before or after commands and nearest Scope discovery walks ancestors', async (t) => {
   assert.deepEqual(parseRootOptions(['--scope', 'one', 'entity', 'list', '--json']), {
@@ -44,9 +46,9 @@ test('version and help are local and require no Scope or platform host', async (
     assert.equal(exitCode, 0);
     assert.equal(stderr.value(), '');
     if (arguments_.includes('--json')) {
-      assert.deepEqual(JSON.parse(stdout.value()), { name: 'locus-scope-node', version: '1.0.1' });
+      assert.deepEqual(JSON.parse(stdout.value()), { name: 'locus-scope-node', version: VERSION });
     } else {
-      assert.equal(stdout.value(), 'locus-scope-node 1.0.1\n');
+      assert.equal(stdout.value(), `locus-scope-node ${VERSION}\n`);
     }
   }
 

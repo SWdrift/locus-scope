@@ -1,6 +1,6 @@
 {
   "name": "@sundw/locus-scope",
-  "version": "1.0.1",
+  "private": true,
   "description": "Locus Scope command for npm and pnpm package environments",
   "license": "MIT",
   "repository": {
@@ -24,10 +24,10 @@
     "lib"
   ],
   "optionalDependencies": {
-    "@sundw/locus-scope-darwin-arm64": "1.0.1",
-    "@sundw/locus-scope-darwin-x64": "1.0.1",
-    "@sundw/locus-scope-linux-arm64": "1.0.1",
-    "@sundw/locus-scope-linux-x64": "1.0.1",
-    "@sundw/locus-scope-win32-x64": "1.0.1"
+    "@sundw/locus-scope-darwin-arm64": "workspace:*",
+    "@sundw/locus-scope-darwin-x64": "workspace:*",
+    "@sundw/locus-scope-linux-arm64": "workspace:*",
+    "@sundw/locus-scope-linux-x64": "workspace:*",
+    "@sundw/locus-scope-win32-x64": "workspace:*"
   }
 }

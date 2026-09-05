@@ -21,19 +21,19 @@ importers:
   packaging/npm/locus-scope:
     optionalDependencies:
       '@sundw/locus-scope-darwin-arm64':
-        specifier: 1.0.1
+        specifier: workspace:*
         version: link:../locus-scope-darwin-arm64
       '@sundw/locus-scope-darwin-x64':
-        specifier: 1.0.1
+        specifier: workspace:*
         version: link:../locus-scope-darwin-x64
       '@sundw/locus-scope-linux-arm64':
-        specifier: 1.0.1
+        specifier: workspace:*
         version: link:../locus-scope-linux-arm64
       '@sundw/locus-scope-linux-x64':
-        specifier: 1.0.1
+        specifier: workspace:*
         version: link:../locus-scope-linux-x64
       '@sundw/locus-scope-win32-x64':
-        specifier: 1.0.1
+        specifier: workspace:*
         version: link:../locus-scope-win32-x64
 
   packaging/npm/locus-scope-darwin-arm64: {}

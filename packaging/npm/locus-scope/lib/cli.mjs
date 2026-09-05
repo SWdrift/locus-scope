@@ -1,4 +1,4 @@
-import { readFile } from 'node:fs/promises';
+import { readPackageManifest } from './package-manifest.mjs';
 import path from 'node:path';
 import { buildPackageEnvironment } from './package-environment.mjs';
 import { runHost } from './host.mjs';
@@ -27,7 +27,7 @@ export async function main(
       return 0;
     }
     if (isVersion(options.arguments)) {
-      const { version } = await packageManifest();
+      const { version } = await readPackageManifest();
       if (jsonOutput) {
         stdout.write(`${JSON.stringify({ name: 'locus-scope-node', version })}\n`);
       } else {
@@ -73,19 +73,6 @@ function isVersion(arguments_) {
   return command.length === 1 && (command[0] === 'version' || command[0] === '--version');
 }
 
-async function packageManifest() {
-  let source;
-  try {
-    source = await readFile(new URL('../package.json', import.meta.url), 'utf8');
-  } catch (error) {
-    throw new Error(`read @sundw/locus-scope package manifest: ${error.message}`, { cause: error });
-  }
-  try {
-    return JSON.parse(source);
-  } catch (error) {
-    throw new Error(`parse @sundw/locus-scope package manifest: ${error.message}`, { cause: error });
-  }
-}
 
 const usage = `Usage:
   locus-scope-node [--scope <dir>] [--json] validate

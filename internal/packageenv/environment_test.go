@@ -79,12 +79,24 @@ func TestLoadRejectsLocalImportFromDistributedPackage(t *testing.T) {
 	}
 }
 
-func TestLoadReportsActionableMissingRootEdge(t *testing.T) {
+func TestLoadReportsEnvironmentSpecificMissingRootEdge(t *testing.T) {
 	root := packageTestRoot(t)
 	writeFile(t, filepath.Join(root, "locus.yaml"), "id: consumer\nimports:\n  app: '@example/app'\n")
-	_, err := packageenv.Load(root, packageenv.Environment{})
-	if err == nil || !strings.Contains(err.Error(), "run locus-pkg install") {
-		t.Fatalf("missing root edge error = %v", err)
+	for _, test := range []struct {
+		name        string
+		mode        packageenv.EnvironmentMode
+		want        string
+		notExpected string
+	}{
+		{name: "pure", mode: packageenv.PureEnvironment, want: "run locus-pkg install", notExpected: "pnpm add"},
+		{name: "npm", mode: packageenv.NPMEnvironment, want: "run pnpm add @example/app or npm install @example/app", notExpected: "locus-pkg"},
+	} {
+		t.Run(test.name, func(t *testing.T) {
+			_, err := packageenv.Load(root, packageenv.Environment{Mode: test.mode})
+			if err == nil || !strings.Contains(err.Error(), test.want) || strings.Contains(err.Error(), test.notExpected) {
+				t.Fatalf("missing root edge error = %v", err)
+			}
+		})
 	}
 }
 
