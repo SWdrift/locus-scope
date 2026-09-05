@@ -150,6 +150,12 @@ function Set-StagedPackageVersion {
             @($manifest.files).Count -ne 1 -or $manifest.files[0] -ne $ExpectedFile) {
             throw "$ExpectedName platform constraints or packaged binary path are invalid"
         }
+        if ($manifest.PSObject.Properties.Name -contains 'bin') {
+            throw "$ExpectedName source manifest must not declare bin; release staging owns executable metadata"
+        }
+        if ($ExpectedOS -ne 'win32') {
+            $manifest | Add-Member -NotePropertyName bin -NotePropertyValue ([pscustomobject]@{ 'locus-scope-node-host' = $ExpectedFile })
+        }
     }
     $manifest.PSObject.Properties.Remove('private')
     $manifest | Add-Member -NotePropertyName version -NotePropertyValue $Version
@@ -300,6 +306,10 @@ Write-Checksums -Directory $WindowsReleaseRoot -Artifacts @($cliArchive, $setupP
 $npmTarballs = @(Get-ChildItem -LiteralPath $NpmTarballRoot -Filter '*.tgz' -File | Select-Object -ExpandProperty FullName)
 if ($npmTarballs.Count -ne 6) {
     throw "expected six npm package tarballs, found $($npmTarballs.Count)"
+}
+& node (Join-Path $RepositoryRoot 'scripts\verify-npm-release.mjs') $Version
+if ($LASTEXITCODE -ne 0) {
+    throw "npm release verification exited with code $LASTEXITCODE"
 }
 Write-Checksums -Directory $NpmTarballRoot -Artifacts $npmTarballs
 

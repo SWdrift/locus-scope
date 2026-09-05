@@ -190,8 +190,10 @@ func TestNPMPackageLifecycle(t *testing.T) {
 	mismatchRegistry.Close()
 
 	platformPackage, platformHostName := currentPlatformPackage(t)
+	releaseVersion := strings.TrimSpace(string(fileBytes(t, repositoryPath("VERSION"))))
 	platformSource := filepath.Join(h.root, "fixtures", "node-platform")
 	materializeFixture(t, repositoryPath("packaging", "npm", platformPackage), platformSource)
+	stageNodePublishFixture(t, platformSource, releaseVersion, platformHostName)
 	platformBin := filepath.Join(platformSource, "bin")
 	if err := os.MkdirAll(platformBin, 0o755); err != nil {
 		t.Fatalf("create platform package bin: %v", err)
@@ -202,6 +204,7 @@ func TestNPMPackageLifecycle(t *testing.T) {
 	h.npmPublish("publish-node-platform", platformSource, h.authEnv).success(t, "publish current Node platform package")
 	nodePackageSource := filepath.Join(h.root, "fixtures", "locus-scope-node")
 	materializeFixture(t, repositoryPath("packaging", "npm", "locus-scope"), nodePackageSource)
+	stageNodePublishFixture(t, nodePackageSource, releaseVersion, "")
 	h.npmPublish("publish-locus-scope-node", nodePackageSource, h.authEnv).success(t, "publish @sundw/locus-scope")
 	var nodePackageManifest struct {
 		Version string `json:"version"`
@@ -492,6 +495,27 @@ func publishFailureFixtures(t *testing.T, h *npmLifecycleHarness) {
 	h.npmPublish("publish-failure-blocked", blocked, h.authEnv).success(t, "publish blocked exports fixture")
 	unsafeArchive, unsafeManifest := makeUnsafeTarball(t, "@failure/unsafe", "1.0.0")
 	publishRawPackage(t, h.endpoint, h.token, "@failure/unsafe", "1.0.0", unsafeArchive, unsafeManifest)
+}
+
+func stageNodePublishFixture(t *testing.T, root, version, platformHostName string) {
+	t.Helper()
+	manifestPath := filepath.Join(root, "package.json")
+	var manifest map[string]any
+	decodeJSON(t, fileBytes(t, manifestPath), &manifest)
+	if private, exists := manifest["private"].(bool); !exists || !private {
+		t.Fatalf("Node package source manifest must be private")
+	}
+	delete(manifest, "private")
+	manifest["version"] = version
+	if optional, exists := manifest["optionalDependencies"].(map[string]any); exists {
+		for name := range optional {
+			optional[name] = version
+		}
+	}
+	if platformHostName != "" && runtime.GOOS != "windows" {
+		manifest["bin"] = map[string]string{"locus-scope-node-host": "bin/" + platformHostName}
+	}
+	writeJSONFile(t, manifestPath, manifest)
 }
 
 func createNodeConsumer(t *testing.T, destination, source, locusVersion string) string {

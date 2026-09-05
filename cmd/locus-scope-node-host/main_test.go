@@ -41,6 +41,42 @@ func TestRunExecutesOneScopeCLIRequest(t *testing.T) {
 	}
 }
 
+func TestRunFormatsWorkspaceLoadFailureAsJSONWithNPMAdvice(t *testing.T) {
+	root := hostTestDirectory(t, "json-load-failure")
+	writeHostTestFile(t, filepath.Join(root, "locus.yaml"), "id: root\nimports:\n  missing: '@example/missing'\n")
+	requestBody := map[string]any{
+		"version":          1,
+		"workingDirectory": root,
+		"arguments":        []string{"validate", "--json"},
+		"root": map[string]any{
+			"scopeRoot": root, "packageRoot": "", "dependencies": map[string]string{},
+		},
+		"packages": map[string]any{},
+	}
+	encoded, err := json.Marshal(requestBody)
+	if err != nil {
+		t.Fatal(err)
+	}
+	var output bytes.Buffer
+	if exitCode := run(bytes.NewReader(encoded), &output); exitCode != 1 {
+		t.Fatalf("run exit code = %d, output = %s", exitCode, output.String())
+	}
+	var result response
+	if err := json.Unmarshal(output.Bytes(), &result); err != nil {
+		t.Fatalf("decode response: %v", err)
+	}
+	var failure struct {
+		Error string `json:"error"`
+	}
+	if err := json.Unmarshal([]byte(result.Stderr), &failure); err != nil {
+		t.Fatalf("stderr is not one JSON failure: %v; stderr = %q", err, result.Stderr)
+	}
+	if !strings.Contains(failure.Error, "run pnpm add @example/missing or npm install @example/missing") ||
+		strings.Contains(failure.Error, "locus-pkg") {
+		t.Fatalf("error = %q", failure.Error)
+	}
+}
+
 func TestRunRejectsUnknownDuplicateAndTrailingJSON(t *testing.T) {
 	root := hostTestDirectory(t, "invalid")
 	cases := map[string]string{

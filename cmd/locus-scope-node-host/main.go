@@ -61,10 +61,11 @@ func run(input io.Reader, output io.Writer) int {
 		return writeResponse(output, response{Version: protocolVersion, ExitCode: 1, Stderr: fmt.Sprintf("locus-scope-node-host: %v\n", err)})
 	}
 	if err := validateRequest(request); err != nil {
-		return writeResponse(output, response{Version: protocolVersion, ExitCode: 1, Stderr: fmt.Sprintf("locus-scope-node-host: %v\n", err)})
+		return writeRequestFailure(output, request.Arguments, err)
 	}
 
 	environment := packageenv.Environment{
+		Mode:             packageenv.NPMEnvironment,
 		RootDependencies: make(map[string]packageenv.Identity, len(request.Root.Dependencies)),
 		Packages:         make(map[packageenv.Identity]packageenv.Package, len(request.Packages)),
 	}
@@ -75,17 +76,17 @@ func run(input io.Reader, output io.Writer) int {
 		identity := packageenv.Identity(rawIdentity)
 		metadata, isLocus, validationErr := packageenv.ValidatePackage(descriptor.Root)
 		if validationErr != nil {
-			return writeResponse(output, response{Version: protocolVersion, ExitCode: 1, Stderr: fmt.Sprintf("locus-scope-node-host: validate package %q: %v\n", rawIdentity, validationErr)})
+			return writeRequestFailure(output, request.Arguments, fmt.Errorf("validate package %q: %w", rawIdentity, validationErr))
 		}
 		if !isLocus {
-			return writeResponse(output, response{Version: protocolVersion, ExitCode: 1, Stderr: fmt.Sprintf("locus-scope-node-host: descriptor package %q has no locus.entry\n", rawIdentity)})
+			return writeRequestFailure(output, request.Arguments, fmt.Errorf("descriptor package %q has no locus.entry", rawIdentity))
 		}
 		expectedIdentity := packageenv.Identity("npm:" + metadata.Name + "@" + metadata.Version)
 		if identity != expectedIdentity {
-			return writeResponse(output, response{Version: protocolVersion, ExitCode: 1, Stderr: fmt.Sprintf("locus-scope-node-host: package identity %q does not match metadata identity %q\n", identity, expectedIdentity)})
+			return writeRequestFailure(output, request.Arguments, fmt.Errorf("package identity %q does not match metadata identity %q", identity, expectedIdentity))
 		}
 		if filepath.Clean(filepath.FromSlash(metadata.Entry)) != filepath.Clean(filepath.FromSlash(descriptor.Entry)) {
-			return writeResponse(output, response{Version: protocolVersion, ExitCode: 1, Stderr: fmt.Sprintf("locus-scope-node-host: package %q entry does not match package.json\n", identity)})
+			return writeRequestFailure(output, request.Arguments, fmt.Errorf("package %q entry does not match package.json", identity))
 		}
 		dependencies := make(map[string]packageenv.Identity, len(descriptor.Dependencies))
 		for name, dependency := range descriptor.Dependencies {
@@ -100,7 +101,7 @@ func run(input io.Reader, output io.Writer) int {
 	}
 	workspace, err := packageenv.Load(request.Root.ScopeRoot, environment)
 	if err != nil {
-		return writeResponse(output, response{Version: protocolVersion, ExitCode: 1, Stderr: fmt.Sprintf("locus-scope-node-host: %v\n", err)})
+		return writeRequestFailure(output, request.Arguments, err)
 	}
 
 	var stdout, stderr bytes.Buffer
@@ -242,6 +243,20 @@ func requireAbsoluteDirectory(field, path string) error {
 		return fmt.Errorf("%s must name a directory", field)
 	}
 	return nil
+}
+
+func writeRequestFailure(output io.Writer, arguments []string, err error) int {
+	message := fmt.Sprintf("locus-scope-node: %v\n", err)
+	for _, argument := range arguments {
+		if argument == "--json" {
+			body, _ := json.Marshal(struct {
+				Error string `json:"error"`
+			}{err.Error()})
+			message = string(body) + "\n"
+			break
+		}
+	}
+	return writeResponse(output, response{Version: protocolVersion, ExitCode: 1, Stderr: message})
 }
 
 func writeResponse(output io.Writer, value response) int {

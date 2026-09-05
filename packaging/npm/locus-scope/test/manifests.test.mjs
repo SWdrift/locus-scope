@@ -40,6 +40,7 @@ test('platform package manifests match the five-platform host matrix', async () 
   for (const [suffix, operatingSystem, architecture, host] of MATRIX) {
     const manifest = await readManifest(new URL(`../../locus-scope-${suffix}/package.json`, import.meta.url));
     assert.equal(manifest.name, `@sundw/locus-scope-${suffix}`);
+    assert.equal(manifest.bin, undefined);
     assert.equal(manifest.version, undefined);
     assert.equal(manifest.private, true);
     assertProjectLinks(manifest);
