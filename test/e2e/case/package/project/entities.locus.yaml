@@ -1,4 +1,0 @@
-entities:
-  - id: api
-relations:
-  - [api, uses, a:sub:b:database]

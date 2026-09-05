@@ -1,0 +1,3 @@
+entities:
+  - id: secret
+    classification: private

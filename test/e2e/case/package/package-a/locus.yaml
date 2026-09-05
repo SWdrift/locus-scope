@@ -1,5 +1,0 @@
-id: package-a
-imports:
-  sub: sub
-exports:
-  - sub:b:database

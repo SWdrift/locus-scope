@@ -1,0 +1,6 @@
+id: app
+imports:
+  base: "@example/base"
+exports:
+  - application
+  - base:database

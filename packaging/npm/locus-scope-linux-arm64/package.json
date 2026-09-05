@@ -1,0 +1,18 @@
+{
+  "name": "@locus/scope-linux-arm64",
+  "version": "1.0.0",
+  "description": "Linux arm64 host for @locus/scope",
+  "license": "MIT",
+  "os": [
+    "linux"
+  ],
+  "cpu": [
+    "arm64"
+  ],
+  "exports": {
+    "./package.json": "./package.json"
+  },
+  "files": [
+    "bin/locus-scope-node-host"
+  ]
+}

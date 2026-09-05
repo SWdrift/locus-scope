@@ -7,17 +7,18 @@ import (
 	"fmt"
 	"io"
 	"os"
+	"path/filepath"
+	"sort"
 	"strings"
 
 	"locus-scope/internal/buildinfo"
-
-	"locus-scope/internal/packages"
-	"locus-scope/internal/scope"
+	"locus-scope/internal/purepkg"
 )
 
 type options struct {
-	scopeDirectory string
-	frozen         bool
+	registry       string
+	frozenLockfile bool
+	offline        bool
 	jsonOutput     bool
 }
 
@@ -42,39 +43,43 @@ func run(arguments []string, stdout, stderr io.Writer) int {
 		}
 		return 0
 	}
-	switch command[0] {
-	case "install":
-		if len(command) != 1 {
-			writeFailure(stderr, opts.jsonOutput, errors.New("install does not accept positional arguments"))
-			return 2
-		}
-	case "publish":
-		if len(command) != 2 {
-			writeFailure(stderr, opts.jsonOutput, errors.New("publish requires exactly one OCI target"))
-			return 2
-		}
-		if opts.frozen {
-			writeFailure(stderr, opts.jsonOutput, errors.New("--frozen is only valid with install"))
-			return 2
-		}
-	default:
-		writeFailure(stderr, opts.jsonOutput, fmt.Errorf("unknown command %q; run locus-pkg help", command[0]))
+	if err := validateInvocation(command, opts); err != nil {
+		writeFailure(stderr, opts.jsonOutput, err)
 		return 2
 	}
 
-	root, err := rootDirectory(opts.scopeDirectory)
+	workingDirectory, err := os.Getwd()
 	if err != nil {
-		writeFailure(stderr, opts.jsonOutput, err)
+		writeFailure(stderr, opts.jsonOutput, fmt.Errorf("get current directory: %w", err))
 		return 1
 	}
-	credential, err := packages.DockerCredential()
+	var root string
+	if command[0] == "pack" || command[0] == "publish" {
+		root, err = findPackageRoot(workingDirectory)
+	} else {
+		root, err = findProjectRoot(workingDirectory)
+	}
 	if err != nil {
 		writeFailure(stderr, opts.jsonOutput, err)
 		return 1
 	}
 
-	if command[0] == "publish" {
-		result, err := packages.Publish(context.Background(), root, command[1], packages.PublishOptions{Credential: credential})
+	managerOptions := purepkg.Options{
+		Registry: opts.registry, FrozenLockfile: opts.frozenLockfile, Offline: opts.offline,
+	}
+	ctx := context.Background()
+	switch command[0] {
+	case "install":
+		result, err := purepkg.Install(ctx, root, command[1:], managerOptions)
+		return writeInstallResult(stdout, stderr, opts.jsonOutput, result, err)
+	case "uninstall":
+		result, err := purepkg.Uninstall(ctx, root, command[1:], managerOptions)
+		return writeInstallResult(stdout, stderr, opts.jsonOutput, result, err)
+	case "update":
+		result, err := purepkg.Update(ctx, root, command[1:], managerOptions)
+		return writeInstallResult(stdout, stderr, opts.jsonOutput, result, err)
+	case "list":
+		result, err := purepkg.List(root)
 		if err != nil {
 			writeFailure(stderr, opts.jsonOutput, err)
 			return 1
@@ -85,33 +90,69 @@ func run(arguments []string, stdout, stderr io.Writer) int {
 				return 1
 			}
 		} else {
-			fmt.Fprintf(stdout, "published: %s\ndigest: %s\n", result.Target, result.Digest)
+			fmt.Fprintf(stdout, "root: %s\n", result.Root)
+			for _, dependency := range result.Dependencies {
+				writeDependency(stdout, dependency, "")
+			}
 		}
 		return 0
-	}
-
-	cacheRoot, err := packages.DefaultCacheRoot()
-	if err != nil {
-		writeFailure(stderr, opts.jsonOutput, err)
-		return 1
-	}
-	result, err := packages.Install(context.Background(), root, packages.InstallOptions{
-		Frozen: opts.frozen, CacheRoot: cacheRoot, Credential: credential,
-	})
-	if err != nil {
-		writeFailure(stderr, opts.jsonOutput, err)
-		return 1
-	}
-	if opts.jsonOutput {
-		if err := writeJSON(stdout, result); err != nil {
-			writeFailure(stderr, true, err)
+	case "pack":
+		result, err := purepkg.Pack(root)
+		if err != nil {
+			writeFailure(stderr, opts.jsonOutput, err)
 			return 1
 		}
+		if opts.jsonOutput {
+			if err := writeJSON(stdout, result); err != nil {
+				writeFailure(stderr, true, err)
+				return 1
+			}
+		} else {
+			fmt.Fprintf(stdout, "packed: %s\nname: %s\nversion: %s\nintegrity: %s\nfiles: %d\n", result.Filename, result.Name, result.Version, result.Integrity, len(result.Files))
+		}
 		return 0
+	case "publish":
+		result, err := purepkg.Publish(ctx, root, managerOptions)
+		if err != nil {
+			writeFailure(stderr, opts.jsonOutput, err)
+			return 1
+		}
+		if opts.jsonOutput {
+			if err := writeJSON(stdout, result); err != nil {
+				writeFailure(stderr, true, err)
+				return 1
+			}
+		} else {
+			fmt.Fprintf(stdout, "published: %s@%s\nregistry: %s\nintegrity: %s\n", result.Name, result.Version, result.Registry, result.Integrity)
+		}
+		return 0
+	default:
+		panic("validated command was not dispatched")
 	}
-	fmt.Fprintf(stdout, "installed: %s\nresolved: %d, reused: %d, fetched: %d, materialized: %d\nscopes: %d, entities: %d, relations: %d\n",
-		result.Root, result.Resolved, result.Reused, result.Fetched, result.Materialized, result.Scopes, result.Entities, result.Relations)
-	return 0
+}
+
+func validateInvocation(command []string, opts options) error {
+	switch command[0] {
+	case "install":
+		if opts.frozenLockfile && len(command) > 1 {
+			return errors.New("--frozen-lockfile cannot be used with explicit install specs")
+		}
+	case "uninstall":
+		if len(command) == 1 {
+			return errors.New("uninstall requires at least one direct dependency name")
+		}
+	case "update":
+	case "list", "pack", "publish":
+		if len(command) != 1 {
+			return fmt.Errorf("%s does not accept positional arguments", command[0])
+		}
+	default:
+		return fmt.Errorf("unknown command %q; run locus-pkg help", command[0])
+	}
+	if command[0] == "publish" && (opts.offline || opts.frozenLockfile) {
+		return errors.New("publish does not support --offline or --frozen-lockfile")
+	}
+	return nil
 }
 
 func parseArguments(arguments []string) (options, []string, error) {
@@ -121,18 +162,23 @@ func parseArguments(arguments []string) (options, []string, error) {
 		switch argument := arguments[index]; {
 		case argument == "--json":
 			opts.jsonOutput = true
-		case argument == "--frozen":
-			opts.frozen = true
-		case argument == "--scope":
+		case argument == "--offline":
+			opts.offline = true
+		case argument == "--frozen-lockfile":
+			opts.frozenLockfile = true
+		case argument == "--registry":
 			if index+1 == len(arguments) {
-				return opts, nil, errors.New("--scope requires a directory")
+				return opts, nil, errors.New("--registry requires a URL")
 			}
 			index++
-			opts.scopeDirectory = arguments[index]
-		case strings.HasPrefix(argument, "--scope="):
-			opts.scopeDirectory = strings.TrimPrefix(argument, "--scope=")
-			if opts.scopeDirectory == "" {
-				return opts, nil, errors.New("--scope requires a directory")
+			opts.registry = arguments[index]
+			if opts.registry == "" {
+				return opts, nil, errors.New("--registry requires a URL")
+			}
+		case strings.HasPrefix(argument, "--registry="):
+			opts.registry = strings.TrimPrefix(argument, "--registry=")
+			if opts.registry == "" {
+				return opts, nil, errors.New("--registry requires a URL")
 			}
 		case argument == "--help" || argument == "-h":
 			command = []string{"help"}
@@ -147,15 +193,115 @@ func parseArguments(arguments []string) (options, []string, error) {
 	return opts, command, nil
 }
 
-func rootDirectory(explicit string) (string, error) {
-	if explicit != "" {
-		return explicit, nil
-	}
-	workingDirectory, err := os.Getwd()
+func findProjectRoot(start string) (string, error) {
+	current, err := absoluteDirectory(start)
 	if err != nil {
-		return "", fmt.Errorf("get current directory: %w", err)
+		return "", err
 	}
-	return scope.FindScope(workingDirectory)
+	for {
+		if regularFile(filepath.Join(current, "package.json")) && hasScopeManifest(current) {
+			return current, nil
+		}
+		parent := filepath.Dir(current)
+		if parent == current {
+			return "", fmt.Errorf("no project containing package.json and a root Scope manifest found from %q", start)
+		}
+		current = parent
+	}
+}
+
+func findPackageRoot(start string) (string, error) {
+	current, err := absoluteDirectory(start)
+	if err != nil {
+		return "", err
+	}
+	for {
+		packageJSON := filepath.Join(current, "package.json")
+		if regularFile(packageJSON) {
+			body, err := os.ReadFile(packageJSON)
+			if err != nil {
+				return "", fmt.Errorf("read %s: %w", packageJSON, err)
+			}
+			var manifest struct {
+				Locus *struct {
+					Entry string `json:"entry"`
+				} `json:"locus"`
+			}
+			if err := json.Unmarshal(body, &manifest); err != nil {
+				return "", fmt.Errorf("decode %s: %w", packageJSON, err)
+			}
+			if manifest.Locus != nil && manifest.Locus.Entry != "" {
+				return current, nil
+			}
+		}
+		parent := filepath.Dir(current)
+		if parent == current {
+			return "", fmt.Errorf("no package.json with locus.entry found from %q", start)
+		}
+		current = parent
+	}
+}
+
+func absoluteDirectory(path string) (string, error) {
+	absolute, err := filepath.Abs(path)
+	if err != nil {
+		return "", fmt.Errorf("resolve directory %q: %w", path, err)
+	}
+	information, err := os.Stat(absolute)
+	if err != nil {
+		return "", fmt.Errorf("inspect directory %q: %w", absolute, err)
+	}
+	if !information.IsDir() {
+		return "", fmt.Errorf("%q is not a directory", absolute)
+	}
+	return absolute, nil
+}
+
+func hasScopeManifest(directory string) bool {
+	for _, name := range []string{"locus.yaml", "locus.yml", "locus.json"} {
+		if regularFile(filepath.Join(directory, name)) {
+			return true
+		}
+	}
+	return false
+}
+
+func regularFile(path string) bool {
+	information, err := os.Stat(path)
+	return err == nil && information.Mode().IsRegular()
+}
+
+func writeInstallResult(stdout, stderr io.Writer, jsonOutput bool, result purepkg.InstallResult, err error) int {
+	if err != nil {
+		writeFailure(stderr, jsonOutput, err)
+		return 1
+	}
+	if jsonOutput {
+		if err := writeJSON(stdout, result); err != nil {
+			writeFailure(stderr, true, err)
+			return 1
+		}
+		return 0
+	}
+	fmt.Fprintf(stdout, "root: %s\nadded: %s\nremoved: %s\nupdated: %s\nreused: %d, fetched: %d, installed: %d, packages: %d\nscopes: %d, entities: %d, relations: %d\n",
+		result.Root, joinFacts(result.Added), joinFacts(result.Removed), joinFacts(result.Updated), result.Reused, result.Fetched, result.Installed, result.Packages, result.Scopes, result.Entities, result.Relations)
+	return 0
+}
+
+func writeDependency(output io.Writer, dependency purepkg.ListDependency, indent string) {
+	fmt.Fprintf(output, "%s%s@%s (%s)\n", indent, dependency.Name, dependency.Version, dependency.Identity)
+	for _, child := range dependency.Dependencies {
+		writeDependency(output, child, indent+"  ")
+	}
+}
+
+func joinFacts(values []string) string {
+	if len(values) == 0 {
+		return "none"
+	}
+	values = append([]string(nil), values...)
+	sort.Strings(values)
+	return strings.Join(values, ", ")
 }
 
 func writeJSON(output io.Writer, value any) error {
@@ -175,11 +321,21 @@ func writeFailure(output io.Writer, jsonOutput bool, err error) {
 	fmt.Fprintf(output, "locus-pkg: %v\n", err)
 }
 
-const usage = `locus-pkg publishes and installs Scope packages.
+const usage = `locus-pkg installs and publishes npm-compatible Locus packages.
 
 Usage:
-  locus-pkg [--scope <dir>] [--json] publish <oci-tag>
-  locus-pkg [--scope <dir>] [--frozen] [--json] install
+  locus-pkg [options] install [<package-spec>...]
+  locus-pkg [options] uninstall <package>...
+  locus-pkg [options] update [<package>...]
+  locus-pkg [options] list
+  locus-pkg [options] pack
+  locus-pkg [options] publish
   locus-pkg [--json] version
   locus-pkg help
+
+Options:
+  --registry <url>     Override the npm Registry.
+  --offline            Prohibit Registry requests.
+  --frozen-lockfile    Require package.json and locus.lock to agree exactly.
+  --json               Write stable JSON output.
 `
