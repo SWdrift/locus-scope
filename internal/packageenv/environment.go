@@ -9,6 +9,15 @@ import (
 	"locus-scope/internal/scope"
 )
 
+// EnvironmentMode selects diagnostics owned by the package environment that
+// constructed the dependency graph.
+type EnvironmentMode uint8
+
+const (
+	PureEnvironment EnvironmentMode = iota
+	NPMEnvironment
+)
+
 // Identity is the semantic identity of one npm package Scope.
 type Identity string
 
@@ -22,6 +31,7 @@ type Package struct {
 
 // Environment describes the importer-relative package graph visible to a root Scope.
 type Environment struct {
+	Mode             EnvironmentMode
 	RootDependencies map[string]Identity
 	Packages         map[Identity]Package
 }
@@ -31,6 +41,7 @@ type resolver struct {
 	rootDependencies map[string]Identity
 	packages         map[Identity]Package
 	packageSources   map[Identity]scope.Source
+	mode             EnvironmentMode
 }
 
 // Load adapts a resolved package graph to the Scope loader.
@@ -48,9 +59,13 @@ func Load(rootDirectory string, environment Environment) (*scope.Workspace, erro
 
 func newResolver(environment Environment) (*resolver, error) {
 	result := &resolver{
+		mode:             environment.Mode,
 		rootDependencies: copyDependencies(environment.RootDependencies),
 		packages:         make(map[Identity]Package, len(environment.Packages)),
 		packageSources:   make(map[Identity]scope.Source, len(environment.Packages)),
+	}
+	if result.mode != PureEnvironment && result.mode != NPMEnvironment {
+		return nil, fmt.Errorf("unsupported package environment mode %d", result.mode)
 	}
 
 	identities := make([]Identity, 0, len(environment.Packages))
@@ -136,6 +151,9 @@ func (r *resolver) Resolve(from scope.Source, reference string) (scope.Source, e
 	if !exists {
 		if distributed {
 			return scope.Source{}, fmt.Errorf("%s does not declare package import %q in dependencies", importer, reference)
+		}
+		if r.mode == NPMEnvironment {
+			return scope.Source{}, fmt.Errorf("local root does not directly depend on %q; run pnpm add %s or npm install %s", reference, reference, reference)
 		}
 		return scope.Source{}, fmt.Errorf("local root has no installed package edge for %q; run locus-pkg install", reference)
 	}

@@ -57,40 +57,4 @@
 
 ## Task Board
 
-### 输入与设计
-
-- [x] 接收详细指导并冻结 npm 包单元、双模式职责和用户工作流。
-- [x] 冻结 package import、semantic identity、首版 dependency 类型和本地 Scope 边界。
-- [ ] 设计 importer-relative `locus.lock`、多版本 store、安装事务和离线解析。
-- [ ] 评估 Go npm library，并冻结 registry、resolution、pack 和 publish 的复用边界。
-- [x] 冻结 Node 程序 API、平台 package 和发布矩阵。
-- [ ] 设计 Node adapter 与 Go 子进程之间的稳定协议。
-- [x] 冻结项目级 Verdaccio 安装、启动、停止、状态、日志、重置和 E2E 生命周期。
-- [ ] 冻结 `locus-pkg` 各命令的 mutation、事务、JSON 和退出码契约。
-- [ ] 绘制 OCI → npm 的完整影响清单与删除清单。
-- [ ] 重写 Package、测试、当前架构及受影响的安装发布设计。
-
-### 实现
-
-- [ ] 按确认设计整理项目结构和 npm manifests。
-- [ ] 实现真实 npm 发布、获取、安装、锁定和离线加载链路。
-- [ ] 迁移两个 CLI、全部直接调用方、构建发布脚本和 Windows 资产。
-- [ ] 删除 OCI、ORAS、Zot、Docker credential 及旧 cache/materialization 的废弃实现与依赖。
-- [ ] 同步用户文档、脚本说明和 changelog。
-
-### 验收
-
-- [ ] 更新必要的 Package 与 CLI 契约测试。
-- [ ] 在 `temp/` 内启动本地 npm registry，执行隔离的真实 E2E 闭包。
-- [ ] 发布并检查实际 npm 包，再以普通消费者方式安装和加载。
-- [ ] 验证重复发布/冲突、版本变化、lock 复用、离线复现和失败不提交状态。
-- [ ] 运行仓库完成标准，并确认 OCI/Zot 残留只存在于必要历史记录中。
-
-## 讨论中的边界
-
-进入权威设计前仍需冻结：
-
-- `locus.lock` schema、package node key、integrity store 路径和 dependency edge 表示。
-- Node adapter 与 Go 子进程 JSON descriptor 的精确 schema 和错误契约。
-- Go npm library 的能力与维护状态，尤其是 resolver、auth、integrity、packlist 和 publish。
-- `locus-pkg` 各命令的精确 mutation、事务、JSON 和退出码契约。
+当前无待执行任务。

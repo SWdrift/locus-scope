@@ -1,6 +1,6 @@
 {
   "name": "@sundw/locus-scope-darwin-arm64",
-  "version": "1.0.1",
+  "private": true,
   "description": "macOS arm64 host for @sundw/locus-scope",
   "license": "MIT",
   "repository": {

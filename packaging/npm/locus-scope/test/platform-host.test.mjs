@@ -1,11 +1,13 @@
 import assert from 'node:assert/strict';
 import { spawn } from 'node:child_process';
-import { mkdir, realpath, rm, writeFile } from 'node:fs/promises';
+import { mkdir, readFile, realpath, rm, writeFile } from 'node:fs/promises';
 import path from 'node:path';
 import test from 'node:test';
 import { decodeResponse, runHost } from '../lib/host.mjs';
 import { locatePlatformHost, platformPackageName } from '../lib/platform.mjs';
 import { captureStream, testDirectory, writeJson } from './helpers.mjs';
+
+const VERSION = (await readFile(new URL('../../../../VERSION', import.meta.url), 'utf8')).trim();
 
 test('platform lookup selects only the exact supported package and validates its manifest', async (t) => {
   assert.equal(platformPackageName('win32', 'x64'), '@sundw/locus-scope-win32-x64');
@@ -19,7 +21,7 @@ test('platform lookup selects only the exact supported package and validates its
   await mkdir(path.dirname(host), { recursive: true });
   await writeJson(packageJson, {
     name: '@sundw/locus-scope-linux-x64',
-    version: '1.0.1',
+    version: VERSION,
     os: ['linux'],
     cpu: ['x64'],
   });
@@ -46,12 +48,12 @@ test('platform lookup selects only the exact supported package and validates its
       architecture: 'x64',
       resolvePackageJson: () => packageJson,
     }),
-    /does not match @sundw\/locus-scope 1\.0\.1 for linux\/x64/,
+    new RegExp(`does not match @sundw/locus-scope ${VERSION.replaceAll('.', '\\.')} for linux/x64`),
   );
 
   await writeJson(packageJson, {
     name: '@sundw/locus-scope-linux-x64',
-    version: '1.0.1',
+    version: VERSION,
     os: ['linux'],
     cpu: ['x64'],
   });

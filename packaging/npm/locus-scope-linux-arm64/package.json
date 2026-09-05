@@ -1,6 +1,6 @@
 {
   "name": "@sundw/locus-scope-linux-arm64",
-  "version": "1.0.1",
+  "private": true,
   "description": "Linux arm64 host for @sundw/locus-scope",
   "license": "MIT",
   "repository": {

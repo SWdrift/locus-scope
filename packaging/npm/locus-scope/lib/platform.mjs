@@ -1,6 +1,7 @@
-import { lstat, readFile, realpath } from 'node:fs/promises';
+import { lstat, realpath } from 'node:fs/promises';
 import { createRequire } from 'node:module';
 import path from 'node:path';
+import { readManifest, readPackageManifest } from './package-manifest.mjs';
 
 const requireFromPackage = createRequire(import.meta.url);
 const SUPPORTED_HOSTS = new Map([
@@ -38,7 +39,7 @@ export async function locatePlatformHost({
   }
 
   const [adapterManifest, platformManifest] = await Promise.all([
-    readManifest(new URL('../package.json', import.meta.url)),
+    readPackageManifest(),
     readManifest(packageJson),
   ]);
   const expectedVersion = adapterManifest.optionalDependencies?.[packageName];
@@ -73,26 +74,4 @@ export async function locatePlatformHost({
     throw new Error(`platform package ${packageName} host is not a regular file`);
   }
   return realpath(host);
-}
-
-async function readManifest(filename) {
-  let source;
-  try {
-    source = await readFile(filename, 'utf8');
-  } catch (error) {
-    throw new Error(`read package manifest ${JSON.stringify(String(filename))}: ${error.message}`, {
-      cause: error,
-    });
-  }
-  try {
-    const manifest = JSON.parse(source);
-    if (manifest === null || typeof manifest !== 'object' || Array.isArray(manifest)) {
-      throw new Error('expected a JSON object');
-    }
-    return manifest;
-  } catch (error) {
-    throw new Error(`parse package manifest ${JSON.stringify(String(filename))}: ${error.message}`, {
-      cause: error,
-    });
-  }
 }

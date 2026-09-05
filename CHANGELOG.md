@@ -2,6 +2,14 @@
 
 本文件记录 `locus-scope` 各发布版本的用户可见变更。
 
+## [1.0.2] - 2026-09-05
+
+### Fixed
+
+- Darwin 与 Linux npm platform package 将 Go host 声明为 `bin` target，保证最终 tarball 中的 Unix mode 为 `0755`；release 从最终 `.tgz` 安装并执行真实 `validate`。
+- `locus-scope-node --json` 在 Workspace 加载前失败时仍输出 JSON，并为 npm consumer 的缺失直接依赖提示 `pnpm add` 或 `npm install`。
+- Markdown 链接统一使用 `/`，恢复跨平台文档检查。
+
 ## [1.0.1] - 2026-09-05
 
 ### Changed
