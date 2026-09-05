@@ -30,7 +30,7 @@
 - 一个可分发 Locus package 是一个标准 npm package、一个分发单元和一个 Scope；`package.json` 是 package metadata 唯一真相，`locus.entry` 指向该 Scope，不支持跨 package 寻址子 Scope，细粒度复用通过拆分 package 实现。
 - 不把旧 OCI digest、tag、cache 或 materialization 术语机械改名为 npm；每个概念按 npm 的真实可观察行为重新论证。
 - Scope/Graph semantic identity 固定为 `npm:<name>@<version>`，不包含 registry、resolved URL 或 integrity；后面三者只参与解析、校验和可重复安装。
-- `@locus/scope` 通过薄 Node adapter 和子进程复用 Go 核心，不在 JavaScript 中复制 Scope/Graph 语义。
+- `@sundw/locus-scope` 通过薄 Node adapter 和子进程复用 Go 核心，不在 JavaScript 中复制 Scope/Graph 语义。
 - Locus 不分发或管理 Registry server；Verdaccio 只作为项目级开发与 E2E 基础设施。
 - `locus-pkg pack` 优先直接复用选定 Go npm library 的 npm-compatible pack；库不提供时再单独决定 packlist 实现或首版范围，不定义未经评估的 Locus packlist。
 

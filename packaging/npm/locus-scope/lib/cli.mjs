@@ -78,12 +78,12 @@ async function packageManifest() {
   try {
     source = await readFile(new URL('../package.json', import.meta.url), 'utf8');
   } catch (error) {
-    throw new Error(`read @locus/scope package manifest: ${error.message}`, { cause: error });
+    throw new Error(`read @sundw/locus-scope package manifest: ${error.message}`, { cause: error });
   }
   try {
     return JSON.parse(source);
   } catch (error) {
-    throw new Error(`parse @locus/scope package manifest: ${error.message}`, { cause: error });
+    throw new Error(`parse @sundw/locus-scope package manifest: ${error.message}`, { cause: error });
   }
 }
 

@@ -51,6 +51,7 @@ scripts/
 | `pnpm run test:e2e` | 只运行 E2E suite。 |
 | `pnpm run check` | 运行仓库静态检查。 |
 | `pnpm run release` | 生成 Windows 独立制品和六个 npm Package tarball。 |
+| `pnpm run publish:npm` | 按平台包优先、主包最后的顺序发布六个 npm Package tarball。 |
 | `pnpm run registry:start` | 启动 project-local Verdaccio。 |
 | `pnpm run registry:status` | 验证 Registry 进程 ownership 和 endpoint。 |
 | `pnpm run registry:logs` | 输出当前 Registry 日志。 |
@@ -164,6 +165,8 @@ temp/release/windows-amd64/
 ```
 
 npm tarball、stage 和校验和位于 `temp/release/npm/`。发布任务只生成制品，不向公共 Registry 发布。
+
+生成制品后运行 `pnpm run publish:npm` 发布六个公开 Package；附加参数会传给 `pnpm publish`，例如 `pnpm run publish:npm -- --tag next --registry https://registry.npmjs.org/`。
 
 当前用户安装验证使用：
 

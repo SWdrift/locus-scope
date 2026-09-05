@@ -44,9 +44,9 @@ test('version and help are local and require no Scope or platform host', async (
     assert.equal(exitCode, 0);
     assert.equal(stderr.value(), '');
     if (arguments_.includes('--json')) {
-      assert.deepEqual(JSON.parse(stdout.value()), { name: 'locus-scope-node', version: '1.0.0' });
+      assert.deepEqual(JSON.parse(stdout.value()), { name: 'locus-scope-node', version: '1.0.1' });
     } else {
-      assert.equal(stdout.value(), 'locus-scope-node 1.0.0\n');
+      assert.equal(stdout.value(), 'locus-scope-node 1.0.1\n');
     }
   }
 

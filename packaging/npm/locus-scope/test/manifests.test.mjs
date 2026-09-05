@@ -2,7 +2,7 @@ import assert from 'node:assert/strict';
 import { readFile } from 'node:fs/promises';
 import test from 'node:test';
 
-const VERSION = '1.0.0';
+const VERSION = '1.0.1';
 const MATRIX = [
   ['darwin-arm64', 'darwin', 'arm64', 'bin/locus-scope-node-host'],
   ['darwin-x64', 'darwin', 'x64', 'bin/locus-scope-node-host'],
@@ -10,10 +10,21 @@ const MATRIX = [
   ['linux-x64', 'linux', 'x64', 'bin/locus-scope-node-host'],
   ['win32-x64', 'win32', 'x64', 'bin/locus-scope-node-host.exe'],
 ];
+const PROJECT_LINKS = {
+  repository: {
+    type: 'git',
+    url: 'git+https://github.com/SWdrift/locus-scope.git',
+  },
+  homepage: 'https://github.com/SWdrift/locus-scope#readme',
+  bugs: {
+    url: 'https://github.com/SWdrift/locus-scope/issues',
+  },
+};
 
-test('@locus/scope publishes only its CLI with exact platform dependencies', async () => {
+test('@sundw/locus-scope publishes only its CLI with exact platform dependencies', async () => {
   const manifest = await readManifest(new URL('../package.json', import.meta.url));
   assert.equal(manifest.version, VERSION);
+  assertProjectLinks(manifest);
   assert.equal(manifest.type, 'module');
   assert.deepEqual(manifest.engines, { node: '>=20.6' });
   assert.deepEqual(manifest.exports, {});
@@ -21,21 +32,33 @@ test('@locus/scope publishes only its CLI with exact platform dependencies', asy
   assert.deepEqual(manifest.files, ['bin', 'lib']);
   assert.deepEqual(
     manifest.optionalDependencies,
-    Object.fromEntries(MATRIX.map(([suffix]) => [`@locus/scope-${suffix}`, VERSION])),
+    Object.fromEntries(MATRIX.map(([suffix]) => [`@sundw/locus-scope-${suffix}`, VERSION])),
   );
 });
 
 test('platform package manifests match the five-platform host matrix', async () => {
   for (const [suffix, operatingSystem, architecture, host] of MATRIX) {
     const manifest = await readManifest(new URL(`../../locus-scope-${suffix}/package.json`, import.meta.url));
-    assert.equal(manifest.name, `@locus/scope-${suffix}`);
+    assert.equal(manifest.name, `@sundw/locus-scope-${suffix}`);
     assert.equal(manifest.version, VERSION);
+    assertProjectLinks(manifest);
     assert.deepEqual(manifest.os, [operatingSystem]);
     assert.deepEqual(manifest.cpu, [architecture]);
     assert.deepEqual(manifest.exports, { './package.json': './package.json' });
     assert.deepEqual(manifest.files, [host]);
   }
 });
+
+function assertProjectLinks(manifest) {
+  assert.deepEqual(
+    {
+      repository: manifest.repository,
+      homepage: manifest.homepage,
+      bugs: manifest.bugs,
+    },
+    PROJECT_LINKS,
+  );
+}
 
 async function readManifest(filename) {
   return JSON.parse(await readFile(filename, 'utf8'));

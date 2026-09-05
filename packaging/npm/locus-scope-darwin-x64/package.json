@@ -1,8 +1,16 @@
 {
-  "name": "@locus/scope-darwin-x64",
-  "version": "1.0.0",
-  "description": "macOS x64 host for @locus/scope",
+  "name": "@sundw/locus-scope-darwin-x64",
+  "version": "1.0.1",
+  "description": "macOS x64 host for @sundw/locus-scope",
   "license": "MIT",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/SWdrift/locus-scope.git"
+  },
+  "homepage": "https://github.com/SWdrift/locus-scope#readme",
+  "bugs": {
+    "url": "https://github.com/SWdrift/locus-scope/issues"
+  },
   "os": [
     "darwin"
   ],

@@ -18,6 +18,7 @@
     "check": "pnpm run check:links",
     "check:links": "remark \"*.md\" \".agents/skills/*/SKILL.md\" \"documents/**/*.md\" \"scripts/**/*.md\" \"test/**/*.md\" \"test/e2e/case/**/.locus/**/*.md\" --frail --rc-path scripts/config/remark.config.mjs",
     "release": "pwsh -NoProfile -File scripts/windows/release.ps1",
+    "publish:npm": "node scripts/npm-publish.mjs",
     "registry:start": "node scripts/registry.mjs start",
     "registry:status": "node scripts/registry.mjs status",
     "registry:logs": "node scripts/registry.mjs logs",

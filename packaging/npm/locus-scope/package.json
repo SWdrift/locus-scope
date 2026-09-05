@@ -1,8 +1,16 @@
 {
-  "name": "@locus/scope",
-  "version": "1.0.0",
+  "name": "@sundw/locus-scope",
+  "version": "1.0.1",
   "description": "Locus Scope command for npm and pnpm package environments",
   "license": "MIT",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/SWdrift/locus-scope.git"
+  },
+  "homepage": "https://github.com/SWdrift/locus-scope#readme",
+  "bugs": {
+    "url": "https://github.com/SWdrift/locus-scope/issues"
+  },
   "type": "module",
   "engines": {
     "node": ">=20.6"
@@ -16,10 +24,10 @@
     "lib"
   ],
   "optionalDependencies": {
-    "@locus/scope-darwin-arm64": "1.0.0",
-    "@locus/scope-darwin-x64": "1.0.0",
-    "@locus/scope-linux-arm64": "1.0.0",
-    "@locus/scope-linux-x64": "1.0.0",
-    "@locus/scope-win32-x64": "1.0.0"
+    "@sundw/locus-scope-darwin-arm64": "1.0.1",
+    "@sundw/locus-scope-darwin-x64": "1.0.1",
+    "@sundw/locus-scope-linux-arm64": "1.0.1",
+    "@sundw/locus-scope-linux-x64": "1.0.1",
+    "@sundw/locus-scope-win32-x64": "1.0.1"
   }
 }
