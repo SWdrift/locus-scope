@@ -2,6 +2,13 @@
 
 本文件记录 `locus-scope` 各发布版本的用户可见变更。
 
+## [2.0.1] - 2026-09-06
+
+### Changed
+
+- README 与入门、npm、独立 CLI 和完整 CLI 参考文档提供对应的中英文版本，并统一用户文档导航。
+- npm release 支持跳过 Windows 独立制品和安装包，仅生成并验证六个 npm Package tarball。
+
 ## [2.0.0] - 2026-09-06
 
 ### Added

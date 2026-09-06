@@ -2,43 +2,45 @@
 
 [![npm version](https://img.shields.io/npm/v/%40sundw%2Flocus-scope?logo=npm)](https://www.npmjs.com/package/@sundw/locus-scope)
 
-可组合 Entity 图的 Scope 协议及轻量工具，定义身份、关系、作用域和组合方式。
+[中文](https://github.com/SWdrift/locus-scope/blob/main/README_CN.md) | [English](https://github.com/SWdrift/locus-scope/blob/main/README.md)
 
-Locus Scope 将具有身份的事物及其关系组织成有边界的图。Entity 可以表示环境、资源、能力、代码、知识、逻辑结构或其他领域对象；Scope 提供 ownership、命名、可见性与组合边界。一个可分发的 npm Package 对应一个 Scope。
 
-## 使用
+A Scope protocol and lightweight toolkit for composable Entity graphs, defining identity, relationships, scopes, and composition.
 
-提供两种使用模式。都有相同的 Scope 文件和 Workspace 检查语义，只是由不同工具管理 Package 依赖。
+Locus Scope organizes identifiable things and their relationships into bounded graphs. An Entity can represent an environment, resource, capability, code, knowledge, logical structure, or another domain object. A Scope provides ownership, naming, visibility, and composition boundaries. Each distributable npm Package corresponds to one Scope.
 
-| 模式 | 适用情况 | 命令入口 |
+## Usage
+
+Two usage modes are available. Both use the same Scope files and Workspace validation semantics; they differ only in which tool manages Package dependencies.
+
+| Mode | When to use | Command entry point |
 | --- | --- | --- |
-| [使用npm](documents/使用npm.md) | 已有 Node.js 项目；沿用 npm 或 pnpm 的安装、lockfile 和缓存。 | `locus-scope-node` |
-| [使用独立CLI](documents/使用独立CLI.md) | 非 Node.js 项目；只使用本地 Scope；由 Locus 管理 Package lock 和离线缓存。 | `locus-scope`、`locus-pkg` |
+| [Using npm](https://github.com/SWdrift/locus-scope/blob/main/documents/2-Using-npm.md) | Existing Node.js projects; continues using npm or pnpm for installation, lockfiles, and caching. | `locus-scope-node` |
+| [Using the standalone CLI](https://github.com/SWdrift/locus-scope/blob/main/documents/3-Using-Standalone-CLI.md) | Non-Node.js projects; uses only local Scopes, with Locus managing Package locks and the offline cache. | `locus-scope`, `locus-pkg` |
 
-从创建第一个 Scope 开始，请阅读[基本使用](documents/基本使用.md)。
+To create your first Scope, start with [Basic Usage](https://github.com/SWdrift/locus-scope/blob/main/documents/1-Basic-Usage.md).
 
 <details>
-<summary>从源码构建</summary>
+<summary>Building from source</summary>
 
-要求 Go 1.26+、Node.js 20.6+ 和根 `package.json` 固定的 pnpm：
+Requires Go 1.26+, Node.js 20.6+, and the pnpm version pinned in the root `package.json`:
 
 ```powershell
 pnpm run build
 pnpm run deploy
 ```
 
-产物位于 `temp/local/bin/`。用户级部署使用 `pnpm run deploy:user`；完整脚本说明见 [`scripts/README.md`](scripts/README.md)。
+Build artifacts are written to `temp/local/bin/`. For a user-level deployment, run `pnpm run deploy:user`. See [`scripts/README.md`](https://github.com/SWdrift/locus-scope/blob/main/scripts/README.md) for complete script documentation.
 
 </details>
 
-## 文档
+## Documentation
 
-- [基本使用](documents/基本使用.md)：以 npm 模式完成 Scope 创建、检查和组合，并说明独立 CLI 差异。
-- [使用npm](documents/使用npm.md)：安装 Node adapter，由 npm 或 pnpm 管理 Package。
-- [使用独立CLI](documents/使用独立CLI.md)：安装独立命令，管理 lock、离线状态和 Package 发布。
-- [CLI](documents/design/protocol/CLI.md)：Workspace 检查与 Package 管理指令、参数和输出约定。
-- [设计文档](documents/design/README.md)：协议、Scope、Package、测试和 Windows 安装包的权威设计。
+- [Basic Usage](https://github.com/SWdrift/locus-scope/blob/main/documents/1-Basic-Usage.md): Create, validate, and compose Scopes in npm mode, with notes on differences in the standalone CLI.
+- [Using npm](https://github.com/SWdrift/locus-scope/blob/main/documents/2-Using-npm.md): Install the Node adapter and let npm or pnpm manage Packages.
+- [Using the standalone CLI](https://github.com/SWdrift/locus-scope/blob/main/documents/3-Using-Standalone-CLI.md): Install the standalone commands and manage locks, offline state, and Package publishing.
+- [CLI Reference](https://github.com/SWdrift/locus-scope/blob/main/documents/4-CLI-Reference.md): All Workspace and Package commands, options, filters, mutations, output, and exit statuses.
 
 ## License
 
-[MIT](LICENSE)
+[MIT](https://github.com/SWdrift/locus-scope/blob/main/LICENSE)
