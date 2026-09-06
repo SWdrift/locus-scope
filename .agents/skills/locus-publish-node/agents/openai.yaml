@@ -1,0 +1,4 @@
+interface:
+  display_name: "Locus Scope · npm 发布 Package"
+  short_description: "轻量校验并以裸 npm 发布 Scope Package。"
+  default_prompt: "使用 $locus-publish-node 检查、打包并通过 npm 发布 Locus Package。"
