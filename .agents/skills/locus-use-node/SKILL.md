@@ -177,3 +177,7 @@ Registry、scope mapping 和认证遵循 npm/pnpm 自身配置。token 只通过
 - bare Import 不能携带 `@version` 或 `/subpath`。
 - `:` 分隔 imported Projection，`/` 表示 Scope 内 Group path。
 - Locus 描述系统，不负责 provisioning、运行状态或 deployment drift reconciliation。
+
+## 项目
+
+- [SWdrift/locus-scope](https://github.com/SWdrift/locus-scope)
