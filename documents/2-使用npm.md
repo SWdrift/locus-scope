@@ -90,14 +90,18 @@ Node adapter 从每个 Package 自己的依赖上下文解析直接依赖，因�
 
 ## 发布 Package
 
-可发布的 Locus Package 使用标准 npm metadata，但发布前需要由 `locus-pkg` 校验和打包：
+目前尚未提供 `locus-pkg` 在 Node.js/npm 生态中的对应 CLI，暂时以 `$locus-publish-node` Skill 提供发布流程。
+
+可发布的 Locus Package 使用标准 npm metadata。Agent 发布时使用 `$locus-publish-node`：先运行 Skill 自带的轻量校验脚本，再验证 Workspace，最后打包并发布同一个 npm tarball：
 
 ```text
-locus-pkg pack
-locus-pkg publish --registry https://registry.example.com/
+node <skill-dir>/scripts/validate-package.mjs .
+pnpm exec locus-scope-node validate
+npm pack --json --ignore-scripts --pack-destination <workspace>/temp/locus-publish
+npm publish <workspace>/temp/locus-publish/<filename> --ignore-scripts --registry https://registry.example.com/
 ```
 
-Package 作者因此需要额外安装独立的 `locus-pkg`。完整步骤见[独立 CLI 模式的“打包与发布”](3-使用独立CLI.md#打包与发布)。
+发布前必须检查 `npm pack --json` 返回的文件列表和 SHA-512 integrity；发布后确认 Registry 中确切 `name@version` 的 `dist.integrity` 一致。Skill 是 Agent 工作流而非 Registry 强制门禁。需要非 Node.js 环境或工具级强制校验时，改用 `locus-pkg pack` 和 `locus-pkg publish`。
 
 ## 与独立 CLI 模式的边界
 

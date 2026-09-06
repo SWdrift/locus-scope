@@ -19,6 +19,13 @@ Locus Scope 将具有身份的事物及其关系组织成有边界的图。Entit
 
 从创建第一个 Scope 开始，请阅读[基本使用](documents/1-基本使用.md)。
 
+Agent 可按环境和任务选择对应 Skill：
+
+| 环境 | 使用与消费 Package | 发布 Package |
+| --- | --- | --- |
+| npm / pnpm | `$locus-use-node` | `$locus-publish-node` |
+| 独立 CLI / Pure Locus | `$locus-use` | `$locus-publish` |
+
 <details>
 <summary>从源码构建</summary>
 
