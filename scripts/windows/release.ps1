@@ -1,7 +1,8 @@
 [CmdletBinding()]
 param(
     [string]$Version,
-    [string]$IsccPath
+    [string]$IsccPath,
+    [switch]$NpmOnly
 )
 
 Set-StrictMode -Version Latest
@@ -30,6 +31,7 @@ $NpmStageRoot = Join-Path $NpmRoot 'stage'
 $NpmTarballRoot = $NpmRoot
 $InstallerScript = Join-Path $RepositoryRoot 'packaging\windows\locus.iss'
 $LicensePath = Join-Path $RepositoryRoot 'LICENSE'
+$ReadmePath = Join-Path $RepositoryRoot 'README.md'
 $InnoManagerPath = Join-Path $PSScriptRoot 'inno-setup.ps1'
 $LdFlags = "-X locus-scope/internal/buildinfo.Version=$Version"
 
@@ -199,10 +201,13 @@ function Write-Checksums {
     [IO.File]::WriteAllText((Join-Path $Directory 'SHA256SUMS'), (($lines -join "`n") + "`n"), (New-Object Text.UTF8Encoding($false)))
 }
 
-Assert-File $InstallerScript
+if (-not $NpmOnly) {
+    Assert-File $InstallerScript
+}
 Assert-File $LicensePath
+Assert-File $ReadmePath
 Get-Command pnpm -ErrorAction Stop | Out-Null
-$CompilerPath = Resolve-Iscc
+$CompilerPath = if ($NpmOnly) { $null } else { Resolve-Iscc }
 foreach ($path in $TempRoot, $ReleaseStageRoot) {
     if (-not (Test-Path -LiteralPath $path)) {
         continue
@@ -212,30 +217,41 @@ foreach ($path in $TempRoot, $ReleaseStageRoot) {
         throw "release path must be an ordinary directory: $path"
     }
 }
-Remove-OwnedDirectory $ReleaseRoot
-Remove-OwnedDirectory $WindowsStageRoot
+if ($NpmOnly) {
+    Remove-OwnedDirectory $NpmRoot
+}
+else {
+    Remove-OwnedDirectory $ReleaseRoot
+    Remove-OwnedDirectory $WindowsStageRoot
+}
 $StageBinRoot = Join-Path $WindowsStageRoot 'bin'
 $StageLicenseRoot = Join-Path $WindowsStageRoot 'licenses'
-New-Item -ItemType Directory -Force -Path $StageBinRoot, $StageLicenseRoot, $WindowsReleaseRoot, $NpmStageRoot, $NpmTarballRoot | Out-Null
+$releaseDirectories = @($NpmStageRoot, $NpmTarballRoot)
+if (-not $NpmOnly) {
+    $releaseDirectories += $StageBinRoot, $StageLicenseRoot, $WindowsReleaseRoot
+}
+New-Item -ItemType Directory -Force -Path $releaseDirectories | Out-Null
 
 $previousGoOS = $env:GOOS
 $previousGoArch = $env:GOARCH
 $previousCgoEnabled = $env:CGO_ENABLED
 try {
     $env:CGO_ENABLED = '0'
-    $env:GOOS = 'windows'
-    $env:GOARCH = 'amd64'
-    & node (Join-Path $RepositoryRoot 'scripts\build.mjs')
-    if ($LASTEXITCODE -ne 0) {
-        throw "node scripts/build.mjs exited with code $LASTEXITCODE"
+    if (-not $NpmOnly) {
+        $env:GOOS = 'windows'
+        $env:GOARCH = 'amd64'
+        & node (Join-Path $RepositoryRoot 'scripts\build.mjs')
+        if ($LASTEXITCODE -ne 0) {
+            throw "node scripts/build.mjs exited with code $LASTEXITCODE"
+        }
+        $artifactRoot = Join-Path $RepositoryRoot 'temp\build\windows-amd64'
+        foreach ($fileName in 'locus-pkg.exe', 'locus-scope.exe') {
+            $source = Join-Path $artifactRoot $fileName
+            Assert-File $source
+            Copy-Item -LiteralPath $source -Destination (Join-Path $StageBinRoot $fileName)
+        }
+        Copy-Item -LiteralPath $LicensePath -Destination (Join-Path $StageLicenseRoot 'locus-license.txt')
     }
-    $artifactRoot = Join-Path $RepositoryRoot 'temp\build\windows-amd64'
-    foreach ($fileName in 'locus-pkg.exe', 'locus-scope.exe') {
-        $source = Join-Path $artifactRoot $fileName
-        Assert-File $source
-        Copy-Item -LiteralPath $source -Destination (Join-Path $StageBinRoot $fileName)
-    }
-    Copy-Item -LiteralPath $LicensePath -Destination (Join-Path $StageLicenseRoot 'locus-license.txt')
 
     foreach ($platformPackage in $PlatformPackages) {
         $sourceRoot = Join-Path $RepositoryRoot (Join-Path 'packaging\npm' $platformPackage.Directory)
@@ -264,6 +280,7 @@ try {
     $scopeSourceRoot = Join-Path $RepositoryRoot 'packaging\npm\locus-scope'
     $scopeStageRoot = Join-Path $NpmStageRoot 'locus-scope'
     Copy-PackageSource -Source $scopeSourceRoot -Destination $scopeStageRoot
+    Copy-Item -LiteralPath $ReadmePath -Destination (Join-Path $scopeStageRoot 'README.md') -Force
     Set-StagedPackageVersion -PackageRoot $scopeStageRoot -ExpectedName '@sundw/locus-scope' -SynchronizeOptionalDependencies
     Invoke-PackagePack -PackageRoot $scopeStageRoot
 }
@@ -288,20 +305,22 @@ finally {
     }
 }
 
-$cliArchive = Join-Path $WindowsReleaseRoot 'locus-windows-amd64.zip'
-$archiveInputs = @(
-    (Join-Path $StageBinRoot 'locus-pkg.exe'),
-    (Join-Path $StageBinRoot 'locus-scope.exe'),
-    (Join-Path $StageLicenseRoot 'locus-license.txt')
-)
-Compress-Archive -LiteralPath $archiveInputs -DestinationPath $cliArchive -CompressionLevel Optimal
-& $CompilerPath "/DAppVersion=$Version" "/DStageDir=$WindowsStageRoot" "/DOutputDir=$WindowsReleaseRoot" $InstallerScript
-if ($LASTEXITCODE -ne 0) {
-    throw "ISCC.exe exited with code $LASTEXITCODE"
+if (-not $NpmOnly) {
+    $cliArchive = Join-Path $WindowsReleaseRoot 'locus-windows-amd64.zip'
+    $archiveInputs = @(
+        (Join-Path $StageBinRoot 'locus-pkg.exe'),
+        (Join-Path $StageBinRoot 'locus-scope.exe'),
+        (Join-Path $StageLicenseRoot 'locus-license.txt')
+    )
+    Compress-Archive -LiteralPath $archiveInputs -DestinationPath $cliArchive -CompressionLevel Optimal
+    & $CompilerPath "/DAppVersion=$Version" "/DStageDir=$WindowsStageRoot" "/DOutputDir=$WindowsReleaseRoot" $InstallerScript
+    if ($LASTEXITCODE -ne 0) {
+        throw "ISCC.exe exited with code $LASTEXITCODE"
+    }
+    $setupPath = Join-Path $WindowsReleaseRoot 'locus-setup-windows-amd64.exe'
+    Assert-File $setupPath
+    Write-Checksums -Directory $WindowsReleaseRoot -Artifacts @($cliArchive, $setupPath)
 }
-$setupPath = Join-Path $WindowsReleaseRoot 'locus-setup-windows-amd64.exe'
-Assert-File $setupPath
-Write-Checksums -Directory $WindowsReleaseRoot -Artifacts @($cliArchive, $setupPath)
 
 $npmTarballs = @(Get-ChildItem -LiteralPath $NpmTarballRoot -Filter '*.tgz' -File | Select-Object -ExpandProperty FullName)
 if ($npmTarballs.Count -ne 6) {
@@ -313,7 +332,9 @@ if ($LASTEXITCODE -ne 0) {
 }
 Write-Checksums -Directory $NpmTarballRoot -Artifacts $npmTarballs
 
-Write-Output "Standalone release artifacts: $WindowsReleaseRoot"
-Get-ChildItem -LiteralPath $WindowsReleaseRoot -File | Sort-Object Name | Select-Object Name, Length
+if (-not $NpmOnly) {
+    Write-Output "Standalone release artifacts: $WindowsReleaseRoot"
+    Get-ChildItem -LiteralPath $WindowsReleaseRoot -File | Sort-Object Name | Select-Object Name, Length
+}
 Write-Output "npm package artifacts: $NpmTarballRoot"
 Get-ChildItem -LiteralPath $NpmTarballRoot -File | Sort-Object Name | Select-Object Name, Length

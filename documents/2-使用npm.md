@@ -27,7 +27,7 @@ pnpm exec locus-scope-node validate
 npx locus-scope-node validate
 ```
 
-完整的建模和 CLI 操作步骤见[基本使用](基本使用.md)。
+完整的建模和 CLI 操作步骤见[基本使用](1-基本使用.md)。
 
 ## 安装 Locus Package
 
@@ -97,7 +97,7 @@ locus-pkg pack
 locus-pkg publish --registry https://registry.example.com/
 ```
 
-Package 作者因此需要额外安装独立的 `locus-pkg`。完整步骤见[独立 CLI 模式的“打包与发布”](使用独立CLI.md#打包与发布)，格式约束见[Package 设计](design/Package设计.md)。
+Package 作者因此需要额外安装独立的 `locus-pkg`。完整步骤见[独立 CLI 模式的“打包与发布”](3-使用独立CLI.md#打包与发布)。
 
 ## 与独立 CLI 模式的边界
 
@@ -107,4 +107,4 @@ Package 作者因此需要额外安装独立的 `locus-pkg`。完整步骤见[�
 - 独立 CLI 模式读取 `locus.lock` 和 `.locus/`，命令是 `locus-scope`。
 - 只使用本地 Scope、不需要 Package 时，两种 CLI 都可以直接加载相同文件。
 
-非 Node.js 项目或希望脱离 npm 工具链时，应改用[独立 CLI 模式](使用独立CLI.md)。
+非 Node.js 项目或希望脱离 npm 工具链时，应改用[独立 CLI 模式](3-使用独立CLI.md)。

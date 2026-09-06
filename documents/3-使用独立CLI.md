@@ -33,7 +33,7 @@ locus-scope --scope ./app entity
 locus-scope --scope ./app relation
 ```
 
-进入 `app` 或其子目录后可以省略 `--scope`。完整的建模和 CLI 操作步骤见[基本使用](基本使用.md)。
+进入 `app` 或其子目录后可以省略 `--scope`。完整的建模和 CLI 操作步骤见[基本使用](1-基本使用.md)。
 
 只使用本地 Scope 时不需要 `package.json`、`locus.lock` 或 `.locus/`。
 
@@ -120,7 +120,6 @@ locus-pkg publish --registry https://registry.example.com/
 
 Registry 选择沿用 npm 的 `.npmrc` 规则，也可以使用 `--registry` 或 `NPM_CONFIG_REGISTRY`。Bearer token 使用对应 Registry 的 `_authToken` 或 `NPM_TOKEN`。不要把凭据写入 Package、lock、`.locus/` 或命令输出。
 
-Package 格式、发布约束和 Registry 规则见[Package 设计](design/Package设计.md)。
 
 ## 与 npm 模式的边界
 
@@ -130,4 +129,4 @@ Package 格式、发布约束和 Registry 规则见[Package 设计](design/Packa
 - npm 模式由 npm 或 pnpm 生成自己的 lockfile 并维护 `node_modules`。
 - `locus-scope` 不读取 `node_modules`；`locus-scope-node` 不读取 `.locus/`。
 
-已由 npm 或 pnpm 管理依赖的项目，应改用 [npm 模式](使用npm.md)。
+已由 npm 或 pnpm 管理依赖的项目，应改用 [npm 模式](2-使用npm.md)。
