@@ -1,19 +1,20 @@
-// Package scopeapp exposes transport-independent Scope application queries.
+// Package scopeapp exposes transport-independent Scope management operations.
 package scopeapp
 
 import (
-	"fmt"
 	"sort"
+	"strings"
 
+	"locus-scope/internal/apperror"
 	"locus-scope/internal/scope"
 )
 
-// Service queries one fully loaded and validated Scope workspace.
 type Service struct {
-	workspace *scope.Workspace
+	workspace  *scope.Workspace
+	scopeRefs  map[scope.ScopeKey]string
+	entityRefs map[scope.EntityKey]string
 }
 
-// ValidationResult summarizes a loaded workspace.
 type ValidationResult struct {
 	Valid     bool           `json:"valid"`
 	Root      scope.ScopeKey `json:"root"`
@@ -22,189 +23,334 @@ type ValidationResult struct {
 	Relations int            `json:"relations"`
 }
 
-// Import describes one resolved Scope import.
-type Import struct {
-	Alias  string         `json:"alias"`
-	Source string         `json:"source"`
-	Target scope.ScopeKey `json:"target"`
-}
-
-// Scope describes one loaded Scope.
-type Scope struct {
-	ID      string         `json:"id"`
-	Source  scope.ScopeKey `json:"source"`
-	Root    bool           `json:"root"`
-	Imports []Import       `json:"imports"`
-	Exports []string       `json:"exports"`
-}
-
-// ScopesResult contains every loaded Scope in stable source order.
-type ScopesResult struct {
-	Scopes []Scope `json:"scopes"`
-}
-
-// EntityKey identifies an entity and its owning Scope.
-type EntityKey struct {
-	ScopeID string         `json:"scope_id"`
+type Source struct {
 	Scope   scope.ScopeKey `json:"scope"`
-	ID      string         `json:"id"`
+	ScopeID string         `json:"scopeId"`
+	File    string         `json:"file"`
+	Group   string         `json:"group,omitempty"`
+	Line    int            `json:"line,omitempty"`
+	Index   int            `json:"index,omitempty"`
 }
 
-// Entity describes a resolved entity.
 type Entity struct {
-	ScopeID    string         `json:"scope_id"`
-	Scope      scope.ScopeKey `json:"scope"`
-	ID         string         `json:"id"`
-	Properties map[string]any `json:"properties"`
+	Key    scope.EntityKey `json:"key"`
+	Ref    string          `json:"ref,omitempty"`
+	Object map[string]any  `json:"object"`
+	Source *Source         `json:"source,omitempty"`
 }
 
-// EntitiesResult contains every entity in stable Scope and entity order.
-type EntitiesResult struct {
-	Entities []EntityKey `json:"entities"`
-}
-
-// EntityResult associates the requested reference with its resolved entity.
-type EntityResult struct {
-	Reference string `json:"reference"`
-	Entity    Entity `json:"entity"`
-}
-
-// Relation describes one resolved directed relation.
 type Relation struct {
-	From EntityKey `json:"from"`
-	Name string    `json:"name"`
-	To   EntityKey `json:"to"`
+	FromKey scope.EntityKey `json:"fromKey"`
+	ToKey   scope.EntityKey `json:"toKey"`
+	Object  map[string]any  `json:"object"`
+	Source  *Source         `json:"source,omitempty"`
 }
 
-// RelationsResult contains every resolved relation.
-type RelationsResult struct {
-	Relations []Relation `json:"relations"`
+type Scope struct {
+	Key    scope.ScopeKey `json:"key"`
+	Ref    string         `json:"ref"`
+	Object map[string]any `json:"object"`
+	Source *Source        `json:"source,omitempty"`
 }
 
-// ResolveResult associates the requested reference with its stable entity identity.
-type ResolveResult struct {
-	Reference string    `json:"reference"`
-	Entity    EntityKey `json:"entity"`
+type Group struct {
+	Scope   scope.ScopeKey `json:"scope"`
+	Ref     string         `json:"ref"`
+	Object  map[string]any `json:"object"`
+	Sources []Source       `json:"sources,omitempty"`
 }
 
-// New creates an application service over a loaded workspace.
 func New(workspace *scope.Workspace) *Service {
-	return &Service{workspace: workspace}
+	s := &Service{workspace: workspace}
+	if workspace != nil {
+		s.scopeRefs = makeScopeRefs(workspace)
+		s.entityRefs = makeEntityRefs(workspace, s.scopeRefs)
+	}
+	return s
 }
 
-// Validate returns the summary of a workspace that passed loading validation.
+func (s *Service) Workspace() *scope.Workspace { return s.workspace }
+
 func (s *Service) Validate() ValidationResult {
 	entities := 0
-	for _, loaded := range s.workspace.Scopes {
-		entities += len(loaded.Entities)
+	for _, current := range s.workspace.Scopes {
+		entities += len(current.Entities)
 	}
-	return ValidationResult{
-		Valid:     true,
-		Root:      s.workspace.Root,
-		Scopes:    len(s.workspace.Scopes),
-		Entities:  entities,
-		Relations: len(s.workspace.Relations),
-	}
+	return ValidationResult{true, s.workspace.Root, len(s.workspace.Scopes), entities, len(s.workspace.Relations)}
 }
 
-// RootScope returns the root Scope.
-func (s *Service) RootScope() Scope {
-	return s.makeScope(s.workspace.Root)
-}
-
-// ListScopes returns every loaded Scope in deterministic order.
-func (s *Service) ListScopes() ScopesResult {
-	keys := s.scopeKeys()
-	result := ScopesResult{Scopes: make([]Scope, 0, len(keys))}
+func (s *Service) QueryScopes(predicates []scope.Predicate, withSource bool) []Scope {
+	keys := sortedScopeKeys(s.workspace)
+	result := make([]Scope, 0, len(keys))
 	for _, key := range keys {
-		result.Scopes = append(result.Scopes, s.makeScope(key))
+		current := s.workspace.Scopes[key]
+		object := map[string]any{"id": current.Manifest.ID, "imports": current.Manifest.Imports, "exports": current.Manifest.Exports, "root": key == s.workspace.Root}
+		metadata := map[string]any{"scope": s.scopeRefs[key]}
+		if !scope.Match(object, metadata, predicates) {
+			continue
+		}
+		item := Scope{Key: key, Ref: s.scopeRefs[key], Object: object}
+		if withSource {
+			item.Source = &Source{Scope: key, ScopeID: current.Manifest.ID, File: manifestFile(current)}
+		}
+		result = append(result, item)
 	}
 	return result
 }
 
-// ListEntities returns every entity in deterministic owner and ID order.
-func (s *Service) ListEntities() EntitiesResult {
-	var entities []EntityKey
-	for _, key := range s.scopeKeys() {
-		loaded := s.workspace.Scopes[key]
-		ids := make([]string, 0, len(loaded.Entities))
-		for id := range loaded.Entities {
-			ids = append(ids, id)
-		}
-		sort.Strings(ids)
-		for _, id := range ids {
-			entities = append(entities, EntityKey{ScopeID: loaded.Manifest.ID, Scope: key, ID: id})
+func (s *Service) GetScope(reference string, withSource bool) (Scope, error) {
+	key, err := s.ResolveScope(reference)
+	if err != nil {
+		return Scope{}, err
+	}
+	for _, item := range s.QueryScopes(nil, withSource) {
+		if item.Key == key {
+			return item, nil
 		}
 	}
-	return EntitiesResult{Entities: entities}
+	return Scope{}, apperror.Message(apperror.NotFound, "scope.object_not_found", "scope %q not found", reference)
 }
 
-// GetEntity resolves a reference from the root Scope and returns the entity.
-func (s *Service) GetEntity(reference string) (EntityResult, error) {
+func (s *Service) QueryGroups(predicates []scope.Predicate, withSource bool) []Group {
+	type groupKey struct {
+		scope scope.ScopeKey
+		group string
+	}
+	groups := make(map[groupKey][]Source)
+	for key, current := range s.workspace.Scopes {
+		for _, entity := range current.Entities {
+			if entity.Source.Group == "" {
+				continue
+			}
+			k := groupKey{key, entity.Source.Group}
+			sourceValue := makeSource(s.workspace, entity.Source)
+			found := false
+			for _, existing := range groups[k] {
+				if existing.File == sourceValue.File {
+					found = true
+					break
+				}
+			}
+			if !found {
+				groups[k] = append(groups[k], sourceValue)
+			}
+		}
+	}
+	keys := make([]groupKey, 0, len(groups))
+	for key := range groups {
+		keys = append(keys, key)
+	}
+	sort.Slice(keys, func(i, j int) bool {
+		if keys[i].scope != keys[j].scope {
+			return keys[i].scope < keys[j].scope
+		}
+		return keys[i].group < keys[j].group
+	})
+	result := make([]Group, 0, len(keys))
+	for _, key := range keys {
+		ref := s.scopeRefs[key.scope] + "#" + key.group
+		object := map[string]any{"id": key.group}
+		metadata := map[string]any{"scope": s.scopeRefs[key.scope], "group": key.group}
+		if !scope.Match(object, metadata, predicates) {
+			continue
+		}
+		item := Group{Scope: key.scope, Ref: ref, Object: object}
+		if withSource {
+			sort.Slice(groups[key], func(i, j int) bool { return groups[key][i].File < groups[key][j].File })
+			item.Sources = groups[key]
+		}
+		result = append(result, item)
+	}
+	return result
+}
+
+func (s *Service) GetGroup(reference string, withSource bool) (Group, error) {
+	separator := strings.LastIndex(reference, "#")
+	if separator <= 0 || separator == len(reference)-1 {
+		return Group{}, apperror.Message(apperror.InvalidArgument, "scope.selector_invalid", "invalid group reference %q", reference)
+	}
+	key, err := s.ResolveScope(reference[:separator])
+	if err != nil {
+		return Group{}, err
+	}
+	group := reference[separator+1:]
+	for _, item := range s.QueryGroups(nil, withSource) {
+		if item.Scope == key && item.Object["id"] == group {
+			return item, nil
+		}
+	}
+	return Group{}, apperror.Message(apperror.NotFound, "scope.object_not_found", "group %q not found", reference)
+}
+
+func (s *Service) QueryEntities(predicates []scope.Predicate, withSource bool) []Entity {
+	keys := make([]scope.EntityKey, 0)
+	for owner, current := range s.workspace.Scopes {
+		for id := range current.Entities {
+			keys = append(keys, scope.EntityKey{Scope: owner, ID: id})
+		}
+	}
+	sortEntityKeys(keys)
+	result := make([]Entity, 0, len(keys))
+	for _, key := range keys {
+		entity := s.workspace.Scopes[key.Scope].Entities[key.ID]
+		object := cloneMap(entity.Properties)
+		object["id"] = entity.ID
+		metadata := map[string]any{"scope": s.scopeRefs[key.Scope], "group": entity.Source.Group}
+		if !scope.Match(object, metadata, predicates) {
+			continue
+		}
+		item := Entity{Key: key, Ref: s.entityRefs[key], Object: object}
+		if withSource {
+			sourceValue := makeSource(s.workspace, entity.Source)
+			item.Source = &sourceValue
+		}
+		result = append(result, item)
+	}
+	return result
+}
+
+func (s *Service) GetEntity(reference string, withSource bool) (Entity, error) {
 	key, err := s.workspace.Resolve(s.workspace.Root, reference)
 	if err != nil {
-		return EntityResult{}, fmt.Errorf("resolve entity %q: %w", reference, err)
+		return Entity{}, apperror.Wrap(apperror.NotFound, "scope.object_not_found", err.Error(), err, map[string]string{"reference": reference})
 	}
-	loaded := s.workspace.Scopes[key.Scope]
-	entity := loaded.Entities[key.ID]
-	return EntityResult{
-		Reference: reference,
-		Entity: Entity{
-			ScopeID:    loaded.Manifest.ID,
-			Scope:      key.Scope,
-			ID:         key.ID,
-			Properties: entity.Properties,
-		},
-	}, nil
+	return s.EntityByKey(key, withSource)
 }
 
-// ListRelations returns every resolved relation.
-func (s *Service) ListRelations() RelationsResult {
-	relations := make([]Relation, 0, len(s.workspace.Relations))
+func (s *Service) EntityByKey(key scope.EntityKey, withSource bool) (Entity, error) {
+	for _, item := range s.QueryEntities(nil, withSource) {
+		if item.Key == key {
+			return item, nil
+		}
+	}
+	return Entity{}, apperror.Message(apperror.NotFound, "scope.object_not_found", "entity %s#%s not found", key.Scope, key.ID)
+}
+
+func (s *Service) QueryRelations(predicates []scope.Predicate, withSource bool) []Relation {
+	result := make([]Relation, 0, len(s.workspace.Relations))
 	for _, relation := range s.workspace.Relations {
-		relations = append(relations, Relation{
-			From: s.makeEntityKey(relation.From),
-			Name: relation.Name,
-			To:   s.makeEntityKey(relation.To),
-		})
+		object := cloneMap(relation.Properties)
+		object["from"], object["type"], object["to"] = relation.FromRef, relation.Type, relation.ToRef
+		metadata := map[string]any{"scope": s.scopeRefs[relation.Source.Scope], "fromScope": s.scopeRefs[relation.From.Scope], "toScope": s.scopeRefs[relation.To.Scope]}
+		if !scope.Match(object, metadata, predicates) {
+			continue
+		}
+		item := Relation{FromKey: relation.From, ToKey: relation.To, Object: object}
+		if withSource {
+			sourceValue := makeSource(s.workspace, relation.Source)
+			item.Source = &sourceValue
+		}
+		result = append(result, item)
 	}
-	return RelationsResult{Relations: relations}
+	return result
 }
 
-// ResolveEntity resolves a reference from the root Scope to its stable identity.
-func (s *Service) ResolveEntity(reference string) (ResolveResult, error) {
-	key, err := s.workspace.Resolve(s.workspace.Root, reference)
-	if err != nil {
-		return ResolveResult{}, fmt.Errorf("resolve %q: %w", reference, err)
+func (s *Service) ResolveScope(reference string) (scope.ScopeKey, error) {
+	if reference == "." {
+		return s.workspace.Root, nil
 	}
-	return ResolveResult{Reference: reference, Entity: s.makeEntityKey(key)}, nil
+	current := s.workspace.Root
+	for _, alias := range strings.Split(reference, ":") {
+		next, ok := s.workspace.Scopes[current].Imports[alias]
+		if !ok {
+			return "", apperror.Message(apperror.NotFound, "scope.object_not_found", "scope reference %q does not resolve at alias %q", reference, alias)
+		}
+		current = next
+	}
+	return current, nil
 }
 
-func (s *Service) makeScope(key scope.ScopeKey) Scope {
-	loaded := s.workspace.Scopes[key]
-	aliases := make([]string, 0, len(loaded.Imports))
-	for alias := range loaded.Imports {
-		aliases = append(aliases, alias)
-	}
-	sort.Strings(aliases)
-	imports := make([]Import, 0, len(aliases))
-	for _, alias := range aliases {
-		imports = append(imports, Import{Alias: alias, Source: loaded.Manifest.Imports[alias], Target: loaded.Imports[alias]})
-	}
-	exports := append([]string(nil), loaded.Manifest.Exports...)
-	sort.Strings(exports)
-	return Scope{ID: loaded.Manifest.ID, Source: key, Root: key == s.workspace.Root, Imports: imports, Exports: exports}
+func makeSource(workspace *scope.Workspace, provenance scope.Provenance) Source {
+	return Source{Scope: provenance.Scope, ScopeID: workspace.Scopes[provenance.Scope].Manifest.ID, File: provenance.File, Group: provenance.Group, Line: provenance.Line, Index: provenance.Index}
 }
 
-func (s *Service) makeEntityKey(key scope.EntityKey) EntityKey {
-	return EntityKey{ScopeID: s.workspace.Scopes[key.Scope].Manifest.ID, Scope: key.Scope, ID: key.ID}
+func manifestFile(current *scope.Scope) string { return current.ManifestFile }
+
+func makeScopeRefs(workspace *scope.Workspace) map[scope.ScopeKey]string {
+	refs := map[scope.ScopeKey]string{workspace.Root: "."}
+	queue := []scope.ScopeKey{workspace.Root}
+	for len(queue) != 0 {
+		current := queue[0]
+		queue = queue[1:]
+		aliases := make([]string, 0, len(workspace.Scopes[current].Imports))
+		for alias := range workspace.Scopes[current].Imports {
+			aliases = append(aliases, alias)
+		}
+		sort.Strings(aliases)
+		for _, alias := range aliases {
+			target := workspace.Scopes[current].Imports[alias]
+			candidate := alias
+			if refs[current] != "." {
+				candidate = refs[current] + ":" + alias
+			}
+			if existing, ok := refs[target]; !ok || candidate < existing {
+				refs[target] = candidate
+				queue = append(queue, target)
+			}
+		}
+	}
+	return refs
 }
 
-func (s *Service) scopeKeys() []scope.ScopeKey {
-	keys := make([]scope.ScopeKey, 0, len(s.workspace.Scopes))
-	for key := range s.workspace.Scopes {
+func makeEntityRefs(workspace *scope.Workspace, scopeRefs map[scope.ScopeKey]string) map[scope.EntityKey]string {
+	refs := make(map[scope.EntityKey]string)
+	root := workspace.Scopes[workspace.Root]
+	for id := range root.Entities {
+		refs[scope.EntityKey{Scope: workspace.Root, ID: id}] = id
+	}
+	keys := sortedScopeKeys(workspace)
+	for _, key := range keys {
+		if key == workspace.Root {
+			continue
+		}
+		prefix := scopeRefs[key]
+		for _, exported := range workspace.Scopes[key].Manifest.Exports {
+			candidate := prefix + ":" + exported
+			resolved, err := workspace.Resolve(workspace.Root, candidate)
+			if err == nil {
+				if previous, ok := refs[resolved]; !ok || candidate < previous {
+					refs[resolved] = candidate
+				}
+			}
+		}
+	}
+	return refs
+}
+
+func sortedScopeKeys(workspace *scope.Workspace) []scope.ScopeKey {
+	keys := make([]scope.ScopeKey, 0, len(workspace.Scopes))
+	for key := range workspace.Scopes {
 		keys = append(keys, key)
 	}
 	sort.Slice(keys, func(i, j int) bool { return keys[i] < keys[j] })
 	return keys
+}
+func sortEntityKeys(keys []scope.EntityKey) {
+	sort.Slice(keys, func(i, j int) bool {
+		if keys[i].Scope != keys[j].Scope {
+			return keys[i].Scope < keys[j].Scope
+		}
+		return keys[i].ID < keys[j].ID
+	})
+}
+func cloneMap(value map[string]any) map[string]any {
+	result := make(map[string]any, len(value)+1)
+	for key, item := range value {
+		result[key] = cloneValue(item)
+	}
+	return result
+}
+func cloneValue(value any) any {
+	switch typed := value.(type) {
+	case map[string]any:
+		return cloneMap(typed)
+	case []any:
+		result := make([]any, len(typed))
+		for index, item := range typed {
+			result[index] = cloneValue(item)
+		}
+		return result
+	default:
+		return value
+	}
 }

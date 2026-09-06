@@ -54,8 +54,13 @@ func TestLoadScopeComposition(t *testing.T) {
 		t.Fatalf("grouped relation worker reports_to monitor missing: %#v", workspace.Relations)
 	}
 	api := scope.EntityKey{Scope: workspace.Root, ID: "api"}
-	if !hasRelation(workspace.Relations, api, "uses", database) {
+	relation, found := findRelation(workspace.Relations, api, "uses", database)
+	if !found {
 		t.Fatalf("cross-scope relation api uses database missing: %#v", workspace.Relations)
+	}
+	policy, policyOK := relation.Properties["policy"].(map[string]any)
+	if relation.Properties["critical"] != true || !policyOK || policy["retries"] != 3 {
+		t.Fatalf("canonical Relation properties = %#v", relation.Properties)
 	}
 }
 
@@ -224,7 +229,8 @@ func TestValidationDiagnostics(t *testing.T) {
 		{"validation/missing-entity-id", []string{"entities.locus.yaml", "entity 1", "id is required"}},
 		{"validation/missing-import", []string{"locus.yaml", `import "absent"`, "does-not-exist"}},
 		{"validation/missing-projection", []string{"locus.yaml", `export "ghost:item"`, `does not import projection "ghost"`}},
-		{"validation/malformed-relation", []string{"entities.locus.yaml", "line 4", "exactly [from, relation, to]"}},
+		{"validation/malformed-relation", []string{"entities.locus.yaml", "line 4", "relation from, type, and to must be non-empty strings"}},
+		{"validation/relation-tuple", []string{"entities.locus.yaml", "line 5", "relation must be an object"}},
 		{"validation/invalid-locusignore", []string{".locusignore:1", "invalid ignore pattern", "syntax error in pattern"}},
 	}
 
@@ -287,13 +293,18 @@ func mustResolve(t *testing.T, workspace *scope.Workspace, from scope.ScopeKey, 
 	return resolved
 }
 
-func hasRelation(relations []scope.Relation, from scope.EntityKey, name string, to scope.EntityKey) bool {
+func hasRelation(relations []scope.Relation, from scope.EntityKey, relationType string, to scope.EntityKey) bool {
+	_, found := findRelation(relations, from, relationType, to)
+	return found
+}
+
+func findRelation(relations []scope.Relation, from scope.EntityKey, relationType string, to scope.EntityKey) (scope.Relation, bool) {
 	for _, relation := range relations {
-		if relation.From == from && relation.Name == name && relation.To == to {
-			return true
+		if relation.From == from && relation.Type == relationType && relation.To == to {
+			return relation, true
 		}
 	}
-	return false
+	return scope.Relation{}, false
 }
 
 func materializeCase(t *testing.T, name string, rootParts ...string) string {

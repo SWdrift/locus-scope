@@ -2,4 +2,6 @@ entities:
   - id: application
     type: service
 relations:
-  - [application, uses, base:database]
+  - from: application
+    type: uses
+    to: base:database

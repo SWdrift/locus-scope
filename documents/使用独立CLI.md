@@ -29,8 +29,8 @@ locus-scope --scope ./app validate
 
 ```text
 locus-scope --scope ./app validate
-locus-scope --scope ./app entity list
-locus-scope --scope ./app relation list
+locus-scope --scope ./app entity
+locus-scope --scope ./app relation
 ```
 
 进入 `app` 或其子目录后可以省略 `--scope`。完整的建模和检查步骤见[基本使用](基本使用.md)。

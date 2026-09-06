@@ -31,7 +31,7 @@ flowchart LR
 
 两个领域使用相同模式：
 
-- `*cli` 只负责参数、transport 输出和退出状态。
+- `*cli` 只负责参数、输出和退出状态。
 - `*app` 的 exported types 和 methods 是稳定 application API。
 - `scope` 与 `pkg` 实现领域规则和用例所需能力。
 - `npm` 与 `packageenv` 是基础设施或跨领域 adapter。
@@ -39,23 +39,38 @@ flowchart LR
 
 ## Scope API
 
-`scopeapp` 对一个已经完整加载并验证的 Workspace 建立服务：
+`scopeapp` 通过 execution context 使用一个已加载 Workspace，并可按同一宿主策略 load/reload：
 
 ```go
-func New(workspace *scope.Workspace) *Service
+type Environment interface {
+    Current() *scope.Workspace
+    LoadPath(path string) (*scope.Workspace, error)
+    Reload() (*scope.Workspace, error)
+}
 ```
 
-| 方法 | 结果 | 语义 |
-| --- | --- | --- |
-| `Validate()` | `ValidationResult` | 返回 root 与 Scope、Entity、Relation 数量。 |
-| `RootScope()` | `Scope` | 返回 root Scope、排序后的 Imports 和 Exports。 |
-| `ListScopes()` | `ScopesResult` | 按 Source identity 稳定排序返回全部 Scope。 |
-| `ListEntities()` | `EntitiesResult` | 按 owner Source 和 Entity ID 稳定排序返回全部 Entity identity。 |
-| `GetEntity(reference)` | `EntityResult` | 从 root 解析 reference，返回原始 owner 和属性。 |
-| `ListRelations()` | `RelationsResult` | 返回 Relation 及两端原始 owner。 |
-| `ResolveEntity(reference)` | `ResolveResult` | 从 root 解析 reference，返回稳定 Entity identity。 |
+稳定 application surface 按领域能力组织：
 
-Workspace 来源由宿主选择：standalone 通过 `pkgapp` 加载 Pure Locus lock/store，Node host 使用 npm/pnpm resolved package graph。两种入口最终调用相同 `scopeapp.Service`。
+| 能力 | 语义 |
+| --- | --- |
+| `Query(kind, selector)` | 对 Scope、Group、Entity、Relation 执行统一 list/show/find，返回稳定 envelope。 |
+| `Graph(seeds, depth, via)` | 返回有向出边子图。 |
+| `Path(from, to, via)` | 返回一条确定的最短有向路径。 |
+| `Impact(seeds, via)` | 返回反向可达 Entity 与 Relation。 |
+| `Mutate(request)` | clone/change/validate/atomic write/reload Entity 或 Relation。 |
+| `Diff(left, right)` | 加载并归一化 selector 两侧语义子图后比较。 |
+| `Validate()` | 返回已验证 Workspace summary。 |
+
+宿主与 application 的边界如下：
+
+- Workspace 来源由宿主选择。
+    - standalone 使用 Pure Locus lock/store。
+    - Node host 使用 npm/pnpm resolved package graph。
+- stdin、cwd 和路径加载能力由共享 runner context 注入。
+- Scope application 不读取进程全局 stdin 或 cwd。
+- Entity result 使用 `{key, ref?, object, source?}`。
+- Relation result 使用 `{fromKey,toKey,object,source?}`。
+- Core 和 application DTO 不暴露 Gonum 类型、CLI writer、exit code 或 host protocol。
 
 ## Package API
 
@@ -83,12 +98,12 @@ func New(root string, options Options) *Service
 - 新能力按领域行为增加明确 request/result；不按 CLI 命令机械创建 API。
 - 查询语言使用独立 Query request/result；不使用命令字符串作为通用 API。
 - 执行语义使用独立 execution service，不与只读查询合并。
-- application error 的分类、reason、上下文与 transport 映射以[错误契约](ERRORS.md)为准；程序不得解析错误文本。
+- application error 的分类、reason、上下文与传播规则以[错误契约](ERRORS.md)为准；CLI 的错误输出和退出状态以 [CLI](CLI.md#输出与退出状态) 为准。程序不得解析错误文本。
 
 ## 验证
 
 - `scopeapp` 测试排序、ownership、reference resolution 和 DTO 契约。
 - `pkg` 测试 lock/store、resolution、transaction 和 Package 规则。
 - `pkgapp` 的无分支转发和 DTO 转换不单独测试。
-- CLI 测试只覆盖参数、transport 和退出状态，不重复 application/domain semantics。
+- CLI 测试只覆盖参数、输出和退出状态，不重复 application/domain semantics。
 - Node 与 E2E 验证不同宿主进入相同核心 API 后得到一致结果。

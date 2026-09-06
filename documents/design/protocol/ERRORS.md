@@ -6,7 +6,7 @@ Scope 与 Package application API 使用统一、可分类并保留 cause 的错
 
 ## 职责
 
-本文定义 application error 的稳定字段、分类和传播规则。领域有效性由[核心协议](PROTOCOL.md)、[Scope 设计](../Scope设计.md)和 [Package 设计](../Package设计.md)定义；CLI 输出和退出状态由 [CLI](CLI.md)定义；成功结果由[核心 API](CORE_API.md)定义。
+本文定义 application error 的稳定字段、分类和传播规则。领域有效性由[核心协议](PROTOCOL.md)、[Scope 设计](../Scope设计.md)和 [Package 设计](../Package设计.md)定义；CLI 如何向用户输出错误以及选择退出状态，由 [CLI](CLI.md#输出与退出状态)定义。
 
 ## 错误模型
 
@@ -48,11 +48,41 @@ type Error struct {
 
 ## Reason
 
-> TODO：typed error 落地时，按真实错误产生点登记首批 Reason 及其 Code。
+| Reason | Code |
+| --- | --- |
+| `scope.manifest_missing` | `invalid_data` |
+| `scope.manifest_ambiguous` | `invalid_data` |
+| `scope.manifest_invalid` | `invalid_data` |
+| `scope.entity_id_invalid` | `invalid_data` |
+| `scope.entity_duplicate` | `conflict` |
+| `scope.import_unresolved` | `invalid_data` |
+| `scope.export_unresolved` | `invalid_data` |
+| `scope.relation_invalid` | `invalid_data` |
+| `scope.relation_duplicate` | `conflict` |
+| `scope.relation_start_unresolved` | `invalid_data` |
+| `scope.relation_end_unresolved` | `invalid_data` |
+| `scope.source_identity_conflict` | `conflict` |
+| `scope.reference_unresolved` | `invalid_argument` |
+| `scope.selector_invalid` | `invalid_argument` |
+| `scope.filter_invalid` | `invalid_argument` |
+| `scope.graph_seed_invalid` | `invalid_argument` |
+| `scope.path_unreachable` | `not_found` |
+| `scope.object_not_found` | `not_found` |
+| `scope.object_read_only` | `permission_denied` |
+| `scope.field_invalid` | `invalid_argument` |
+| `scope.mutation_conflict` | `conflict` |
+| `scope.mutation_invalid` | `invalid_data` |
+| `scope.mutation_write_failed` | `internal` |
+| `scope.diff_input_invalid` | `invalid_argument` |
+| `scope.internal` | `internal` |
 
 ## 传播规则
 
 - 最接近错误语义的层负责确定 Code 和 Reason。
 - 上层保留 Code、Reason 和 cause，只增加必要上下文。
 - 未分类错误在 application API 边界转换为 `internal`。
+- 包装不得重复添加同一 operation、resource 或 location。
+- Workspace load 和 mutation 保持 fail-fast；失败不返回可消费的部分结果。
+
+
 

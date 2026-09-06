@@ -2,4 +2,6 @@ entities:
   - id: modern-service
     type: service
 relations:
-  - [modern-service, uses, base:database]
+  - from: modern-service
+    type: uses
+    to: base:database

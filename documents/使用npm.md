@@ -36,7 +36,7 @@ Locus Package 是包含 `locus.entry` 的标准 npm Package。使用 pnpm：
 ```text
 pnpm add @example/infra @sundw/locus-scope
 pnpm exec locus-scope-node validate
-pnpm exec locus-scope-node resolve infra:database
+pnpm exec locus-scope-node entity infra:database
 ```
 
 使用 npm：
@@ -44,7 +44,7 @@ pnpm exec locus-scope-node resolve infra:database
 ```text
 npm install @example/infra @sundw/locus-scope
 npx locus-scope-node validate
-npx locus-scope-node resolve infra:database
+npx locus-scope-node entity infra:database
 ```
 
 消费项目的 `locus.yaml` 只引用 Package 名：
@@ -63,10 +63,10 @@ pnpm 项目统一通过 `pnpm exec locus-scope-node` 执行：
 
 ```text
 pnpm exec locus-scope-node validate
-pnpm exec locus-scope-node entity list
-pnpm exec locus-scope-node entity show database
-pnpm exec locus-scope-node relation list
-pnpm exec locus-scope-node resolve infra:database
+pnpm exec locus-scope-node entity
+pnpm exec locus-scope-node entity database
+pnpm exec locus-scope-node relation
+pnpm exec locus-scope-node graph database --depth 2
 ```
 
 npm 项目把命令前缀替换为 `npx locus-scope-node`。在 Scope 目录之外执行时，通过 `--scope <dir>` 指定位置：
