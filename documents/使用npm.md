@@ -1,6 +1,6 @@
-# npm 模式
+# 使用 npm
 
-npm 模式由 npm 或 pnpm 管理 Package 版本、lockfile、下载缓存和 `node_modules`，由 `@sundw/locus-scope` 提供 Workspace 检查入口。它适合现有 Node.js 项目、需要复用 npm 工具链的项目，以及同时包含 JavaScript Package 和 Locus Package 的依赖图。
+npm 模式由 npm 或 pnpm 管理 Package 版本、lockfile、下载缓存和 `node_modules`，由 `@sundw/locus-scope` 提供 Workspace 操作入口。它适合现有 Node.js 项目、需要复用 npm 工具链的项目，以及同时包含 JavaScript Package 和 Locus Package 的依赖图。
 
 ## 安装
 
@@ -27,27 +27,11 @@ pnpm exec locus-scope-node validate
 npx locus-scope-node validate
 ```
 
-完整的建模和检查步骤见[基本使用](基本使用.md)。
+完整的建模和 CLI 操作步骤见[基本使用](基本使用.md)。
 
 ## 安装 Locus Package
 
-Locus Package 是包含 `locus.entry` 的标准 npm Package。使用 pnpm：
-
-```text
-pnpm add @example/infra @sundw/locus-scope
-pnpm exec locus-scope-node validate
-pnpm exec locus-scope-node entity infra:database
-```
-
-使用 npm：
-
-```text
-npm install @example/infra @sundw/locus-scope
-npx locus-scope-node validate
-npx locus-scope-node entity infra:database
-```
-
-消费项目的 `locus.yaml` 只引用 Package 名：
+Locus Package 是包含 `locus.entry` 的标准 npm Package。先在消费项目的 `locus.yaml` 中以 Package 名声明 Import：
 
 ```yaml
 id: app
@@ -56,6 +40,22 @@ imports:
 ```
 
 Package 名不携带版本或子路径。版本范围由同目录的 `package.json.dependencies` 声明，并由 package manager lockfile 固定解析结果。
+
+使用 pnpm 安装并查询：
+
+```text
+pnpm add @example/infra
+pnpm exec locus-scope-node validate
+pnpm exec locus-scope-node entity infra:database
+```
+
+使用 npm：
+
+```text
+npm install @example/infra
+npx locus-scope-node validate
+npx locus-scope-node entity infra:database
+```
 
 ## 执行命令
 
@@ -66,7 +66,7 @@ pnpm exec locus-scope-node validate
 pnpm exec locus-scope-node entity
 pnpm exec locus-scope-node entity database
 pnpm exec locus-scope-node relation
-pnpm exec locus-scope-node graph database --depth 2
+pnpm exec locus-scope-node graph backend --depth 1
 ```
 
 npm 项目把命令前缀替换为 `npx locus-scope-node`。在 Scope 目录之外执行时，通过 `--scope <dir>` 指定位置：
@@ -75,7 +75,7 @@ npm 项目把命令前缀替换为 `npx locus-scope-node`。在 Scope 目录之�
 pnpm exec locus-scope-node --scope ./app validate
 ```
 
-Agent、脚本或 CI 可以追加 `--json` 获取稳定 JSON 输出。
+默认输出格式化 JSON；Agent、脚本或 CI 可以追加 `--json` 获取稳定的单行 JSON。
 
 ## 依赖和运行边界
 
