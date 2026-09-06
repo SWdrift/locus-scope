@@ -13,7 +13,7 @@ func TestRunExecutesOneScopeCLIRequest(t *testing.T) {
 	root := hostTestDirectory(t, "success")
 	writeHostTestFile(t, filepath.Join(root, "locus.yaml"), "id: root\n")
 	requestBody := map[string]any{
-		"version":          1,
+		"version":          2,
 		"workingDirectory": root,
 		"arguments":        []string{"validate", "--json"},
 		"root": map[string]any{
@@ -33,10 +33,10 @@ func TestRunExecutesOneScopeCLIRequest(t *testing.T) {
 	if err := json.Unmarshal(output.Bytes(), &result); err != nil {
 		t.Fatalf("decode response: %v", err)
 	}
-	if result.Version != 1 || result.ExitCode != 0 || result.Stderr != "" {
+	if result.Version != 2 || result.ExitCode != 0 || result.Stderr != "" {
 		t.Fatalf("response = %#v", result)
 	}
-	if !strings.Contains(result.Stdout, `"valid": true`) {
+	if !strings.Contains(result.Stdout, `"valid":true`) {
 		t.Fatalf("stdout = %q", result.Stdout)
 	}
 }
@@ -45,7 +45,7 @@ func TestRunFormatsWorkspaceLoadFailureAsJSONWithNPMAdvice(t *testing.T) {
 	root := hostTestDirectory(t, "json-load-failure")
 	writeHostTestFile(t, filepath.Join(root, "locus.yaml"), "id: root\nimports:\n  missing: '@example/missing'\n")
 	requestBody := map[string]any{
-		"version":          1,
+		"version":          2,
 		"workingDirectory": root,
 		"arguments":        []string{"validate", "--json"},
 		"root": map[string]any{
@@ -80,9 +80,9 @@ func TestRunFormatsWorkspaceLoadFailureAsJSONWithNPMAdvice(t *testing.T) {
 func TestRunRejectsUnknownDuplicateAndTrailingJSON(t *testing.T) {
 	root := hostTestDirectory(t, "invalid")
 	cases := map[string]string{
-		"unknown":   `{"version":1,"workingDirectory":"` + slash(root) + `","arguments":[],"root":{"scopeRoot":"` + slash(root) + `","packageRoot":"","dependencies":{}},"packages":{},"extra":true}`,
-		"duplicate": `{"version":1,"version":1,"workingDirectory":"` + slash(root) + `","arguments":[],"root":{"scopeRoot":"` + slash(root) + `","packageRoot":"","dependencies":{}},"packages":{}}`,
-		"trailing":  `{"version":1,"workingDirectory":"` + slash(root) + `","arguments":[],"root":{"scopeRoot":"` + slash(root) + `","packageRoot":"","dependencies":{}},"packages":{}} {}`,
+		"unknown":   `{"version":2,"workingDirectory":"` + slash(root) + `","arguments":[],"root":{"scopeRoot":"` + slash(root) + `","packageRoot":"","dependencies":{}},"packages":{},"extra":true}`,
+		"duplicate": `{"version":2,"version":2,"workingDirectory":"` + slash(root) + `","arguments":[],"root":{"scopeRoot":"` + slash(root) + `","packageRoot":"","dependencies":{}},"packages":{}}`,
+		"trailing":  `{"version":2,"workingDirectory":"` + slash(root) + `","arguments":[],"root":{"scopeRoot":"` + slash(root) + `","packageRoot":"","dependencies":{}},"packages":{}} {}`,
 	}
 	for name, body := range cases {
 		t.Run(name, func(t *testing.T) {
@@ -94,7 +94,7 @@ func TestRunRejectsUnknownDuplicateAndTrailingJSON(t *testing.T) {
 			if err := json.Unmarshal(output.Bytes(), &result); err != nil {
 				t.Fatalf("response is not valid JSON: %v", err)
 			}
-			if result.Version != 1 || result.ExitCode != 1 || result.Stderr == "" {
+			if result.Version != 2 || result.ExitCode != 1 || result.Stderr == "" {
 				t.Fatalf("response = %#v", result)
 			}
 		})
@@ -103,7 +103,7 @@ func TestRunRejectsUnknownDuplicateAndTrailingJSON(t *testing.T) {
 
 func TestRunRejectsPackageEntryEscape(t *testing.T) {
 	root := hostTestDirectory(t, "escape")
-	body := `{"version":1,"workingDirectory":"` + slash(root) + `","arguments":[],"root":{"scopeRoot":"` + slash(root) + `","packageRoot":"","dependencies":{}},"packages":{"npm:@example/pkg@1.0.0":{"root":"` + slash(root) + `","entry":"../locus.yaml","dependencies":{}}}}`
+	body := `{"version":2,"workingDirectory":"` + slash(root) + `","arguments":["validate"],"root":{"scopeRoot":"` + slash(root) + `","packageRoot":"","dependencies":{}},"packages":{"npm:@example/pkg@1.0.0":{"root":"` + slash(root) + `","entry":"../locus.yaml","dependencies":{}}}}`
 	var output bytes.Buffer
 	if exitCode := run(strings.NewReader(body), &output); exitCode != 1 {
 		t.Fatalf("exit code = %d", exitCode)
@@ -128,7 +128,7 @@ func TestRunRejectsSecondScopeManifestInPackage(t *testing.T) {
 	writeHostTestFile(t, filepath.Join(packageRoot, "nested", "locus.yaml"), "id: nested\n")
 
 	requestBody := map[string]any{
-		"version":          1,
+		"version":          2,
 		"workingDirectory": scopeRoot,
 		"arguments":        []string{"validate", "--json"},
 		"root": map[string]any{

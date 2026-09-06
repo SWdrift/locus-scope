@@ -1,4 +1,4 @@
-package purepkg
+package pkg
 
 import (
 	"bytes"
@@ -9,7 +9,7 @@ import (
 )
 
 func TestProjectManifestMutationPreservesOtherFields(t *testing.T) {
-	root := purepkgTestRoot(t)
+	root := pkgTestRoot(t)
 	original := []byte("{\n  \"name\": \"consumer\",\n  \"private\": true,\n  \"scripts\": {\"check\": \"echo ok\"},\n  \"dependencies\": {\"z\": \"^1.0.0\"}\n}\n")
 	if err := os.WriteFile(filepath.Join(root, "package.json"), original, 0o644); err != nil {
 		t.Fatal(err)
@@ -32,7 +32,7 @@ func TestProjectManifestMutationPreservesOtherFields(t *testing.T) {
 }
 
 func TestProjectManifestRejectsDuplicateAndUnsupportedDependencies(t *testing.T) {
-	root := purepkgTestRoot(t)
+	root := pkgTestRoot(t)
 	path := filepath.Join(root, "package.json")
 	if err := os.WriteFile(path, []byte(`{"dependencies":{},"dependencies":{}}`), 0o644); err != nil {
 		t.Fatal(err)

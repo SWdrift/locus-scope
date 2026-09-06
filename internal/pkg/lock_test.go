@@ -1,4 +1,4 @@
-package purepkg
+package pkg
 
 import (
 	"bytes"
@@ -14,9 +14,9 @@ func testIntegrity(content string) string {
 	digest := sha512.Sum512([]byte(content))
 	return "sha512-" + base64.StdEncoding.EncodeToString(digest[:])
 }
-func purepkgTestRoot(t *testing.T) string {
+func pkgTestRoot(t *testing.T) string {
 	t.Helper()
-	base := filepath.Join("..", "..", "temp", "unit-purepkg")
+	base := filepath.Join("..", "..", "temp", "unit-pkg")
 	if err := os.MkdirAll(base, 0o755); err != nil {
 		t.Fatalf("create Pure package test base: %v", err)
 	}
@@ -29,7 +29,7 @@ func purepkgTestRoot(t *testing.T) string {
 }
 
 func TestLockStrictCanonicalAndMultiVersionEdges(t *testing.T) {
-	root := purepkgTestRoot(t)
+	root := pkgTestRoot(t)
 	lock := lockFile{
 		Version: lockVersion,
 		Importers: map[string]importer{".": {Dependencies: map[string]lockEdge{

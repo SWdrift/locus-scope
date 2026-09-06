@@ -1,4 +1,4 @@
-package purepkg
+package pkg
 
 import (
 	"bytes"
@@ -40,7 +40,7 @@ func TestNamedUpdatePreservesOtherRootClosure(t *testing.T) {
 	}))
 	defer server.Close()
 
-	root := purepkgTestRoot(t)
+	root := pkgTestRoot(t)
 	t.Setenv("NPM_CONFIG_USERCONFIG", filepath.Join(root, "user.npmrc"))
 	t.Setenv("NPM_TOKEN", "")
 	config, err := locusnpm.LoadConfig(root, server.URL+"/")
@@ -72,7 +72,7 @@ func TestNamedUpdatePreservesOtherRootClosure(t *testing.T) {
 }
 
 func TestFrozenAndOfflineUseExactEmptyLockWithoutWrites(t *testing.T) {
-	root := purepkgTestRoot(t)
+	root := pkgTestRoot(t)
 	if err := os.WriteFile(filepath.Join(root, "package.json"), []byte("{\n  \"dependencies\": {}\n}\n"), 0o644); err != nil {
 		t.Fatal(err)
 	}
@@ -101,7 +101,7 @@ func TestFrozenAndOfflineUseExactEmptyLockWithoutWrites(t *testing.T) {
 }
 
 func TestCommitFailureRestoresPackageJSON(t *testing.T) {
-	root := purepkgTestRoot(t)
+	root := pkgTestRoot(t)
 	oldManifest := []byte("{\"dependencies\":{}}\n")
 	if err := os.WriteFile(filepath.Join(root, "package.json"), oldManifest, 0o644); err != nil {
 		t.Fatal(err)

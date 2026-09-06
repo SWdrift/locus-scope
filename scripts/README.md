@@ -166,7 +166,7 @@ temp/release/windows-amd64/
 
 npm tarball、stage 和校验和位于 `temp/release/npm/`。发布任务只生成制品，不向公共 Registry 发布。
 
-生成制品后运行 `pnpm run publish:npm` 发布六个公开 Package；附加参数会传给 `pnpm publish`，例如 `pnpm run publish:npm -- --tag next --registry https://registry.npmjs.org/`。
+生成制品后运行 `pnpm run publish:npm`，默认向 `https://registry.npmjs.org/` 按平台包优先、主包最后的顺序发布六个公开 Package。附加参数会传给 `pnpm publish`；需要验证其他 Registry 时可显式覆盖，例如 `pnpm run publish:npm -- --tag next --registry http://127.0.0.1:4873/`。
 
 当前用户安装验证使用：
 

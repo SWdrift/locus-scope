@@ -9,4 +9,6 @@ entities:
     engine: postgres
 
 relations:
-  - [server, hosts, database]
+  - from: server
+    type: hosts
+    to: database

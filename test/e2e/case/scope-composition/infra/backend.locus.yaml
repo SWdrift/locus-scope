@@ -10,4 +10,6 @@ entities:
         values: [are, allowed]
 
 relations:
-  - [worker, reports_to, monitor]
+  - from: worker
+    type: reports_to
+    to: monitor
