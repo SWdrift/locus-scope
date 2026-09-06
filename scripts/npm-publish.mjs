@@ -2,6 +2,7 @@ import { join } from 'node:path'
 import { assertOrdinaryFile, isMain, readVersion, repositoryRoot, run } from './lib/workspace.mjs'
 
 const pnpmEntrypoint = process.env.npm_execpath
+const officialNpmRegistry = 'https://registry.npmjs.org/'
 
 const tarballStems = [
   'sundw-locus-scope-win32-x64',
@@ -12,8 +13,15 @@ const tarballStems = [
   'sundw-locus-scope'
 ]
 
-export async function publishNpmPackages(args = process.argv.slice(2)) {
+export function buildNpmPublishArgs(tarball, args) {
   const publishArgs = args[0] === '--' ? args.slice(1) : args
+  const hasRegistryOverride = publishArgs.some(arg => arg === '--registry' || arg.startsWith('--registry='))
+  const registryArgs = hasRegistryOverride ? [] : ['--registry', officialNpmRegistry]
+
+  return ['publish', tarball, ...registryArgs, ...publishArgs, '--access', 'public', '--no-git-checks']
+}
+
+export async function publishNpmPackages(args = process.argv.slice(2)) {
   const version = await readVersion()
   const releaseRoot = join(repositoryRoot, 'temp', 'release', 'npm')
   const tarballs = tarballStems.map(stem => join(releaseRoot, `${stem}-${version}.tgz`))
@@ -21,15 +29,7 @@ export async function publishNpmPackages(args = process.argv.slice(2)) {
   for (const tarball of tarballs) await assertOrdinaryFile(tarball, 'npm release tarball')
   if (!pnpmEntrypoint) throw new Error('pnpm entrypoint is unavailable; run this command through: pnpm run publish:npm')
   for (const tarball of tarballs) {
-    run(process.execPath, [
-      pnpmEntrypoint,
-      'publish',
-      tarball,
-      ...publishArgs,
-      '--access',
-      'public',
-      '--no-git-checks'
-    ])
+    run(process.execPath, [pnpmEntrypoint, ...buildNpmPublishArgs(tarball, args)])
   }
 }
 
