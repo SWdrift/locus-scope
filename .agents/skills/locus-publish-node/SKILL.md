@@ -93,3 +93,7 @@ Registry 和认证遵循 npm 自身规则。可使用命令 `--registry`、`NPM_
 - 发布对象是检查过的同一 tarball。
 - Registry metadata 的 `name`、`version` 和 `dist.integrity` 与本地 pack 结果一致。
 - 发布输出和仓库产物不含 token。
+
+## 项目
+
+- [SWdrift/locus-scope](https://github.com/SWdrift/locus-scope)
