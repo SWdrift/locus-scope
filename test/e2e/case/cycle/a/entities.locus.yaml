@@ -1,4 +1,6 @@
 entities:
   - id: alpha
 relations:
-  - [alpha, reaches, b:beta]
+  - from: alpha
+    type: reaches
+    to: b:beta

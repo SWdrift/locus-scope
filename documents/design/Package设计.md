@@ -6,7 +6,7 @@ Locus Package 使用标准 npm-compatible package 作为唯一分发模型。一
 
 ## 职责
 
-本文定义 package metadata、Import 与 identity、npm Registry、pack/publish、Pure Locus lock/store/事务、Node adapter、私有 Go host 和 `locus-pkg` 命令契约。Entity、Scope、Export、Projection、Relation 和 Group 语义仍以[核心协议](protocol/PROTOCOL.md)为唯一权威来源；本地 Scope 发现、Workspace 装配和查询语义见[Scope 设计](Scope设计.md)。
+本文定义 package metadata、Import 与 identity、npm Registry、pack/publish、Pure Locus lock/store/事务、Node adapter、私有 Go host 和 `locus-pkg` 命令契约。Entity、Scope、Export、Projection、Relation 和 Group 语义仍以[核心协议](protocol/PROTOCOL.md)为唯一权威来源；本地 Scope 发现、Workspace 装配和检查语义见[Scope 设计](Scope设计.md)。
 
 ## 架构与数据流
 
@@ -41,7 +41,8 @@ flowchart LR
 
     PureEnv --> Loader["scope.Load"]
     NodeEnv --> Loader
-    Loader --> CLI["scopecli<br/>same Scope / Graph result"]
+    CLI["scopecli frontend"] --> App["scopeapp"]
+    Loader --> App
 ```
 
 ## example：发布一个可被两种环境消费的 Package
@@ -84,7 +85,7 @@ locus-pkg publish --registry https://registry.example.com/
 
 `pack` 生成 `example-app-1.0.0.tgz`，其内容是标准 npm 可安装 tarball；`publish` 对相同 packed view 做校验并发布 `latest`。成功结果包含 name、version、Registry 和 SHA-512 integrity。相同 `name@version` 已存在时返回 immutable-version conflict，而不是覆盖已发布内容。
 
-## example：Pure Locus 安装、锁定并离线查询
+## example：Pure Locus 安装、锁定并离线检查
 
 本地 consumer 的 root Scope 可以继续使用本地 Import，也可以用 bare name 引用 `package.json.dependencies` 中的 Package：
 
@@ -216,7 +217,7 @@ pnpm exec locus-scope-node validate --json
 | Node descriptor | 从 root importer 开始递归解析每个已发现 Locus package 的直接 dependencies；普通 npm package 不进入 descriptor。无法暴露 package root 的普通 dependency 可省略，之后若 Scope Import 引用它则按 missing importer edge 失败。物理多副本的同一 identity 仅在 entry 与 resolved Locus edges 一致时合并，并选择字典序最小 canonical real path；否则 launch 前失败。descriptor maps 必须确定性排序。 |
 | Host request | 私有 host 无 flags 或交互 RPC，从 stdin 读取且只读取一个 version 1 JSON request：`workingDirectory`、`arguments`、含 `scopeRoot`、`packageRoot`、`dependencies` 的 `root`，以及以 `npm:<name>@<version>` 为 key、含绝对 `root`、相对 `entry`、`dependencies` 的 `packages`。拒绝未知字段、unsupported version、trailing JSON、相对或非文件 roots、entry escape 和冲突 identity。 |
 | Host response | host 恰好写一个 `{"version":1,"exitCode":0,"stdout":"...","stderr":"..."}` 形状的 response。协议错误在可能时也返回合法 response 和 exit code 1；正常 host process exit code 等于 enclosed CLI code。adapter 原样转发 stdout、stderr 和 exit code；有效 request 在 Workspace 加载前失败时，stderr 仍须遵守 request 的 `--json` 输出模式。npm root 缺少直接 dependency 的诊断必须指向 `pnpm add` 或 `npm install`，不得指向 Pure 环境的 `locus-pkg`。 |
-| 共用执行核心 | standalone、Pure 和 Node host 最终都调用同一 `packageenv`、`scope.Load` 与 `scopecli`；不得在 JavaScript 或其他入口复制 Scope validation、query 或稳定 JSON view。 |
+| 共用执行核心 | standalone、Pure 和 Node host 最终都调用同一 `packageenv`、`scope.Load`、`scopeapp` 与 `scopecli`；不得在 JavaScript 或其他入口复制 Scope validation、query 或稳定 JSON view。 |
 
 ## 验收
 
@@ -224,7 +225,7 @@ pnpm exec locus-scope-node validate --json
 | --- | --- |
 | Importer-relative 多版本 | 同一 consumer 可同时解析 `@example/base` 1.x 与 2.x；两个 `npm:` identity、dependency edges 和 ownership 均正确。 |
 | 普通 npm dependency | dependency 安装并进入 lock/store，但不进入 Scope graph、descriptor 或 Scope 统计。 |
-| 稳定解析 | 新版本发布后已有 lock 不漂移；named update 只更新目标 root closure；frozen mismatch 不修改 bytes；Registry 停止后 offline 仍可查询同一 Workspace。 |
+| 稳定解析 | 新版本发布后已有 lock 不漂移；named update 只更新目标 root closure；frozen mismatch 不修改 bytes；Registry 停止后 offline 仍可检查同一 Workspace。 |
 | 双环境一致 | npm 与 pnpm 都能安装同一 Locus package，`locus-scope-node` 的规范 Scope、Entity 和 Relation JSON 与 Pure Locus 一致。 |
 | 标准发布消费 | `locus-pkg pack` 产物可被标准 npm/pnpm 安装；publish 后 packument、tgz、integrity 和 immutable conflict 符合 npm 行为。 |
 | 安全失败 | 缺失或错误 token、integrity mismatch、unsafe archive、unsupported spec、重复 Scope manifest、blocked package.json export、冲突 identity 和事务中途失败都在相应提交边界前失败；token 不泄漏，原文件 bytes 和有效 store 不变。 |

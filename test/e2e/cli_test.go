@@ -225,6 +225,19 @@ func TestNPMPackageLifecycle(t *testing.T) {
 		t.Fatalf("persist normalized query comparison: %v", err)
 	}
 
+	pureManagement := exerciseManagementCLI(t, existingProject, func(name string, arguments ...string) commandResult {
+		return h.pure("management-pure-"+name, existingProject, h.authEnv, h.scope,
+			append([]string{"--scope", existingProject, "--json"}, arguments...)...)
+	})
+	nodeAdapter := filepath.Join(npmNodeConsumer, "node_modules", "@sundw", "locus-scope", "bin", "locus-scope-node.mjs")
+	nodeManagement := exerciseManagementCLI(t, npmNodeConsumer, func(name string, arguments ...string) commandResult {
+		return h.run("management-node-"+name, npmNodeConsumer, h.authEnv, h.node,
+			append([]string{nodeAdapter, "--scope", npmNodeConsumer, "--json"}, arguments...)...)
+	})
+	if !bytes.Equal(pureManagement, nodeManagement) {
+		t.Fatalf("Pure and Node management results differ\nPure: %s\nNode: %s", pureManagement, nodeManagement)
+	}
+
 	blockedNodeConsumer := createLocalProject(t, filepath.Join(h.root, "projects", "node-blocked-exports"), "node-blocked-exports",
 		map[string]string{"blocked": "@failure/blocked"})
 	var blockedManifest map[string]any
@@ -249,6 +262,76 @@ func TestNPMPackageLifecycle(t *testing.T) {
 	}
 
 	assertNoSecret(t, h.token, filepath.Join(h.root, "projects"), h.results)
+}
+
+func exerciseManagementCLI(t *testing.T, project string, run func(string, ...string) commandResult) []byte {
+	t.Helper()
+	run("entity-add", "entity", "add", "cache", "type=service", "network.region=tokyo", "--file", "management.locus.yaml").success(t, "entity add")
+	run("entity-set", "entity", "set", "cache", "replicas=3").success(t, "entity set")
+	run("relation-add", "relation", "add", "root", "manages", "cache", "critical=true").success(t, "relation add")
+	run("relation-set", "relation", "set", "root", "manages", "cache", "weight=2").success(t, "relation set")
+
+	var relations []struct {
+		Object map[string]any `json:"object"`
+	}
+	relationFilters := []string{"relation", "from=root", "type=manages", "to=cache"}
+	decodeJSON(t, run("relation-find-after-set", relationFilters...).success(t, "relation find after set"), &relations)
+	if len(relations) != 1 {
+		t.Fatalf("Relation query after set = %#v", relations)
+	}
+	if object := relations[0].Object; object["from"] != "root" || object["type"] != "manages" || object["to"] != "cache" ||
+		object["critical"] != true || object["weight"] != float64(2) {
+		t.Fatalf("Relation object after set = %#v", object)
+	}
+
+	run("relation-unset", "relation", "unset", "root", "manages", "cache", "weight").success(t, "relation unset")
+	relations = nil
+	decodeJSON(t, run("relation-find-after-unset", relationFilters...).success(t, "relation find after unset"), &relations)
+	if len(relations) != 1 {
+		t.Fatalf("Relation query after unset = %#v", relations)
+	}
+	if _, exists := relations[0].Object["weight"]; exists {
+		t.Fatalf("Relation unset retained weight: %#v", relations[0].Object)
+	}
+	definition := fileBytes(t, filepath.Join(project, "scope.locus.yaml"))
+	for _, fragment := range [][]byte{[]byte("from: root"), []byte("type: manages"), []byte("to: cache"), []byte("critical: true")} {
+		if !bytes.Contains(definition, fragment) {
+			t.Fatalf("canonical Relation declaration %q missing from %s:\n%s", fragment, filepath.Join(project, "scope.locus.yaml"), definition)
+		}
+	}
+	if bytes.Contains(definition, []byte("[root, manages, cache]")) {
+		t.Fatalf("Relation writer emitted legacy tuple:\n%s", definition)
+	}
+
+	var diff any
+	decodeJSON(t, run("diff", "diff", "scope:.", "path:"+filepath.ToSlash(project)).success(t, "diff"), &diff)
+
+	results := make(map[string]any)
+	for name, arguments := range map[string][]string{
+		"entity-find":   {"entity", "network.region=tokyo", "--source"},
+		"relation-find": {"relation", "type=manages", "critical=true", "--source"},
+		"graph":         {"graph", "root", "--depth", "2", "--via", "type=manages"},
+		"path":          {"path", "root", "cache", "--via", "type=manages"},
+		"impact":        {"impact", "cache", "--via", "type=manages"},
+		"scope":         {"scope", "."},
+		"group-list":    {"group"},
+		"validate":      {"validate"},
+	} {
+		var decoded any
+		decodeJSON(t, run(name, arguments...).success(t, name), &decoded)
+		results[name] = normalizeQueryValue(decoded)
+	}
+
+	run("dangling-remove", "entity", "remove", "cache").failure(t, "dangling relation rollback")
+	run("rollback-show", "entity", "cache").success(t, "entity remains after rollback")
+	run("relation-remove", "relation", "remove", "root", "manages", "cache").success(t, "relation remove")
+	run("entity-remove", "entity", "remove", "cache").success(t, "entity remove")
+
+	body, err := json.Marshal(results)
+	if err != nil {
+		t.Fatalf("encode normalized management snapshot: %v", err)
+	}
+	return body
 }
 
 type npmPackument struct {
@@ -303,16 +386,16 @@ func assertLockContains(t *testing.T, lock []byte, identities ...string) {
 func assertResolvedOwner(t *testing.T, h *npmLifecycleHarness, project, reference, owner, name string) {
 	t.Helper()
 	output := h.pure(name, project, h.authEnv, h.scope,
-		"--scope", project, "--json", "resolve", reference).success(t, name)
+		"--scope", project, "--json", "entity", reference).success(t, name)
 	var result struct {
-		Entity struct {
+		Key struct {
 			Scope string `json:"scope"`
 			ID    string `json:"id"`
-		} `json:"entity"`
+		} `json:"key"`
 	}
 	decodeJSON(t, output, &result)
-	if result.Entity.Scope != owner || result.Entity.ID != "database" {
-		t.Fatalf("resolve %s = %#v, want database owned by %s", reference, result.Entity, owner)
+	if result.Key.Scope != owner || result.Key.ID != "database" {
+		t.Fatalf("resolve %s = %#v, want database owned by %s", reference, result.Key, owner)
 	}
 }
 
@@ -339,9 +422,9 @@ func querySnapshot(t *testing.T, run func(string, ...string) []byte) []byte {
 		name      string
 		arguments []string
 	}{
-		{"scopes", []string{"scope", "list"}},
-		{"entities", []string{"entity", "list"}},
-		{"relations", []string{"relation", "list"}},
+		{"scopes", []string{"scope"}},
+		{"entities", []string{"entity"}},
+		{"relations", []string{"relation"}},
 	}
 	result := make(map[string]any, len(queries))
 	for _, query := range queries {

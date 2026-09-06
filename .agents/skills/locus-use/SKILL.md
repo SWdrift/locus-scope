@@ -70,17 +70,18 @@ entities:
       type: service
 
 relations:
-    - [backend, uses, database]
+    - from: backend
+      type: uses
+      to: database
 ```
 
 验证并查询：
 
 ```text
 locus-scope --scope ./app validate
-locus-scope --scope ./app entity list
-locus-scope --scope ./app entity show database
-locus-scope --scope ./app relation list
-locus-scope --scope ./app resolve database
+locus-scope --scope ./app entity
+locus-scope --scope ./app entity database
+locus-scope --scope ./app relation
 ```
 
 进入 Scope 目录后可省略 `--scope`。CLI 沿祖先链寻找最近的 Scope manifest。Agent 或脚本追加 `--json` 获取字段与顺序稳定的输出。

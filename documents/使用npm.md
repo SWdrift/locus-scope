@@ -1,6 +1,6 @@
 # npm 模式
 
-npm 模式由 npm 或 pnpm 管理 Package 版本、lockfile、下载缓存和 `node_modules`，由 `@sundw/locus-scope` 提供查询入口。它适合现有 Node.js 项目、需要复用 npm 工具链的项目，以及同时包含 JavaScript Package 和 Locus Package 的依赖图。
+npm 模式由 npm 或 pnpm 管理 Package 版本、lockfile、下载缓存和 `node_modules`，由 `@sundw/locus-scope` 提供 Workspace 检查入口。它适合现有 Node.js 项目、需要复用 npm 工具链的项目，以及同时包含 JavaScript Package 和 Locus Package 的依赖图。
 
 ## 安装
 
@@ -27,7 +27,7 @@ pnpm exec locus-scope-node validate
 npx locus-scope-node validate
 ```
 
-完整的建模和查询步骤见[基本使用](基本使用.md)。
+完整的建模和检查步骤见[基本使用](基本使用.md)。
 
 ## 安装 Locus Package
 
@@ -36,7 +36,7 @@ Locus Package 是包含 `locus.entry` 的标准 npm Package。使用 pnpm：
 ```text
 pnpm add @example/infra @sundw/locus-scope
 pnpm exec locus-scope-node validate
-pnpm exec locus-scope-node resolve infra:database
+pnpm exec locus-scope-node entity infra:database
 ```
 
 使用 npm：
@@ -44,7 +44,7 @@ pnpm exec locus-scope-node resolve infra:database
 ```text
 npm install @example/infra @sundw/locus-scope
 npx locus-scope-node validate
-npx locus-scope-node resolve infra:database
+npx locus-scope-node entity infra:database
 ```
 
 消费项目的 `locus.yaml` 只引用 Package 名：
@@ -63,10 +63,10 @@ pnpm 项目统一通过 `pnpm exec locus-scope-node` 执行：
 
 ```text
 pnpm exec locus-scope-node validate
-pnpm exec locus-scope-node entity list
-pnpm exec locus-scope-node entity show database
-pnpm exec locus-scope-node relation list
-pnpm exec locus-scope-node resolve infra:database
+pnpm exec locus-scope-node entity
+pnpm exec locus-scope-node entity database
+pnpm exec locus-scope-node relation
+pnpm exec locus-scope-node graph database --depth 2
 ```
 
 npm 项目把命令前缀替换为 `npx locus-scope-node`。在 Scope 目录之外执行时，通过 `--scope <dir>` 指定位置：
@@ -101,7 +101,7 @@ Package 作者因此需要额外安装独立的 `locus-pkg`。完整步骤见[�
 
 ## 与独立 CLI 模式的边界
 
-两种模式使用相同的 Scope 文件和查询语义，但依赖状态不能混用：
+两种模式使用相同的 Scope 文件和 Workspace 检查语义，但依赖状态不能混用：
 
 - npm 模式读取 package manager lockfile 和 `node_modules`，命令是 `locus-scope-node`。
 - 独立 CLI 模式读取 `locus.lock` 和 `.locus/`，命令是 `locus-scope`。

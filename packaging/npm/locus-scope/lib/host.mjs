@@ -58,7 +58,7 @@ export function decodeResponse(source) {
   if (JSON.stringify(fields) !== JSON.stringify(RESPONSE_FIELDS)) {
     throw new Error(`Node host response fields are invalid: ${fields.join(', ')}`);
   }
-  if (response.version !== 1) {
+  if (response.version !== 2) {
     throw new Error(`Node host response version ${JSON.stringify(response.version)} is unsupported`);
   }
   if (!Number.isInteger(response.exitCode) || response.exitCode < 0 || response.exitCode > 255) {

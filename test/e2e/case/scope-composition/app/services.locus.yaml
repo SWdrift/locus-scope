@@ -5,5 +5,12 @@ entities:
     port: 8080
 
 relations:
-  - [api, uses, infra:database]
-  - [api, dispatches_to, infra:backend/worker]
+  - from: api
+    type: uses
+    to: infra:database
+    critical: true
+    policy:
+      retries: 3
+  - from: api
+    type: dispatches_to
+    to: infra:backend/worker

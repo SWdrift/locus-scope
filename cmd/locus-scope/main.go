@@ -6,9 +6,10 @@ import (
 	"fmt"
 	"io"
 	"os"
+	"path/filepath"
 	"strings"
 
-	"locus-scope/internal/purepkg"
+	"locus-scope/internal/pkgapp"
 	"locus-scope/internal/scope"
 	"locus-scope/internal/scopecli"
 )
@@ -18,31 +19,43 @@ type options struct {
 	jsonOutput     bool
 }
 
-func main() {
-	os.Exit(run(os.Args[1:], os.Stdout, os.Stderr))
-}
+func main() { os.Exit(run(os.Args[1:], os.Stdin, os.Stdout, os.Stderr)) }
 
-func run(arguments []string, stdout, stderr io.Writer) int {
+func run(arguments []string, streams ...io.Reader) int {
+	var stdin io.Reader = strings.NewReader("")
+	var stdout, stderr io.Writer
+	if len(streams) == 3 {
+		stdin, stdout, stderr = streams[0], streams[1].(io.Writer), streams[2].(io.Writer)
+	} else {
+		stdout, stderr = streams[0].(io.Writer), streams[1].(io.Writer)
+	}
 	opts, queryArguments, err := parseArguments(arguments)
 	if err != nil {
 		writeFailure(stderr, opts.jsonOutput, err)
 		return 2
 	}
-	if isRootlessCommand(queryArguments) {
-		return scopecli.Run(nil, queryArguments, stdout, stderr)
-	}
-
-	root, err := rootDirectory(opts.scopeDirectory)
+	workingDirectory, err := os.Getwd()
 	if err != nil {
 		writeFailure(stderr, opts.jsonOutput, err)
 		return 1
 	}
-	workspace, err := purepkg.LoadWorkspace(root)
-	if err != nil {
-		writeFailure(stderr, opts.jsonOutput, err)
-		return 1
+	load := func() (*scope.Workspace, error) {
+		root, err := rootDirectory(opts.scopeDirectory)
+		if err != nil {
+			return nil, err
+		}
+		return pkgapp.New(root, pkgapp.Options{}).LoadWorkspace()
 	}
-	return scopecli.Run(workspace, queryArguments, stdout, stderr)
+	context := scopecli.Context{Stdin: stdin, WorkingDirectory: workingDirectory, Load: load, Reload: load, LoadPath: func(path string) (*scope.Workspace, error) {
+		if !filepath.IsAbs(path) {
+			path = filepath.Join(workingDirectory, path)
+		}
+		if strings.HasSuffix(path, ".locus.yaml") || strings.HasSuffix(path, ".locus.yml") || strings.HasSuffix(path, ".locus.json") {
+			return scope.LoadDefinitionFile(path)
+		}
+		return pkgapp.New(path, pkgapp.Options{}).LoadWorkspace()
+	}}
+	return scopecli.Run(context, queryArguments, stdout, stderr)
 }
 
 func parseArguments(arguments []string) (options, []string, error) {
@@ -72,19 +85,6 @@ func parseArguments(arguments []string) (options, []string, error) {
 	return opts, queryArguments, nil
 }
 
-func isRootlessCommand(arguments []string) bool {
-	if len(arguments) == 0 {
-		return true
-	}
-	command := make([]string, 0, len(arguments))
-	for _, argument := range arguments {
-		if argument != "--json" {
-			command = append(command, argument)
-		}
-	}
-	return len(command) == 0 || len(command) == 1 && (command[0] == "help" || command[0] == "--help" || command[0] == "-h" || command[0] == "version" || command[0] == "--version")
-}
-
 func rootDirectory(explicit string) (string, error) {
 	if explicit != "" {
 		return explicit, nil
@@ -95,12 +95,9 @@ func rootDirectory(explicit string) (string, error) {
 	}
 	return scope.FindScope(workingDirectory)
 }
-
 func writeFailure(output io.Writer, jsonOutput bool, err error) {
 	if jsonOutput {
-		_ = json.NewEncoder(output).Encode(struct {
-			Error string `json:"error"`
-		}{err.Error()})
+		_ = json.NewEncoder(output).Encode(map[string]string{"error": err.Error()})
 		return
 	}
 	fmt.Fprintf(output, "locus-scope: %v\n", err)

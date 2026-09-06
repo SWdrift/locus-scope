@@ -68,25 +68,22 @@ product:infra:database
 
 ## Relation
 
-Relation 是两个 Entity 之间的有向边：
+Relation 是两个 Entity 之间的有向开放对象，三个必需定位字段为 `from`、`type` 和 `to`：
 
-```text
-<entity-ref> <relation> <entity-ref>
-```
-
-例如：
-
-```text
-api uses infra:database
-server located_in datacenter
+```yaml
+from: api
+type: depends_on
+to: infra:database
+critical: true
 ```
 
 规则：
 
-1. Relation 的起点和终点都必须解析为 Entity。
-2. Relation 自身没有属性。
-3. Relation 名称表达边的语义，但 `locus-scope` Core 不规定名称词表。
-4. 需要属性、身份或进一步参与 Relation 的关系，必须建模为 Entity。
+1. `from` 和 `to` 是声明 Scope 中的 Entity ref，必须按同一 Workspace reference 规则解析。
+2. `type` 是非空 Relation 类型；Core 不规定其词表。
+3. 除三个定位字段外，Relation 可以具有任意嵌套属性。
+4. Relation 没有独立 ID，以解析后的 `(from EntityKey, type, to EntityKey)` 定位，并在完整 Workspace 内唯一。
+5. 相同节点对可以存在不同 `type` 的 Relation，因此 Workspace graph 是 directed multigraph。
 
 Relation 与 Entity 共同形成有向 Entity 图。
 
@@ -136,11 +133,16 @@ entities:
               structure: allowed
 
 relations:
-    - [api, calls, worker]
-    - [api, uses, infra:database]
+    - from: api
+      type: calls
+      to: worker
+    - from: api
+      type: uses
+      to: infra:database
+      critical: true
 ```
 
-除 `id` 外，Entity 中的所有内容均为不透明属性。
+除 `id` 外，Entity 中的所有内容均为不透明属性。除 `from`、`type` 和 `to` 外，Relation 中的所有内容同样为不透明属性。Relation 声明必须使用对象形式；tuple、字符串及其他非对象形式均为无效输入。
 
 ## Group
 
@@ -154,8 +156,9 @@ entities:
     - id: worker
 
 relations:
-    - [api, calls, worker]
-```
+    - from: api
+      type: calls
+      to: worker
 
 其定义结果等价于 Scope 内的：
 
@@ -209,8 +212,8 @@ Entity reference 只能解析为以下两类目标：
 7. Import 内容始终通过 Projection 前缀访问，不隐式展平。
 8. Imported Projection 可以再次 export。
 9. Scope 之间允许任意组合关系，包括循环。
-10. Relation 构成 Entity 之间的有向图。
-11. Relation 本身无属性；需要独立语义的关系可以实体化。
+10. Relation 构成 Entity 之间的 directed multigraph。
+11. Relation 是开放对象，以解析后的 `(from, type, to)` 在完整 Workspace 内唯一。
 12. Group 只是 definition format 中的局部 ID 前缀，不是新的 Scope。
 13. `locus-scope` Core 不规定存储、序列化、包管理、传输、查询或执行实现。
 

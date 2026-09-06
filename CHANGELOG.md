@@ -2,6 +2,27 @@
 
 本文件记录 `locus-scope` 各发布版本的用户可见变更。
 
+## [2.0.0] - 2026-09-06
+
+### Added
+
+- `scope`、`group`、`entity`、`relation` 统一 list/show/find，支持嵌套 JSON field、正则和 provenance 查询。
+- directed multigraph 的 `graph`、`path`、`impact`，支持 depth、Relation `--via` 与 stdin Entity seeds。
+- Entity/Relation add/set/unset/remove、root `scope.locus.yaml`、`--file`、dependency read-only 和失败回滚。
+- `scope:`、`group:`、`path:` 归一化语义子图 diff，以及 Node host protocol v2 stdin 转发。
+
+### Changed
+
+- Entity 与 Relation 的公共 JSON 改为 root 开放对象 envelope；Relation 以 `(from,type,to)` 唯一定位并支持开放属性。
+- `locus-scope` 与 `locus-scope-node` 共享 command runner、JSON、错误和退出语义；旧 `list/show/resolve` 命令由统一查询入口替代。
+- application error 使用稳定 Code、Reason、Details 和 cause，并集中映射 CLI exit code。
+
+### Fixed
+
+- 全部正向 E2E Relation fixture 使用 canonical `{from,type,to,...}` 对象；旧 tuple 输入不再兼容并由独立失败 fixture 验证拒绝。
+- Relation Core 字段统一为 `Type`，并验证开放嵌套属性、canonical 落盘及 standalone/Node 管理结果一致性。
+- Group Relation 协议示例和 canonical object 缺字段诊断 fixture 与核心定义一致。
+
 ## [1.0.2] - 2026-09-05
 
 ### Fixed

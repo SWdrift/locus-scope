@@ -2,5 +2,9 @@ entities:
   - id: root
     owner: consumer
 relations:
-  - [root, owns, app:application]
-  - [root, owns, modern:modern-service]
+  - from: root
+    type: owns
+    to: app:application
+  - from: root
+    type: owns
+    to: modern:modern-service

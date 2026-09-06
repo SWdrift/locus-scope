@@ -8,7 +8,7 @@ Locus Scope 将具有身份的事物及其关系组织成有边界的图。Entit
 
 ## 使用
 
-提供两种使用模式。都有相同的 Scope 文件和查询语义，只是由不同工具管理 Package 依赖。
+提供两种使用模式。都有相同的 Scope 文件和 Workspace 检查语义，只是由不同工具管理 Package 依赖。
 
 | 模式 | 适用情况 | 命令入口 |
 | --- | --- | --- |
@@ -33,10 +33,10 @@ pnpm run deploy
 
 ## 文档
 
-- [基本使用](documents/基本使用.md)：以 npm 模式完成 Scope 创建、查询和组合，并说明独立 CLI 差异。
+- [基本使用](documents/基本使用.md)：以 npm 模式完成 Scope 创建、检查和组合，并说明独立 CLI 差异。
 - [使用npm](documents/使用npm.md)：安装 Node adapter，由 npm 或 pnpm 管理 Package。
 - [使用独立CLI](documents/使用独立CLI.md)：安装独立命令，管理 lock、离线状态和 Package 发布。
-- [CLI](documents/design/protocol/CLI.md)：查询与 Package 管理指令、参数和输出约定。
+- [CLI](documents/design/protocol/CLI.md)：Workspace 检查与 Package 管理指令、参数和输出约定。
 - [设计文档](documents/design/README.md)：协议、Scope、Package、测试和 Windows 安装包的权威设计。
 
 ## License

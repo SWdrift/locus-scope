@@ -4,14 +4,14 @@
 
 本控制平面管理 `locus-scope` 从 OCI Package 分发整体切换到 npm 生态的设计、项目结构调整、实现迁移和验收。目标是完成干净切换，而不是在现有 OCI 实现旁增加第二套长期并存的分发路径。
 
-当前代码和权威设计仍以 OCI、ORAS、Zot、OCI digest/cache/materialization 为迁移起点；目标状态已由 `参考.md` 和后续用户决定冻结，尚未确定的实现接口保留在动态讨论区。
+当前目标状态已经沉淀到 [`cpm-npm-packages.md`](cpm-npm-packages.md) 与权威设计；旧 OCI、ORAS、Zot、OCI digest/cache/materialization 实现只作为已完成迁移的历史起点。
 
 ## Meta Reference
 
 - 执行相关任务前依次读取 [`cp-meta.md`](cp-meta.md) 和本文件。
 - 随后读取 [`cpm-npm-packages.md`](cpm-npm-packages.md) 中已确认的跨任务决策；若其与当前用户决定或代码事实冲突，以后两者为准。
 - 设计事实依次核对 `documents/design/Scope设计.md`、`documents/design/Package设计.md`、`documents/design/测试设计.md` 与当前代码；代码与旧文档只描述迁移起点，不覆盖用户确认的新目标。
-- 当前迁移指导输入为 [`参考.md`](参考.md)；其中已明确的目标约束进入后续设计，仍有歧义的部分保留在动态讨论区。
+- 当前迁移约束以 [`cpm-npm-packages.md`](cpm-npm-packages.md) 和权威设计为准；若两者冲突，先核对当前代码与最新用户决定。
 - 创建或扩展本平面时使用 `create-control-plane`；任务或阶段收尾时使用 `compact-control-plane`。
 
 ## Scope

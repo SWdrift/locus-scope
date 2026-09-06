@@ -1,4 +1,3 @@
-import { readPackageManifest } from './package-manifest.mjs';
 import path from 'node:path';
 import { buildPackageEnvironment } from './package-environment.mjs';
 import { runHost } from './host.mjs';
@@ -9,6 +8,7 @@ export async function main(
   arguments_,
   {
     workingDirectory = process.cwd(),
+    stdin = process.stdin,
     stdout = process.stdout,
     stderr = process.stderr,
     platform = process.platform,
@@ -22,66 +22,44 @@ export async function main(
   const jsonOutput = arguments_.includes('--json');
   try {
     const options = parseRootOptions(arguments_);
-    if (isHelp(options.arguments)) {
-      stdout.write(usage);
-      return 0;
-    }
-    if (isVersion(options.arguments)) {
-      const { version } = await readPackageManifest();
-      if (jsonOutput) {
-        stdout.write(`${JSON.stringify({ name: 'locus-scope-node', version })}\n`);
-      } else {
-        stdout.write(`locus-scope-node ${version}\n`);
-      }
-      return 0;
-    }
-
     const absoluteWorkingDirectory = path.resolve(workingDirectory);
-    const scopeRoot = await discoverRoot(absoluteWorkingDirectory, options.scopeDirectory);
-    const environment = await buildEnvironment(scopeRoot);
+    const host = await locateHost({ platform, architecture });
     const request = {
-      version: 1,
+      version: 2,
       workingDirectory: absoluteWorkingDirectory,
       arguments: options.arguments,
-      root: environment.root,
-      packages: environment.packages,
+      root: { scopeRoot: '', packageRoot: '', dependencies: {} },
+      packages: {},
     };
-    const host = await locateHost({ platform, architecture });
+    if (!isRootless(options.arguments)) {
+      const scopeRoot = await discoverRoot(absoluteWorkingDirectory, options.scopeDirectory);
+      const environment = await buildEnvironment(scopeRoot);
+      request.root = environment.root;
+      request.packages = environment.packages;
+    }
+    if (usesStdin(options.arguments)) {
+      request.stdin = await readStream(stdin);
+    }
     return await invokeHost(host, request, stdout, stderr);
   } catch (error) {
     const message = error instanceof Error ? error.message : String(error);
-    if (jsonOutput) {
-      stderr.write(`${JSON.stringify({ error: message })}\n`);
-    } else {
-      stderr.write(`locus-scope-node: ${message}\n`);
-    }
+    if (jsonOutput) stderr.write(`${JSON.stringify({ error: message })}\n`);
+    else stderr.write(`locus-scope-node: ${message}\n`);
     return 1;
   }
 }
 
-function isHelp(arguments_) {
-  return (
-    arguments_.length === 0 ||
-    arguments_.includes('--help') ||
-    arguments_.includes('-h') ||
-    (arguments_.length === 1 && arguments_[0] === 'help')
-  );
-}
-
-function isVersion(arguments_) {
+function isRootless(arguments_) {
   const command = arguments_.filter((argument) => argument !== '--json');
-  return command.length === 1 && (command[0] === 'version' || command[0] === '--version');
+  return command.length === 0 || (command.length === 1 && ['help', '--help', '-h', 'version', '--version'].includes(command[0]));
 }
 
+function usesStdin(arguments_) {
+  return arguments_.includes('-');
+}
 
-const usage = `Usage:
-  locus-scope-node [--scope <dir>] [--json] validate
-  locus-scope-node [--scope <dir>] [--json] scope show
-  locus-scope-node [--scope <dir>] [--json] scope list
-  locus-scope-node [--scope <dir>] [--json] entity list
-  locus-scope-node [--scope <dir>] [--json] entity show <ref>
-  locus-scope-node [--scope <dir>] [--json] relation list
-  locus-scope-node [--scope <dir>] [--json] resolve <ref>
-  locus-scope-node [--json] version
-  locus-scope-node help
-`;
+async function readStream(stream) {
+  const chunks = [];
+  for await (const chunk of stream) chunks.push(Buffer.from(chunk));
+  return Buffer.concat(chunks).toString('utf8');
+}

@@ -8,12 +8,14 @@ import (
 	"io"
 	"os"
 	"path/filepath"
+	"strings"
 
 	"locus-scope/internal/packageenv"
+	"locus-scope/internal/scope"
 	"locus-scope/internal/scopecli"
 )
 
-const protocolVersion = 1
+const protocolVersion = 2
 
 type request struct {
 	Version          int                          `json:"version"`
@@ -21,6 +23,7 @@ type request struct {
 	Arguments        []string                     `json:"arguments"`
 	Root             rootDescriptor               `json:"root"`
 	Packages         map[string]packageDescriptor `json:"packages"`
+	Stdin            string                       `json:"stdin,omitempty"`
 }
 
 type rootDescriptor struct {
@@ -63,6 +66,11 @@ func run(input io.Reader, output io.Writer) int {
 	if err := validateRequest(request); err != nil {
 		return writeRequestFailure(output, request.Arguments, err)
 	}
+	if isRootlessRequest(request.Arguments) {
+		var stdout, stderr bytes.Buffer
+		exitCode := scopecli.Run(scopecli.Context{Stdin: strings.NewReader(request.Stdin), WorkingDirectory: request.WorkingDirectory}, request.Arguments, &stdout, &stderr)
+		return writeResponse(output, response{Version: protocolVersion, ExitCode: exitCode, Stdout: stdout.String(), Stderr: stderr.String()})
+	}
 
 	environment := packageenv.Environment{
 		Mode:             packageenv.NPMEnvironment,
@@ -99,16 +107,36 @@ func run(input io.Reader, output io.Writer) int {
 			Dependencies: dependencies,
 		}
 	}
-	workspace, err := packageenv.Load(request.Root.ScopeRoot, environment)
+	load := func() (*scope.Workspace, error) { return packageenv.Load(request.Root.ScopeRoot, environment) }
+	workspace, err := load()
 	if err != nil {
 		return writeRequestFailure(output, request.Arguments, err)
 	}
 
 	var stdout, stderr bytes.Buffer
-	exitCode := scopecli.Run(workspace, request.Arguments, &stdout, &stderr)
-	return writeResponse(output, response{
-		Version: protocolVersion, ExitCode: exitCode, Stdout: stdout.String(), Stderr: stderr.String(),
-	})
+	exitCode := scopecli.Run(scopecli.Context{
+		Stdin: strings.NewReader(request.Stdin), WorkingDirectory: request.WorkingDirectory,
+		Load: func() (*scope.Workspace, error) { return workspace, nil }, Reload: load,
+		LoadPath: func(path string) (*scope.Workspace, error) {
+			if !filepath.IsAbs(path) {
+				path = filepath.Join(request.WorkingDirectory, path)
+			}
+			if strings.HasSuffix(path, ".locus.yaml") || strings.HasSuffix(path, ".locus.yml") || strings.HasSuffix(path, ".locus.json") {
+				return scope.LoadDefinitionFile(path)
+			}
+			if absolute, absoluteErr := filepath.Abs(path); absoluteErr == nil {
+				if root, rootErr := filepath.Abs(request.Root.ScopeRoot); rootErr == nil && filepath.Clean(absolute) == filepath.Clean(root) {
+					return load()
+				}
+			}
+			source, sourceErr := scope.NewLocalSource(path)
+			if sourceErr != nil {
+				return nil, sourceErr
+			}
+			return scope.Load(source, scope.LocalResolver{})
+		},
+	}, request.Arguments, &stdout, &stderr)
+	return writeResponse(output, response{Version: protocolVersion, ExitCode: exitCode, Stdout: stdout.String(), Stderr: stderr.String()})
 }
 
 func decodeRequest(body []byte, destination *request) error {
@@ -198,6 +226,9 @@ func validateRequest(request request) error {
 	if err := requireAbsoluteDirectory("workingDirectory", request.WorkingDirectory); err != nil {
 		return err
 	}
+	if isRootlessRequest(request.Arguments) {
+		return nil
+	}
 	if err := requireAbsoluteDirectory("root.scopeRoot", request.Root.ScopeRoot); err != nil {
 		return err
 	}
@@ -229,6 +260,16 @@ func validateRequest(request request) error {
 		}
 	}
 	return nil
+}
+
+func isRootlessRequest(arguments []string) bool {
+	command := make([]string, 0, len(arguments))
+	for _, argument := range arguments {
+		if argument != "--json" {
+			command = append(command, argument)
+		}
+	}
+	return len(command) == 0 || len(command) == 1 && (command[0] == "help" || command[0] == "--help" || command[0] == "-h" || command[0] == "version" || command[0] == "--version")
 }
 
 func requireAbsoluteDirectory(field, path string) error {

@@ -9,10 +9,22 @@ type EntityKey struct {
 	ID    string   `json:"id"`
 }
 
-// Entity stores an ID and protocol-opaque properties.
+// Provenance identifies the declaration that produced an object.
+type Provenance struct {
+	Scope ScopeKey `json:"scope"`
+	File  string   `json:"file"`
+	Group string   `json:"group,omitempty"`
+	Line  int      `json:"line,omitempty"`
+	Index int      `json:"index,omitempty"`
+	Path  string   `json:"-"`
+}
+
+// Entity stores a canonical Scope-local ID and protocol-opaque properties.
 type Entity struct {
 	ID         string         `json:"id"`
-	Properties map[string]any `json:"properties"`
+	Properties map[string]any `json:"-"`
+	Source     Provenance     `json:"-"`
+	LocalID    string         `json:"-"`
 }
 
 // Manifest contains the scope-level declarations from locus.yaml, locus.yml, or locus.json.
@@ -24,22 +36,27 @@ type Manifest struct {
 
 // Scope is one loaded source. Key is its stable source identity, independent of LocalPath.
 type Scope struct {
-	Key      ScopeKey            `json:"key"`
-	Manifest Manifest            `json:"manifest"`
-	Entities map[string]Entity   `json:"entities"`
-	Imports  map[string]ScopeKey `json:"imports"`
+	Key          ScopeKey            `json:"key"`
+	Manifest     Manifest            `json:"manifest"`
+	Entities     map[string]Entity   `json:"entities"`
+	Imports      map[string]ScopeKey `json:"imports"`
+	LocalPath    string              `json:"-"`
+	ManifestFile string              `json:"-"`
 
 	manifestPath  string
 	exported      map[string]struct{}
-	entityOrigins map[string]string
 	relationDecls []relationDecl
 }
 
-// Relation is a resolved directed edge between stable entity identities.
+// Relation is a resolved directed edge with protocol-opaque properties.
 type Relation struct {
-	From EntityKey `json:"from"`
-	Name string    `json:"name"`
-	To   EntityKey `json:"to"`
+	From       EntityKey      `json:"from"`
+	Type       string         `json:"type"`
+	To         EntityKey      `json:"to"`
+	FromRef    string         `json:"-"`
+	ToRef      string         `json:"-"`
+	Properties map[string]any `json:"-"`
+	Source     Provenance     `json:"-"`
 }
 
 // Workspace contains the complete graph reachable from Root.
@@ -50,9 +67,9 @@ type Workspace struct {
 }
 
 type relationDecl struct {
-	from   string
-	name   string
-	to     string
-	source string
-	line   int
+	from       string
+	typ        string
+	to         string
+	properties map[string]any
+	source     Provenance
 }

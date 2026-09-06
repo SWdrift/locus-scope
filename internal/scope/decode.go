@@ -28,29 +28,48 @@ type definitionDocument struct {
 type entityDocument struct {
 	ID         string         `yaml:"id"`
 	Properties map[string]any `yaml:",inline"`
+	line       int
+}
+
+func (e *entityDocument) UnmarshalYAML(node *yaml.Node) error {
+	type rawEntity entityDocument
+	var raw rawEntity
+	if node.Kind != yaml.MappingNode {
+		return fmt.Errorf("line %d: entity must be an object", node.Line)
+	}
+	if err := node.Decode(&raw); err != nil {
+		return err
+	}
+	*e = entityDocument(raw)
+	e.line = node.Line
+	return nil
 }
 
 type relationDocument struct {
-	from string
-	name string
-	to   string
-	line int
+	From       string         `yaml:"from"`
+	Type       string         `yaml:"type"`
+	To         string         `yaml:"to"`
+	Properties map[string]any `yaml:",inline"`
+	line       int
 }
 
 func (r *relationDocument) UnmarshalYAML(node *yaml.Node) error {
-	if node.Kind != yaml.SequenceNode || len(node.Content) != 3 {
-		return fmt.Errorf("line %d: relation must contain exactly [from, relation, to]", node.Line)
+	if node.Kind != yaml.MappingNode {
+		return fmt.Errorf("line %d: relation must be an object", node.Line)
 	}
-
-	values := make([]string, 3)
-	for i, item := range node.Content {
-		if item.Kind != yaml.ScalarNode || item.Tag != "!!str" || strings.TrimSpace(item.Value) == "" {
-			return fmt.Errorf("line %d: relation item %d must be a non-empty string", item.Line, i+1)
-		}
-		values[i] = item.Value
+	type rawRelation relationDocument
+	var raw rawRelation
+	if err := node.Decode(&raw); err != nil {
+		return err
 	}
-
-	r.from, r.name, r.to, r.line = values[0], values[1], values[2], node.Line
+	*r = relationDocument(raw)
+	r.line = node.Line
+	if strings.TrimSpace(r.From) == "" || strings.TrimSpace(r.Type) == "" || strings.TrimSpace(r.To) == "" {
+		return fmt.Errorf("line %d: relation from, type, and to must be non-empty strings", node.Line)
+	}
+	if r.Properties == nil {
+		r.Properties = make(map[string]any)
+	}
 	return nil
 }
 
@@ -104,17 +123,18 @@ func decodeScope(source Source) (*Scope, error) {
 	}
 
 	s := &Scope{
-		Key: source.Key,
+		Key:          source.Key,
+		LocalPath:    directory,
+		ManifestFile: manifests[0],
 		Manifest: Manifest{
 			ID:      rawManifest.ID,
 			Imports: rawManifest.Imports,
 			Exports: rawManifest.Exports,
 		},
-		Entities:      make(map[string]Entity),
-		Imports:       make(map[string]ScopeKey),
-		manifestPath:  manifestPath,
-		exported:      make(map[string]struct{}, len(rawManifest.Exports)),
-		entityOrigins: make(map[string]string),
+		Entities:     make(map[string]Entity),
+		Imports:      make(map[string]ScopeKey),
+		manifestPath: manifestPath,
+		exported:     make(map[string]struct{}, len(rawManifest.Exports)),
 	}
 	for _, ref := range rawManifest.Exports {
 		s.exported[ref] = struct{}{}
@@ -137,6 +157,11 @@ func (s *Scope) decodeDefinition(path string) error {
 	if strings.Contains(document.Group, ":") {
 		return fmt.Errorf("%s: group %q must not contain ':'", path, document.Group)
 	}
+	relative, err := filepath.Rel(s.LocalPath, path)
+	if err != nil {
+		return fmt.Errorf("resolve definition path %s: %w", path, err)
+	}
+	relative = filepath.ToSlash(relative)
 
 	declaredIDs := make(map[string]struct{}, len(document.Entities))
 	for i, raw := range document.Entities {
@@ -152,19 +177,21 @@ func (s *Scope) decodeDefinition(path string) error {
 		if document.Group != "" {
 			id = document.Group + "/" + id
 		}
-		if previous, exists := s.entityOrigins[id]; exists {
-			return fmt.Errorf("%s: entity %q conflicts with entity declared in %s after group expansion", path, id, previous)
+		if previous, exists := s.Entities[id]; exists {
+			return fmt.Errorf("%s: entity %q conflicts with entity declared in %s after group expansion", path, id, previous.Source.Path)
 		}
 		properties := raw.Properties
 		if properties == nil {
 			properties = make(map[string]any)
 		}
-		s.Entities[id] = Entity{ID: id, Properties: properties}
-		s.entityOrigins[id] = path
+		s.Entities[id] = Entity{
+			ID: id, LocalID: raw.ID, Properties: properties,
+			Source: Provenance{Scope: s.Key, File: relative, Group: document.Group, Line: raw.line, Index: i + 1, Path: path},
+		}
 	}
 
-	for _, raw := range document.Relations {
-		from, to := raw.from, raw.to
+	for i, raw := range document.Relations {
+		from, to := raw.From, raw.To
 		if !strings.Contains(from, ":") {
 			if _, local := declaredIDs[from]; local && document.Group != "" {
 				from = document.Group + "/" + from
@@ -176,7 +203,8 @@ func (s *Scope) decodeDefinition(path string) error {
 			}
 		}
 		s.relationDecls = append(s.relationDecls, relationDecl{
-			from: from, name: raw.name, to: to, source: path, line: raw.line,
+			from: from, typ: raw.Type, to: to, properties: raw.Properties,
+			source: Provenance{Scope: s.Key, File: relative, Group: document.Group, Line: raw.line, Index: i + 1, Path: path},
 		})
 	}
 	return nil

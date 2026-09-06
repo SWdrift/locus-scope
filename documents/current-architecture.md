@@ -11,8 +11,11 @@ cmd/
 internal/
 ├── npm/
 ├── packageenv/
-├── purepkg/
+├── pkg/
+├── pkgapp/
+├── pkgcli/
 ├── scope/
+├── scopeapp/
 └── scopecli/
 
 packaging/
@@ -46,21 +49,29 @@ scripts/
 
 ```mermaid
 flowchart LR
-    LP[cmd/locus-pkg] --> PP[internal/purepkg]
-    PP --> N[internal/npm]
-    PP --> PE[internal/packageenv]
+    LP[cmd/locus-pkg] --> PC[internal/pkgcli]
+    PC --> PA[internal/pkgapp]
+    PA --> P[internal/pkg]
+    P --> N[internal/npm]
+    P --> PE[internal/packageenv]
     PE --> S[internal/scope]
-    SC[cmd/locus-scope] --> PP
+    SC[cmd/locus-scope] --> PA
     SC --> CLI[internal/scopecli]
     H[cmd/locus-scope-node-host] --> PE
     H --> CLI
-    CLI --> S
-    JS[@sundw/locus-scope adapter] --> H
+    CLI --> APP[internal/scopeapp]
+    APP --> S
+    JS["@sundw/locus-scope adapter"] --> H
 ```
 
-`internal/scope` 是唯一 Scope/Graph semantic core，不依赖 npm、package.json、lock、cache、Node 或 Registry 类型。`internal/packageenv` 是 resolved package graph 到 `scope.Resolver` 的唯一 adapter。`internal/npm` 只负责 npm protocol、SemVer、Registry、SRI、archive 和 pack/publish artifact。`internal/purepkg` 负责 Pure Locus lock/store/resolution/transaction。`internal/scopecli` 提供两个 Go entrypoint 共用的 query/validation dispatcher。
-
-`@sundw/locus-scope` 只构造 importer-relative descriptor、选择 platform host 并转发进程 I/O；不解析 Locus definitions。standalone `locus-scope` 使用 Pure Locus lock/store，Node host 使用 npm/pnpm 已安装环境，但二者进入相同 `packageenv`、`scope.Load` 和 `scopecli`。
+- `internal/scope` 是 Scope/Graph domain core，不依赖 npm、package.json、lock、cache、Node 或 Registry 类型。
+- `internal/scopeapp` 是 Scope 的稳定 application API；`internal/scopecli` 是 CLI frontend。
+- `internal/pkg` 实现 Locus Package 领域规则、lock/store、resolution 和 transaction。
+- `internal/pkgapp` 是 Package 的稳定 application API；`internal/pkgcli` 是 CLI frontend。
+- `internal/packageenv` 是 resolved package graph 到 `scope.Resolver` 的唯一 adapter。
+- `internal/npm` 只负责 npm protocol、SemVer、Registry、SRI、archive 和 pack/publish artifact。
+- `@sundw/locus-scope` 只构造 importer-relative descriptor、选择 platform host 并转发进程 I/O；不解析 Locus definitions。
+- standalone `locus-scope` 使用 Package application API 加载 Pure Locus lock/store；Node host 使用 npm/pnpm 已安装环境，但二者进入相同 `packageenv`、`scope`、`scopeapp` 和 `scopecli`。
 
 ## 目录规则
 

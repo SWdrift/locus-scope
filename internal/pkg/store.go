@@ -1,4 +1,4 @@
-package purepkg
+package pkg
 
 import (
 	"context"

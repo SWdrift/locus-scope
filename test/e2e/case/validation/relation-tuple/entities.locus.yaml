@@ -1,0 +1,5 @@
+entities:
+  - id: source
+  - id: target
+relations:
+  - [source, legacy_links, target]

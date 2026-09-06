@@ -1,4 +1,6 @@
 entities:
   - id: source
 relations:
-  - [source, points_to, absent]
+  - from: source
+    type: points_to
+    to: absent

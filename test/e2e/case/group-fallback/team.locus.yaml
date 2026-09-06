@@ -2,4 +2,6 @@ group: backend
 entities:
   - id: worker
 relations:
-  - [worker, uses, database]
+  - from: worker
+    type: uses
+    to: database
