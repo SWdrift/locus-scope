@@ -120,3 +120,7 @@ pnpm run registry:stop
 - 若需验证消费路径，在独立项目的 `package.json.dependencies` 声明版本范围，在 root Scope 用 bare Package 名 Import，然后选择一种环境验证：
   - Pure：`locus-pkg install` 后运行 `locus-scope validate`。
   - npm/pnpm：安装 `@sundw/locus-scope` 后运行 `locus-scope-node validate`。
+
+## 项目
+
+- [SWdrift/locus-scope](https://github.com/SWdrift/locus-scope)
