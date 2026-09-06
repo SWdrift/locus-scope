@@ -20,6 +20,13 @@ Two usage modes are available. Both use the same Scope files and Workspace valid
 
 To create your first Scope, start with [Basic Usage](https://github.com/SWdrift/locus-scope/blob/master/documents/1-Basic-Usage.md).
 
+Agents can select the matching Skill by environment and task:
+
+| Environment | Use and consume Packages | Publish Packages |
+| --- | --- | --- |
+| npm / pnpm | `$locus-use-node` | `$locus-publish-node` |
+| Standalone CLI / Pure Locus | `$locus-use` | `$locus-publish` |
+
 <details>
 <summary>Building from source</summary>
 

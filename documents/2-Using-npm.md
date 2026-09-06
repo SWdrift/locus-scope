@@ -90,14 +90,18 @@ The Node adapter resolves direct dependencies from each Package's own dependency
 
 ## Publishing a Package
 
-A publishable Locus Package uses standard npm metadata, but it must be validated and packed by `locus-pkg` before publication:
+There is currently no Node.js/npm ecosystem counterpart to `locus-pkg`; for now, the `$locus-publish-node` Skill provides the publication workflow.
+
+A publishable Locus Package uses standard npm metadata. For Agent-driven publication, use `$locus-publish-node`: run its lightweight validator, validate the Workspace, then pack and publish the same npm tarball:
 
 ```text
-locus-pkg pack
-locus-pkg publish --registry https://registry.example.com/
+node <skill-dir>/scripts/validate-package.mjs .
+pnpm exec locus-scope-node validate
+npm pack --json --ignore-scripts --pack-destination <workspace>/temp/locus-publish
+npm publish <workspace>/temp/locus-publish/<filename> --ignore-scripts --registry https://registry.example.com/
 ```
 
-Package authors therefore need to install the standalone `locus-pkg` as well. See [“Packaging and Publishing” in Standalone CLI Mode](3-Using-Standalone-CLI.md#packaging-and-publishing) for the complete steps.
+Before publishing, inspect the files and SHA-512 integrity returned by `npm pack --json`; afterwards, confirm that the exact `name@version` has the same `dist.integrity` in the Registry. The Skill is an Agent workflow, not a Registry-enforced gate. Use `locus-pkg pack` and `locus-pkg publish` when a non-Node.js environment or tool-enforced validation is required.
 
 ## Boundary with Standalone CLI Mode
 
