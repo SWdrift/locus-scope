@@ -24,8 +24,9 @@ Agents can select the matching Skill by environment and task:
 
 | Environment | Use and consume Packages | Publish Packages |
 | --- | --- | --- |
-| npm / pnpm | `$locus-use-node` | `$locus-publish-node` |
-| Standalone CLI / Pure Locus | `$locus-use` | `$locus-publish` |
+| npm / pnpm | [`$locus-use-node`](https://github.com/SWdrift/locus-scope/blob/master/.agents/skills/locus-use-node/SKILL.md) | [`$locus-publish-node`](https://github.com/SWdrift/locus-scope/blob/master/.agents/skills/locus-publish-node/SKILL.md) |
+| 独立 CLI / Pure Locus | [`$locus-use`](https://github.com/SWdrift/locus-scope/blob/master/.agents/skills/locus-use/SKILL.md) | [`$locus-publish`](https://github.com/SWdrift/locus-scope/blob/master/.agents/skills/locus-publish/SKILL.md) |
+
 
 <details>
 <summary>Building from source</summary>
