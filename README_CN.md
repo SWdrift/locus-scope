@@ -23,8 +23,8 @@ Agent 可按环境和任务选择对应 Skill：
 
 | 环境 | 使用与消费 Package | 发布 Package |
 | --- | --- | --- |
-| npm / pnpm | `$locus-use-node` | `$locus-publish-node` |
-| 独立 CLI / Pure Locus | `$locus-use` | `$locus-publish` |
+| npm / pnpm | [`$locus-use-node`](.agents/skills/locus-use-node/SKILL.md) | [`$locus-publish-node`](.agents/skills/locus-publish-node/SKILL.md) |
+| 独立 CLI / Pure Locus | [`$locus-use`](.agents/skills/locus-use/SKILL.md) | [`$locus-publish`](.agents/skills/locus-publish/SKILL.md) |
 
 <details>
 <summary>从源码构建</summary>
