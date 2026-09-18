@@ -1,6 +1,6 @@
 # Basic Usage
 
-This guide walks through the basic workflow, from creating a Scope to composing Packages. The examples primarily use npm mode with pnpm managing dependencies; differences for standalone CLI mode are listed at the end.
+This guide walks through the basic workflow, from creating a Scope to composing Packages. npm or pnpm manages dependencies, while the unified `locus-scope` command loads and operates on the Workspace.
 
 ## Installation
 
@@ -61,7 +61,7 @@ The following minimal set of operations validates the Workspace, queries objects
 ### Validating the Workspace
 
 ```shell
-pnpm exec locus-scope-node --scope ./app validate
+pnpm exec locus-scope --scope ./app validate
 ```
 
 Output:
@@ -83,7 +83,7 @@ Output:
 First, retrieve `database` by reference:
 
 ```shell
-pnpm exec locus-scope-node --scope ./app entity database
+pnpm exec locus-scope --scope ./app entity database
 ```
 
 Output:
@@ -107,7 +107,7 @@ Output:
 You can also filter by open properties:
 
 ```shell
-pnpm exec locus-scope-node --scope ./app entity type=postgres
+pnpm exec locus-scope --scope ./app entity type=postgres
 ```
 
 Output:
@@ -135,7 +135,7 @@ Multiple filters use AND semantics; for example, `entity type=postgres port=5432
 ### Querying Relations
 
 ```shell
-pnpm exec locus-scope-node --scope ./app relation type=uses
+pnpm exec locus-scope --scope ./app relation type=uses
 ```
 
 Output:
@@ -167,7 +167,7 @@ Output:
 Query one level of outgoing edges from `backend`:
 
 ```shell
-pnpm exec locus-scope-node --scope ./app graph backend --depth 1
+pnpm exec locus-scope --scope ./app graph backend --depth 1
 ```
 
 The output contains the seed, both endpoint Entities, and the `backend → database` Relation:
@@ -271,7 +271,7 @@ exports:
 `infra` is the alias assigned to this Import by the current Scope. Use the alias to inspect the exported Entity:
 
 ```text
-pnpm exec locus-scope-node --scope ./app entity infra:database
+pnpm exec locus-scope --scope ./app entity infra:database
 ```
 
 ## Composing Packages
@@ -297,8 +297,8 @@ exports:
 Validate and inspect it again:
 
 ```text
-pnpm exec locus-scope-node --scope ./app validate
-pnpm exec locus-scope-node --scope ./app entity infra:database
+pnpm exec locus-scope --scope ./app validate
+pnpm exec locus-scope --scope ./app entity infra:database
 ```
 
 `locus.yaml` contains only the Package name, without a version or subpath. The version range is stored in `package.json.dependencies`, and the resolved version is pinned by `pnpm-lock.yaml`.
@@ -309,28 +309,7 @@ npm uses the same files and semantics. Replace the installation command and exec
 
 ```text
 npm install @sundw/locus-scope @example/infra
-npx locus-scope-node --scope ./app validate
+npx locus-scope --scope ./app validate
 ```
 
 See [npm Mode](2-Using-npm.md) for more dependency-management boundaries.
-
-## Differences in Standalone CLI Mode
-
-Standalone CLI mode does not change the syntax of Scope, Entity, Relation, Import, or Export. It only replaces the command entry point and Package-management method:
-
-| npm mode | Standalone CLI mode |
-| --- | --- |
-| `pnpm exec locus-scope-node ...` | `locus-scope ...` |
-| `pnpm add @example/infra` | `locus-pkg install @example/infra@^1.0.0` |
-| `pnpm-lock.yaml` and `node_modules` | `locus.lock` and `.locus/` |
-| Requires Node.js and npm/pnpm | Does not require Node.js, npm, or pnpm |
-
-For example, the standalone CLI performs the same check with:
-
-```text
-locus-pkg install @example/infra@^1.0.0
-locus-scope --scope ./app validate
-locus-scope --scope ./app entity infra:database
-```
-
-See [Standalone CLI Mode](3-Using-Standalone-CLI.md) for installation, offline operation, and publishing with the standalone CLI.

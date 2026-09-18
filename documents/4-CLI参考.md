@@ -1,38 +1,18 @@
 # CLI 参考
 
-Locus Scope 提供三个命令行入口：
-
-- `locus-scope`：从本地文件、`locus.lock` 和 `.locus/` 加载 Workspace。
-- `locus-scope-node`：从 npm 或 pnpm 已安装的依赖加载 Workspace。
-- `locus-pkg`：安装、更新、打包和发布 npm-compatible Locus Package。
-
-`locus-scope` 与 `locus-scope-node` 支持相同的 Workspace 命令，只有 Package 加载环境不同。
-
-## 命令入口
-
-直接使用独立 Workspace CLI：
+Locus Scope 提供一个公开命令行入口：
 
 ```text
-locus-scope [--scope <dir>] [--json] <command>
+pnpm exec locus-scope [--scope <dir>] [--json] <command>
+# 或
+npx locus-scope [--scope <dir>] [--json] <command>
 ```
 
-在 pnpm 项目中使用 Node adapter：
-
-```text
-pnpm exec locus-scope-node [--scope <dir>] [--json] <command>
-```
-
-npm 项目将前缀替换为 `npx locus-scope-node`。Package 命令统一使用：
-
-```text
-locus-pkg [options] <command>
-```
-
-除 `help` 和 `version` 外，Workspace 命令执行前会加载并验证所有可达 Scope。省略 `--scope` 时，CLI 从当前目录向上查找最近的 Scope。Package 命令从当前目录向上查找适用的项目或 Package 根目录。
+`@sundw/locus-scope` Node adapter 解析 npm 或 pnpm 已安装的依赖，选择私有平台 Go host，并转发命令。除 `help` 和 `version` 外，命令执行前会加载并验证所有可达 Scope。省略 `--scope` 时，CLI 从当前目录向上查找最近的 Scope。
 
 ## Workspace 参数
 
-以下参数同时适用于 `locus-scope` 和 `locus-scope-node`：
+以下参数适用于 `locus-scope`：
 
 | 参数 | 说明 |
 | --- | --- |
@@ -408,7 +388,7 @@ validate
 ```text
 locus-scope version
 locus-scope --json version
-locus-scope-node version
+pnpm exec locus-scope version
 ```
 
 ### `help`
@@ -419,152 +399,6 @@ locus-scope-node version
 locus-scope help
 locus-scope --help
 locus-scope -h
-```
-
-## Package 参数
-
-`locus-pkg` 参数可以放在 subcommand 前后：
-
-| 参数 | 说明 |
-| --- | --- |
-| `--registry <url>` 或 `--registry=<url>` | 覆盖 npm Registry；否则使用环境和 `.npmrc` 配置解析结果。 |
-| `--offline` | 禁止 Registry 请求，只使用已有 lock、缓存和展开状态。 |
-| `--frozen-lockfile` | 要求 `package.json` 与 `locus.lock` 完全一致，且不修改声明或 lock。 |
-| `--json` | 输出稳定 JSON；错误格式为 `{"error":"<message>"}`。 |
-| `--version` | 输出 CLI 版本。 |
-| `--help`、`-h` | 输出命令帮助。 |
-
-`publish` 不接受 `--offline` 或 `--frozen-lockfile`。显式 `install <package-spec>` 不能与 `--frozen-lockfile` 一起使用。
-
-## Package 命令
-
-### `install`
-
-按照 `package.json.dependencies` 安装完整依赖图：
-
-```text
-locus-pkg install
-locus-pkg install --frozen-lockfile
-locus-pkg install --offline --frozen-lockfile
-```
-
-添加或修改直接依赖，然后安装完整依赖图：
-
-```text
-locus-pkg install @example/infra@^1.0.0
-locus-pkg install @example/infra@^1.0.0 @example/model@2.0.0
-```
-
-语法：
-
-```text
-install [<package-spec>...]
-```
-
-命令会提交一致的 `package.json`、`locus.lock` 和 `.locus/` 状态。显式 Package spec 会更新直接依赖。
-
-### `uninstall`
-
-删除一个或多个直接依赖，并剪除不再可达的 Package：
-
-```text
-locus-pkg uninstall @example/infra
-locus-pkg uninstall @example/infra @example/model
-```
-
-语法：
-
-```text
-uninstall <package>...
-```
-
-只接受 direct dependency name。
-
-### `update`
-
-在已声明的版本约束内更新直接依赖：
-
-```text
-locus-pkg update
-locus-pkg update @example/infra
-```
-
-语法：
-
-```text
-update [<package>...]
-```
-
-省略 Package name 时更新所有直接依赖。指定名称时，只更新所选直接依赖及其 dependency closure。
-
-### `list`
-
-显示由 `locus.lock` 和 `.locus/` 解析的依赖树：
-
-```text
-locus-pkg list
-locus-pkg --json list
-```
-
-语法：
-
-```text
-list
-```
-
-每个 dependency 包含 name、version、identity 和嵌套 dependencies。
-
-### `pack`
-
-验证当前 Package，并创建确定性的 npm `.tgz`：
-
-```text
-locus-pkg pack
-locus-pkg --json pack
-```
-
-语法：
-
-```text
-pack
-```
-
-命令向上查找最近的、包含有效 `locus.entry` 的 `package.json`。文本输出包含 archive filename、Package name、version、integrity 和文件数量。
-
-### `publish`
-
-打包并发布当前不可变的 `name@version`，同时发布 `latest` dist-tag：
-
-```text
-locus-pkg publish
-locus-pkg publish --registry https://registry.example.com/
-```
-
-语法：
-
-```text
-publish
-```
-
-Registry 认证使用 npm-compatible `.npmrc` 和环境配置。文本输出包含 Package name、version、Registry 和 integrity。
-
-### `version`
-
-不查找项目或读取 Registry 配置，直接输出 Package CLI 版本：
-
-```text
-locus-pkg version
-locus-pkg --json version
-```
-
-### `help`
-
-不查找项目，直接输出 Package 命令用法：
-
-```text
-locus-pkg help
-locus-pkg --help
-locus-pkg -h
 ```
 
 ## 输出与退出状态

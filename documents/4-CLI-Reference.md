@@ -1,38 +1,18 @@
 # CLI Reference
 
-Locus Scope provides three command-line entry points:
-
-- `locus-scope` loads a Workspace from local files, `locus.lock`, and `.locus/`.
-- `locus-scope-node` loads a Workspace from dependencies installed by npm or pnpm.
-- `locus-pkg` installs, updates, packs, and publishes npm-compatible Locus Packages.
-
-`locus-scope` and `locus-scope-node` support the same Workspace commands. Only their Package-loading environments differ.
-
-## Command Entry Points
-
-Use the standalone Workspace CLI directly:
+Locus Scope provides one public command-line entry point:
 
 ```text
-locus-scope [--scope <dir>] [--json] <command>
+pnpm exec locus-scope [--scope <dir>] [--json] <command>
+# or
+npx locus-scope [--scope <dir>] [--json] <command>
 ```
 
-Use the Node adapter in a pnpm project:
-
-```text
-pnpm exec locus-scope-node [--scope <dir>] [--json] <command>
-```
-
-For npm, replace the prefix with `npx locus-scope-node`. Package commands always use:
-
-```text
-locus-pkg [options] <command>
-```
-
-Except for `help` and `version`, Workspace commands load and validate all reachable Scopes before executing. When `--scope` is omitted, the CLI searches from the current directory upward for the nearest Scope. Package commands search upward for the nearest applicable project or Package root.
+The `@sundw/locus-scope` Node adapter resolves dependencies installed by npm or pnpm, selects the private platform Go host, and forwards the command. Except for `help` and `version`, commands load and validate all reachable Scopes before executing. When `--scope` is omitted, the CLI searches from the current directory upward for the nearest Scope.
 
 ## Workspace Options
 
-These options apply to `locus-scope` and `locus-scope-node`:
+These options apply to `locus-scope`:
 
 | Option | Description |
 | --- | --- |
@@ -408,7 +388,7 @@ Print the CLI version without loading a Workspace:
 ```text
 locus-scope version
 locus-scope --json version
-locus-scope-node version
+pnpm exec locus-scope version
 ```
 
 ### `help`
@@ -419,152 +399,6 @@ Print command usage without loading a Workspace:
 locus-scope help
 locus-scope --help
 locus-scope -h
-```
-
-## Package Options
-
-Options for `locus-pkg` may appear before or after the subcommand:
-
-| Option | Description |
-| --- | --- |
-| `--registry <url>` or `--registry=<url>` | Override the npm Registry. Otherwise, use the configured environment and `.npmrc` resolution. |
-| `--offline` | Prohibit Registry requests and use only existing lock, cache, and extracted state. |
-| `--frozen-lockfile` | Require `package.json` and `locus.lock` to agree exactly without modifying either declaration or lock. |
-| `--json` | Write stable JSON output. Errors use `{"error":"<message>"}`. |
-| `--version` | Print the CLI version. |
-| `--help`, `-h` | Print command help. |
-
-`publish` does not accept `--offline` or `--frozen-lockfile`. An explicit `install <package-spec>` cannot be combined with `--frozen-lockfile`.
-
-## Package Commands
-
-### `install`
-
-Install the complete dependency graph declared by `package.json.dependencies`:
-
-```text
-locus-pkg install
-locus-pkg install --frozen-lockfile
-locus-pkg install --offline --frozen-lockfile
-```
-
-Add or change direct dependencies and then install the complete graph:
-
-```text
-locus-pkg install @example/infra@^1.0.0
-locus-pkg install @example/infra@^1.0.0 @example/model@2.0.0
-```
-
-Syntax:
-
-```text
-install [<package-spec>...]
-```
-
-The command commits consistent `package.json`, `locus.lock`, and `.locus/` state. Explicit Package specs update direct dependencies.
-
-### `uninstall`
-
-Remove one or more direct dependencies and prune Packages that are no longer reachable:
-
-```text
-locus-pkg uninstall @example/infra
-locus-pkg uninstall @example/infra @example/model
-```
-
-Syntax:
-
-```text
-uninstall <package>...
-```
-
-Only direct dependency names are accepted.
-
-### `update`
-
-Update direct dependencies within their declared version constraints:
-
-```text
-locus-pkg update
-locus-pkg update @example/infra
-```
-
-Syntax:
-
-```text
-update [<package>...]
-```
-
-With no Package names, the command updates all direct dependencies. Named updates affect only the selected direct dependencies and their dependency closures.
-
-### `list`
-
-Display the dependency tree resolved by `locus.lock` and `.locus/`:
-
-```text
-locus-pkg list
-locus-pkg --json list
-```
-
-Syntax:
-
-```text
-list
-```
-
-Each dependency contains its name, version, identity, and nested dependencies.
-
-### `pack`
-
-Validate the current Package and create a deterministic npm `.tgz` archive:
-
-```text
-locus-pkg pack
-locus-pkg --json pack
-```
-
-Syntax:
-
-```text
-pack
-```
-
-The command searches upward for the nearest `package.json` with a valid `locus.entry`. Text output includes the archive filename, Package name and version, integrity, and file count.
-
-### `publish`
-
-Pack and publish the current immutable `name@version` with the `latest` dist-tag:
-
-```text
-locus-pkg publish
-locus-pkg publish --registry https://registry.example.com/
-```
-
-Syntax:
-
-```text
-publish
-```
-
-Registry authentication follows npm-compatible `.npmrc` and environment configuration. Text output includes the Package name and version, Registry, and integrity.
-
-### `version`
-
-Print the Package CLI version without locating a project or reading Registry configuration:
-
-```text
-locus-pkg version
-locus-pkg --json version
-```
-
-### `help`
-
-Print Package command usage without locating a project:
-
-```text
-locus-pkg help
-locus-pkg --help
-locus-pkg -h
 ```
 
 ## Output and Exit Status

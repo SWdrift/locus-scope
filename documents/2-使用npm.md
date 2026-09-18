@@ -12,7 +12,7 @@ pnpm add @sundw/locus-scope
 npm install @sundw/locus-scope
 ```
 
-`@sundw/locus-scope` 提供 `locus-scope-node`。先创建最小 Scope：
+`@sundw/locus-scope` 提供 `locus-scope`。先创建最小 Scope：
 
 ```yaml
 # locus.yaml
@@ -22,9 +22,9 @@ id: app
 验证安装和文件读取：
 
 ```text
-pnpm exec locus-scope-node validate
+pnpm exec locus-scope validate
 # 或
-npx locus-scope-node validate
+npx locus-scope validate
 ```
 
 完整的建模和 CLI 操作步骤见[基本使用](1-基本使用.md)。
@@ -45,34 +45,34 @@ Package 名不携带版本或子路径。版本范围由同目录的 `package.js
 
 ```text
 pnpm add @example/infra
-pnpm exec locus-scope-node validate
-pnpm exec locus-scope-node entity infra:database
+pnpm exec locus-scope validate
+pnpm exec locus-scope entity infra:database
 ```
 
 使用 npm：
 
 ```text
 npm install @example/infra
-npx locus-scope-node validate
-npx locus-scope-node entity infra:database
+npx locus-scope validate
+npx locus-scope entity infra:database
 ```
 
 ## 执行命令
 
-pnpm 项目统一通过 `pnpm exec locus-scope-node` 执行：
+pnpm 项目统一通过 `pnpm exec locus-scope` 执行：
 
 ```text
-pnpm exec locus-scope-node validate
-pnpm exec locus-scope-node entity
-pnpm exec locus-scope-node entity database
-pnpm exec locus-scope-node relation
-pnpm exec locus-scope-node graph backend --depth 1
+pnpm exec locus-scope validate
+pnpm exec locus-scope entity
+pnpm exec locus-scope entity database
+pnpm exec locus-scope relation
+pnpm exec locus-scope graph backend --depth 1
 ```
 
-npm 项目把命令前缀替换为 `npx locus-scope-node`。在 Scope 目录之外执行时，通过 `--scope <dir>` 指定位置：
+npm 项目把命令前缀替换为 `npx locus-scope`。在 Scope 目录之外执行时，通过 `--scope <dir>` 指定位置：
 
 ```text
-pnpm exec locus-scope-node --scope ./app validate
+pnpm exec locus-scope --scope ./app validate
 ```
 
 默认输出格式化 JSON；Agent、脚本或 CI 可以追加 `--json` 获取稳定的单行 JSON。
@@ -83,32 +83,29 @@ npm 模式遵循 package manager 的正常工作流：
 
 - 使用 `pnpm add`、`pnpm update`、`pnpm remove`，或对应的 npm 命令变更依赖。
 - 提交 `package.json` 和 package manager lockfile。
-- CI 使用项目既有的 frozen-lockfile 安装方式，再运行 `locus-scope-node validate`。
-- 不运行 `locus-pkg install`，也不读取 Pure Locus 的 `locus.lock` 或 `.locus/`。
+- CI 使用项目既有的 frozen-lockfile 安装方式，再运行 `locus-scope validate`。
+- 不为 Locus 建立第二套 Package lock、缓存或安装状态。
 
-Node adapter 从每个 Package 自己的依赖上下文解析直接依赖，因此 npm hoisting 和 pnpm symlink layout 不改变 Scope 语义。JavaScript 只负责提供已解析的 Package 信息；Scope 文件仍由与独立 CLI 相同的 Go 核心加载和验证。
+Scope Import 只写依赖目标，不写版本或安装位置。npm 或 pnpm 负责版本解析和实际安装；Node adapter 从每个 Package 自己的依赖上下文生成指向 exact identity 的 importer-relative edge。Package Scope 的 Import 只沿自己的 edge 解析，不能从 root dependencies 或全局 Package 集合查找同名 Package。Go 只消费这个 resolved Environment，并加载、验证 Scope 文件。
 
 ## 发布 Package
 
-目前尚未提供 `locus-pkg` 在 Node.js/npm 生态中的对应 CLI，暂时以 `$locus-publish-node` Skill 提供发布流程。
-
-可发布的 Locus Package 使用标准 npm metadata。Agent 发布时使用 `$locus-publish-node`：先运行 Skill 自带的轻量校验脚本，再验证 Workspace，最后打包并发布同一个 npm tarball：
+Agent 发布时使用 `$locus-publish-node`。可发布的 Locus Package 使用标准 npm metadata：先运行 Skill 自带的轻量校验脚本，再验证 Workspace，最后打包并发布同一个 npm tarball：
 
 ```text
 node <skill-dir>/scripts/validate-package.mjs .
-pnpm exec locus-scope-node validate
+pnpm exec locus-scope validate
 npm pack --json --ignore-scripts --pack-destination <workspace>/temp/locus-publish
 npm publish <workspace>/temp/locus-publish/<filename> --ignore-scripts --registry https://registry.example.com/
 ```
 
-发布前必须检查 `npm pack --json` 返回的文件列表和 SHA-512 integrity；发布后确认 Registry 中确切 `name@version` 的 `dist.integrity` 一致。Skill 是 Agent 工作流而非 Registry 强制门禁。需要非 Node.js 环境或工具级强制校验时，改用 `locus-pkg pack` 和 `locus-pkg publish`。
+发布前必须检查 `npm pack --json` 返回的文件列表和 SHA-512 integrity；发布后确认 Registry 中确切 `name@version` 的 `dist.integrity` 一致。Skill 是 Agent 工作流而非 Registry 强制门禁。
 
-## 与独立 CLI 模式的边界
+## 运行边界
 
-两种模式使用相同的 Scope 文件和 Workspace 检查语义，但依赖状态不能混用：
+项目只有一种 Package environment：
 
-- npm 模式读取 package manager lockfile 和 `node_modules`，命令是 `locus-scope-node`。
-- 独立 CLI 模式读取 `locus.lock` 和 `.locus/`，命令是 `locus-scope`。
-- 只使用本地 Scope、不需要 Package 时，两种 CLI 都可以直接加载相同文件。
-
-非 Node.js 项目或希望脱离 npm 工具链时，应改用[独立 CLI 模式](3-使用独立CLI.md)。
+- npm 或 pnpm 负责版本解析、安装、lockfile 和缓存。
+- Node adapter 发现 importer-relative 的已安装 Package graph。
+- 私有 Go host 验证 resolved Environment，并执行共享 Scope application。
+- 只使用本地 Scope 时仍使用同一个 `locus-scope` 命令，也不要求存在 Package Import。

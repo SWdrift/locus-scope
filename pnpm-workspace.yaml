@@ -1,5 +1,3 @@
 packages:
   - "packaging/npm/*"
 linkWorkspacePackages: true
-minimumReleaseAgeExclude:
-  - '@example/pure-published@1.0.0'

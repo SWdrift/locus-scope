@@ -12,7 +12,7 @@ pnpm add @sundw/locus-scope
 npm install @sundw/locus-scope
 ```
 
-`@sundw/locus-scope` provides `locus-scope-node`. First, create a minimal Scope:
+`@sundw/locus-scope` provides `locus-scope`. First, create a minimal Scope:
 
 ```yaml
 # locus.yaml
@@ -22,9 +22,9 @@ id: app
 Verify the installation and file loading:
 
 ```text
-pnpm exec locus-scope-node validate
+pnpm exec locus-scope validate
 # or
-npx locus-scope-node validate
+npx locus-scope validate
 ```
 
 See [Basic Usage](1-Basic-Usage.md) for the complete modeling and CLI workflow.
@@ -45,34 +45,34 @@ Install and query with pnpm:
 
 ```text
 pnpm add @example/infra
-pnpm exec locus-scope-node validate
-pnpm exec locus-scope-node entity infra:database
+pnpm exec locus-scope validate
+pnpm exec locus-scope entity infra:database
 ```
 
 With npm:
 
 ```text
 npm install @example/infra
-npx locus-scope-node validate
-npx locus-scope-node entity infra:database
+npx locus-scope validate
+npx locus-scope entity infra:database
 ```
 
 ## Running Commands
 
-In pnpm projects, consistently run commands through `pnpm exec locus-scope-node`:
+In pnpm projects, consistently run commands through `pnpm exec locus-scope`:
 
 ```text
-pnpm exec locus-scope-node validate
-pnpm exec locus-scope-node entity
-pnpm exec locus-scope-node entity database
-pnpm exec locus-scope-node relation
-pnpm exec locus-scope-node graph backend --depth 1
+pnpm exec locus-scope validate
+pnpm exec locus-scope entity
+pnpm exec locus-scope entity database
+pnpm exec locus-scope relation
+pnpm exec locus-scope graph backend --depth 1
 ```
 
-In npm projects, replace the command prefix with `npx locus-scope-node`. When running outside the Scope directory, specify its location with `--scope <dir>`:
+In npm projects, replace the command prefix with `npx locus-scope`. When running outside the Scope directory, specify its location with `--scope <dir>`:
 
 ```text
-pnpm exec locus-scope-node --scope ./app validate
+pnpm exec locus-scope --scope ./app validate
 ```
 
 The default output is formatted JSON. Agents, scripts, and CI can append `--json` to receive stable single-line JSON.
@@ -83,32 +83,29 @@ npm mode follows the package manager's normal workflow:
 
 - Use `pnpm add`, `pnpm update`, and `pnpm remove`, or the corresponding npm commands, to modify dependencies.
 - Commit `package.json` and the package manager lockfile.
-- In CI, use the project's existing frozen-lockfile installation method, then run `locus-scope-node validate`.
-- Do not run `locus-pkg install`, and do not read Pure Locus's `locus.lock` or `.locus/`.
+- In CI, use the project's existing frozen-lockfile installation method, then run `locus-scope validate`.
+- Do not create a second Package lock, cache, or installation state for Locus.
 
-The Node adapter resolves direct dependencies from each Package's own dependency context, so npm hoisting and pnpm's symlink layout do not change Scope semantics. JavaScript only provides resolved Package information; Scope files are still loaded and validated by the same Go core used by the standalone CLI.
+A Scope Import names only its dependency target, not a version or installation path. npm or pnpm owns version resolution and physical installation; the Node adapter resolves an importer-relative edge to an exact identity in each Package's own dependency context. A Package Scope resolves an Import only through its own edge, never by searching root dependencies or a global Package set. Go only consumes that resolved Environment and loads and validates the Scope files.
 
 ## Publishing a Package
 
-There is currently no Node.js/npm ecosystem counterpart to `locus-pkg`; for now, the `$locus-publish-node` Skill provides the publication workflow.
-
-A publishable Locus Package uses standard npm metadata. For Agent-driven publication, use `$locus-publish-node`: run its lightweight validator, validate the Workspace, then pack and publish the same npm tarball:
+For Agent-driven publication, use `$locus-publish-node`. A publishable Locus Package uses standard npm metadata: run the Skill's lightweight validator, validate the Workspace, then pack and publish the same npm tarball:
 
 ```text
 node <skill-dir>/scripts/validate-package.mjs .
-pnpm exec locus-scope-node validate
+pnpm exec locus-scope validate
 npm pack --json --ignore-scripts --pack-destination <workspace>/temp/locus-publish
 npm publish <workspace>/temp/locus-publish/<filename> --ignore-scripts --registry https://registry.example.com/
 ```
 
-Before publishing, inspect the files and SHA-512 integrity returned by `npm pack --json`; afterwards, confirm that the exact `name@version` has the same `dist.integrity` in the Registry. The Skill is an Agent workflow, not a Registry-enforced gate. Use `locus-pkg pack` and `locus-pkg publish` when a non-Node.js environment or tool-enforced validation is required.
+Before publishing, inspect the files and SHA-512 integrity returned by `npm pack --json`; afterwards, confirm that the exact `name@version` has the same `dist.integrity` in the Registry. The Skill is an Agent workflow, not a Registry-enforced gate.
 
-## Boundary with Standalone CLI Mode
+## Runtime Boundary
 
-Both modes use the same Scope files and Workspace validation semantics, but their dependency state cannot be mixed:
+There is one Package environment:
 
-- npm mode reads the package manager lockfile and `node_modules`; its command is `locus-scope-node`.
-- Standalone CLI mode reads `locus.lock` and `.locus/`; its command is `locus-scope`.
-- When using only local Scopes without Packages, either CLI can load the same files directly.
-
-Non-Node.js projects, or projects that should remain independent of the npm toolchain, should use [Standalone CLI Mode](3-Using-Standalone-CLI.md) instead.
+- npm or pnpm owns version resolution, installation, the lockfile, and cache.
+- The Node adapter discovers the importer-relative installed Package graph.
+- The private Go host validates the resolved Environment and executes the shared Scope application.
+- Local-only Scopes use the same `locus-scope` command and do not require Package Imports.

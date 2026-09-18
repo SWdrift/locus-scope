@@ -8,16 +8,12 @@ import (
 type Code string
 
 const (
-	InvalidArgument    Code = "invalid_argument"
-	InvalidData        Code = "invalid_data"
-	NotFound           Code = "not_found"
-	FailedPrecondition Code = "failed_precondition"
-	Conflict           Code = "conflict"
-	IntegrityFailed    Code = "integrity_failed"
-	Unauthenticated    Code = "unauthenticated"
-	PermissionDenied   Code = "permission_denied"
-	Unavailable        Code = "unavailable"
-	Internal           Code = "internal"
+	InvalidArgument  Code = "invalid_argument"
+	InvalidData      Code = "invalid_data"
+	NotFound         Code = "not_found"
+	Conflict         Code = "conflict"
+	PermissionDenied Code = "permission_denied"
+	Internal         Code = "internal"
 )
 
 type Error struct {

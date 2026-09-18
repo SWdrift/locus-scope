@@ -4,81 +4,63 @@
 
 ```text
 cmd/
-├── locus-pkg/
-├── locus-scope/
 └── locus-scope-node-host/
 
 internal/
-├── npm/
+├── apperror/
+├── buildinfo/
 ├── packageenv/
-├── pkg/
-├── pkgapp/
-├── pkgcli/
 ├── scope/
 ├── scopeapp/
 └── scopecli/
 
 packaging/
-├── npm/
-│   ├── locus-scope/
-│   ├── locus-scope-win32-x64/
-│   ├── locus-scope-linux-x64/
-│   ├── locus-scope-linux-arm64/
-│   ├── locus-scope-darwin-x64/
-│   └── locus-scope-darwin-arm64/
-└── windows/
-    └── locus.iss
+└── npm/
+    ├── locus-scope/
+    ├── locus-scope-win32-x64/
+    ├── locus-scope-linux-x64/
+    ├── locus-scope-linux-arm64/
+    ├── locus-scope-darwin-x64/
+    └── locus-scope-darwin-arm64/
 
 scripts/
 ├── build.mjs
-├── clean.mjs
-├── deploy.mjs
+├── npm-publish.mjs
+├── npm-release.mjs
+├── verify-npm-release.mjs
 ├── registry.mjs
 ├── test.mjs
 ├── branch-sync.mjs
 ├── config/
-├── lib/
-└── windows/
-    ├── inno-setup.ps1
-    ├── release.ps1
-    ├── user-install.ps1
-    └── user-uninstall.ps1
+└── lib/
 ```
 
 ## 依赖
 
 ```mermaid
 flowchart LR
-    LP[cmd/locus-pkg] --> PC[internal/pkgcli]
-    PC --> PA[internal/pkgapp]
-    PA --> P[internal/pkg]
-    P --> N[internal/npm]
-    P --> PE[internal/packageenv]
-    PE --> S[internal/scope]
-    SC[cmd/locus-scope] --> PA
-    SC --> CLI[internal/scopecli]
-    H[cmd/locus-scope-node-host] --> PE
-    H --> CLI
+    PM[npm / pnpm] --> JS["@sundw/locus-scope adapter"]
+    JS --> H[cmd/locus-scope-node-host]
+    JS --> PE[resolved Environment]
+    PE --> H
+    H --> ENV[internal/packageenv]
+    H --> CLI[internal/scopecli]
     CLI --> APP[internal/scopeapp]
+    ENV --> S[internal/scope]
     APP --> S
-    JS["@sundw/locus-scope adapter"] --> H
 ```
 
 - `internal/scope` 是 Scope/Graph domain core，不依赖 npm、package.json、lock、cache、Node 或 Registry 类型。
-- `internal/scopeapp` 是 Scope 的稳定 application API；`internal/scopecli` 是 CLI frontend。
-- `internal/pkg` 实现 Locus Package 领域规则、lock/store、resolution 和 transaction。
-- `internal/pkgapp` 是 Package 的稳定 application API；`internal/pkgcli` 是 CLI frontend。
-- `internal/packageenv` 是 resolved package graph 到 `scope.Resolver` 的唯一 adapter。
-- `internal/npm` 只负责 npm protocol、SemVer、Registry、SRI、archive 和 pack/publish artifact。
-- `@sundw/locus-scope` 只构造 importer-relative descriptor、选择 platform host 并转发进程 I/O；不解析 Locus definitions。
-- standalone `locus-scope` 使用 Package application API 加载 Pure Locus lock/store；Node host 使用 npm/pnpm 已安装环境，但二者进入相同 `packageenv`、`scope`、`scopeapp` 和 `scopecli`。
+- `internal/scopeapp` 是 Scope 的稳定 application API；`internal/scopecli` 是 Cobra CLI frontend。
+- `internal/packageenv` 只把 Node 提供的 resolved Environment 转为 `scope.Resolver`，不重新实现 npm name、SemVer 或 package manager 规则。
+- `@sundw/locus-scope` 负责从实际 npm/pnpm 安装环境构造 importer-relative graph、选择 platform host 并转发进程 I/O；不解析 Locus definitions。
+- 私有 Go host 通过单次 JSON request 接收 Environment，装配 Workspace，并调用共享 `scopeapp` 与 `scopecli`。
 
 ## 目录规则
 
 - `internal/` 只按稳定职责建立 package，不使用 `utils`、`common`、`src` 或按文件类型分组。
-- `packaging/` 聚合全部交付包定义；npm package source 位于 `packaging/npm/`，Windows installer 定义位于 `packaging/windows/`。
-- 根 `package.json` 的 package scripts 是仓库任务的唯一公共入口；跨平台实现位于 `scripts/*.mjs`，Windows 专用实现位于 `scripts/windows/`。
-- 仓库任务使用的工具配置和静态配置放在 `scripts/config/`，下载工具只放在 `temp/tools/`。
-- package manager 与 delivery adapter 不得复制 Scope、Entity、Relation、Import、ownership 或 Workspace 语义。
+- `packaging/npm/` 聚合主 Package 与五个平台 host Package；不存在第二套 standalone 交付。
+- 根 `package.json` 的 package scripts 是仓库任务的唯一公共入口；跨平台实现位于 `scripts/*.mjs`。
+- Package manager 与 Node delivery adapter 不得复制 Scope、Entity、Relation、Import、ownership 或 Workspace 语义。
 - 项目级 Verdaccio 与测试状态只写 `temp/`；Node package-manager cache/store 继续使用机器级全局配置。
-- 根 `VERSION` 是 standalone 与六个 npm package 的发行版本真相。
+- 根 `VERSION` 是六个 npm Package 的发行版本真相。

@@ -10,21 +10,19 @@ Locus Scope 将具有身份的事物及其关系组织成有边界的图。Entit
 
 ## 使用
 
-提供两种使用模式。都有相同的 Scope 文件和 Workspace 检查语义，只是由不同工具管理 Package 依赖。
+项目以 npm Package 提供统一的 `locus-scope` 命令。npm 或 pnpm 负责依赖解析、lockfile、缓存和安装；Node adapter 从实际安装环境解析 Package graph，再交给 Go Scope 引擎装配 Workspace。
 
-| 模式 | 适用情况 | 命令入口 |
+| 使用方式 | 适用情况 | 命令入口 |
 | --- | --- | --- |
-| [使用npm](documents/2-使用npm.md) | 已有 Node.js 项目；沿用 npm 或 pnpm 的安装、lockfile 和缓存。 | `locus-scope-node` |
-| [使用独立CLI](documents/3-使用独立CLI.md) | 非 Node.js 项目；只使用本地 Scope；由 Locus 管理 Package lock 和离线缓存。 | `locus-scope`、`locus-pkg` |
+| [使用 npm](documents/2-使用npm.md) | 使用 npm 或 pnpm 管理 Locus Package，并查询、验证或修改 Scope Workspace。 | `locus-scope` |
 
 从创建第一个 Scope 开始，请阅读[基本使用](documents/1-基本使用.md)。
 
-Agent 可按环境和任务选择对应 Skill：
+Agent 可按任务选择对应 Skill：
 
-| 环境 | 使用与消费 Package | 发布 Package |
-| --- | --- | --- |
-| npm / pnpm | [`$locus-use-node`](.agents/skills/locus-use-node/SKILL.md) | [`$locus-publish-node`](.agents/skills/locus-publish-node/SKILL.md) |
-| 独立 CLI / Pure Locus | [`$locus-use`](.agents/skills/locus-use/SKILL.md) | [`$locus-publish`](.agents/skills/locus-publish/SKILL.md) |
+| 使用与消费 Package | 发布 Package |
+| --- | --- |
+| [`$locus-use-node`](.agents/skills/locus-use-node/SKILL.md) | [`$locus-publish-node`](.agents/skills/locus-publish-node/SKILL.md) |
 
 <details>
 <summary>从源码构建</summary>
@@ -33,19 +31,18 @@ Agent 可按环境和任务选择对应 Skill：
 
 ```powershell
 pnpm run build
-pnpm run deploy
+pnpm run release:npm
 ```
 
-产物位于 `temp/local/bin/`。用户级部署使用 `pnpm run deploy:user`；完整脚本说明见 [`scripts/README.md`](scripts/README.md)。
+当前平台 host 的本地构建产物位于 `temp/build/`；npm release tarball 位于 `temp/release/npm/`。
 
 </details>
 
 ## 文档
 
-- [基本使用](documents/1-基本使用.md)：以 npm 模式完成 Scope 创建、检查和组合，并说明独立 CLI 差异。
-- [使用npm](documents/2-使用npm.md)：安装 Node adapter，由 npm 或 pnpm 管理 Package。
-- [使用独立CLI](documents/3-使用独立CLI.md)：安装独立命令，管理 lock、离线状态和 Package 发布。
-- [CLI 参考](documents/4-CLI参考.md)：所有 Workspace 与 Package 命令、参数、筛选、写入、输出和退出状态。
+- [基本使用](documents/1-基本使用.md)：创建、检查、组合和查询 Scope。
+- [使用 npm](documents/2-使用npm.md)：安装统一 CLI，由 npm 或 pnpm 管理 Package。
+- [CLI 参考](documents/4-CLI参考.md)：Workspace 查询、图操作、diff、mutation、输出和退出状态。
 
 ## License
 

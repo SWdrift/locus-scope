@@ -2,6 +2,7 @@ package packageenv
 
 import (
 	"fmt"
+	"os"
 	"path/filepath"
 	"sort"
 	"strings"
@@ -9,44 +10,34 @@ import (
 	"locus-scope/internal/scope"
 )
 
-// EnvironmentMode selects diagnostics owned by the package environment that
-// constructed the dependency graph.
-type EnvironmentMode uint8
-
-const (
-	PureEnvironment EnvironmentMode = iota
-	NPMEnvironment
-)
-
-// Identity is the semantic identity of one npm package Scope.
+// Identity is the stable identity assigned by the Node package adapter.
 type Identity string
 
-// Package describes one Locus package made available by a package environment.
-type Package struct {
-	Identity     Identity
-	Root         string
-	Entry        string
-	Dependencies map[string]Identity
+// PackageDescriptor describes one installed Locus package. Each dependency
+// edge is resolved by npm or pnpm in this package's importer context.
+type PackageDescriptor struct {
+	Root         string              `json:"root"`
+	Entry        string              `json:"entry"`
+	Dependencies map[string]Identity `json:"dependencies"`
 }
 
-// Environment describes the importer-relative package graph visible to a root Scope.
+// Environment is the exact installed package graph resolved by the Node adapter.
 type Environment struct {
-	Mode             EnvironmentMode
-	RootDependencies map[string]Identity
-	Packages         map[Identity]Package
+	RootScope        string                         `json:"rootScope"`
+	RootDependencies map[string]Identity            `json:"rootDependencies"`
+	Packages         map[Identity]PackageDescriptor `json:"packages"`
 }
 
 type resolver struct {
 	local            scope.LocalResolver
 	rootDependencies map[string]Identity
-	packages         map[Identity]Package
+	packages         map[Identity]PackageDescriptor
 	packageSources   map[Identity]scope.Source
-	mode             EnvironmentMode
 }
 
-// Load adapts a resolved package graph to the Scope loader.
-func Load(rootDirectory string, environment Environment) (*scope.Workspace, error) {
-	root, err := scope.NewLocalSource(rootDirectory)
+// Load adapts an already-resolved npm package graph to the Scope loader.
+func Load(environment Environment) (*scope.Workspace, error) {
+	root, err := scope.NewLocalSource(environment.RootScope)
 	if err != nil {
 		return nil, fmt.Errorf("load package environment root: %w", err)
 	}
@@ -59,13 +50,9 @@ func Load(rootDirectory string, environment Environment) (*scope.Workspace, erro
 
 func newResolver(environment Environment) (*resolver, error) {
 	result := &resolver{
-		mode:             environment.Mode,
 		rootDependencies: copyDependencies(environment.RootDependencies),
-		packages:         make(map[Identity]Package, len(environment.Packages)),
+		packages:         make(map[Identity]PackageDescriptor, len(environment.Packages)),
 		packageSources:   make(map[Identity]scope.Source, len(environment.Packages)),
-	}
-	if result.mode != PureEnvironment && result.mode != NPMEnvironment {
-		return nil, fmt.Errorf("unsupported package environment mode %d", result.mode)
 	}
 
 	identities := make([]Identity, 0, len(environment.Packages))
@@ -74,13 +61,10 @@ func newResolver(environment Environment) (*resolver, error) {
 	}
 	sort.Slice(identities, func(i, j int) bool { return identities[i] < identities[j] })
 	for _, identity := range identities {
+		if strings.TrimSpace(string(identity)) == "" {
+			return nil, fmt.Errorf("package identity must not be empty")
+		}
 		pkg := environment.Packages[identity]
-		if pkg.Identity != identity {
-			return nil, fmt.Errorf("package map key %q does not match package identity %q", identity, pkg.Identity)
-		}
-		if _, _, err := parseIdentity(identity); err != nil {
-			return nil, err
-		}
 		root, entry, err := secureEntry(pkg.Root, pkg.Entry)
 		if err != nil {
 			return nil, fmt.Errorf("package %q: %w", identity, err)
@@ -89,6 +73,9 @@ func newResolver(environment Environment) (*resolver, error) {
 		pkg.Entry = entry
 		pkg.Dependencies = copyDependencies(pkg.Dependencies)
 		source := scope.Source{Key: scope.ScopeKey(identity), LocalPath: filepath.Dir(filepath.Join(root, filepath.FromSlash(entry)))}
+		if err := scope.CheckSource(source); err != nil {
+			return nil, fmt.Errorf("package %q Scope source: %w", identity, err)
+		}
 		result.packages[identity] = pkg
 		result.packageSources[identity] = source
 	}
@@ -111,17 +98,10 @@ func (r *resolver) validateEdges(importer string, dependencies map[string]Identi
 	}
 	sort.Strings(names)
 	for _, name := range names {
-		if err := validatePackageName(name); err != nil {
-			return fmt.Errorf("%s dependency %q: %w", importer, name, err)
+		if name == "" {
+			return fmt.Errorf("%s dependency name must not be empty", importer)
 		}
 		identity := dependencies[name]
-		identityName, _, err := parseIdentity(identity)
-		if err != nil {
-			return fmt.Errorf("%s dependency %q: %w", importer, name, err)
-		}
-		if identityName != name {
-			return fmt.Errorf("%s dependency %q targets identity %q for package %q", importer, name, identity, identityName)
-		}
 		if _, exists := r.packages[identity]; !exists {
 			return fmt.Errorf("%s dependency %q targets missing package %q", importer, name, identity)
 		}
@@ -137,31 +117,63 @@ func (r *resolver) Resolve(from scope.Source, reference string) (scope.Source, e
 		}
 		return r.local.Resolve(from, reference)
 	}
-	if err := validatePackageName(reference); err != nil {
-		return scope.Source{}, fmt.Errorf("invalid package import %q: bare imports must be npm package names without versions or subpaths", reference)
-	}
 
+	// A package import is resolved only through the declaring package's edges.
+	// Root dependencies are not a global fallback for distributed packages.
 	dependencies := r.rootDependencies
 	importer := "local root"
 	if distributed {
 		dependencies = pkg.Dependencies
-		importer = fmt.Sprintf("package %q", pkg.Identity)
+		importer = fmt.Sprintf("package %q", from.Key)
 	}
 	identity, exists := dependencies[reference]
 	if !exists {
-		if distributed {
-			return scope.Source{}, fmt.Errorf("%s does not declare package import %q in dependencies", importer, reference)
-		}
-		if r.mode == NPMEnvironment {
-			return scope.Source{}, fmt.Errorf("local root does not directly depend on %q; run pnpm add %s or npm install %s", reference, reference, reference)
-		}
-		return scope.Source{}, fmt.Errorf("local root has no installed package edge for %q; run locus-pkg install", reference)
+		return scope.Source{}, fmt.Errorf("%s does not declare package import %q in the resolved environment", importer, reference)
 	}
 	target, exists := r.packageSources[identity]
 	if !exists {
 		return scope.Source{}, fmt.Errorf("%s package import %q targets unavailable package %q", importer, reference, identity)
 	}
 	return target, nil
+}
+
+func secureEntry(root, entry string) (string, string, error) {
+	if root == "" || entry == "" || filepath.IsAbs(entry) || strings.Contains(entry, "\\") {
+		return "", "", fmt.Errorf("entry %q must be a relative slash path", entry)
+	}
+	absoluteRoot, err := filepath.Abs(root)
+	if err != nil {
+		return "", "", fmt.Errorf("resolve package root: %w", err)
+	}
+	canonicalRoot, err := filepath.EvalSymlinks(absoluteRoot)
+	if err != nil {
+		return "", "", fmt.Errorf("resolve package root: %w", err)
+	}
+	cleanEntry := filepath.ToSlash(filepath.Clean(filepath.FromSlash(entry)))
+	if cleanEntry == "." || cleanEntry == ".." || strings.HasPrefix(cleanEntry, "../") || cleanEntry != entry {
+		return "", "", fmt.Errorf("entry %q must be normalized and remain inside the package root", entry)
+	}
+	switch filepath.Base(filepath.FromSlash(cleanEntry)) {
+	case "locus.yaml", "locus.yml", "locus.json":
+	default:
+		return "", "", fmt.Errorf("entry %q must name a Scope manifest", entry)
+	}
+	candidate, err := filepath.EvalSymlinks(filepath.Join(canonicalRoot, filepath.FromSlash(cleanEntry)))
+	if err != nil {
+		return "", "", fmt.Errorf("resolve entry %q: %w", entry, err)
+	}
+	relative, err := filepath.Rel(canonicalRoot, candidate)
+	if err != nil || relative == ".." || strings.HasPrefix(relative, ".."+string(filepath.Separator)) || filepath.IsAbs(relative) {
+		return "", "", fmt.Errorf("entry %q escapes package root", entry)
+	}
+	info, err := os.Stat(candidate)
+	if err != nil {
+		return "", "", fmt.Errorf("inspect entry %q: %w", entry, err)
+	}
+	if !info.Mode().IsRegular() {
+		return "", "", fmt.Errorf("entry %q is not a readable file", entry)
+	}
+	return filepath.Clean(canonicalRoot), cleanEntry, nil
 }
 
 func isLocalImport(reference string) bool {

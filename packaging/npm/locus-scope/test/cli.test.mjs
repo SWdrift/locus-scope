@@ -50,9 +50,8 @@ test('version and help use the shared host without discovering a Scope', async (
     });
     assert.equal(exitCode, 0);
     assert.equal(stderr.value(), '');
-    assert.equal(request.version, 2);
-    assert.equal(request.root.scopeRoot, '');
-    assert.deepEqual(request.packages, {});
+    assert.equal(request.version, 3);
+    assert.deepEqual(request.environment, { rootScope: '', rootDependencies: {}, packages: {} });
     assert.match(stdout.value(), /^(version|help)\n$/);
   }
 });
@@ -62,7 +61,8 @@ test('adapter sends the exact versioned request and forwards the enclosed exit c
   const stderr = captureStream();
   const root = path.resolve('synthetic-scope');
   const environment = {
-    root: { scopeRoot: root, packageRoot: '', dependencies: {} },
+    rootScope: root,
+    rootDependencies: {},
     packages: {},
   };
   let captured;
@@ -94,17 +94,16 @@ test('adapter sends the exact versioned request and forwards the enclosed exit c
 
   assert.equal(exitCode, 2);
   assert.deepEqual(captured, {
-    version: 2,
+    version: 3,
     workingDirectory: path.resolve('consumer', 'nested'),
     arguments: ['entity', 'list', '--json'],
-    root: environment.root,
-    packages: environment.packages,
+    environment,
   });
   assert.equal(stdout.value(), '');
   assert.equal(stderr.value(), '');
 });
 
-test('adapter forwards user stdin only for dash operands through protocol v2', async () => {
+test('adapter forwards user stdin only for dash operands through protocol v3', async () => {
   const root = path.resolve('stdin-scope');
   let captured;
   const exitCode = await main(['graph', '-', '--scope', root, '--json'], {
@@ -112,7 +111,7 @@ test('adapter forwards user stdin only for dash operands through protocol v2', a
     stdout: captureStream(),
     stderr: captureStream(),
     discoverRoot: async () => root,
-    buildEnvironment: async () => ({ root: { scopeRoot: root, packageRoot: '', dependencies: {} }, packages: {} }),
+    buildEnvironment: async () => ({ rootScope: root, rootDependencies: {}, packages: {} }),
     locateHost: async () => 'host',
     invokeHost: async (_host, request) => {
       captured = request;
@@ -120,7 +119,7 @@ test('adapter forwards user stdin only for dash operands through protocol v2', a
     },
   });
   assert.equal(exitCode, 0);
-  assert.equal(captured.version, 2);
+  assert.equal(captured.version, 3);
   assert.equal(captured.stdin, '[{\"key\":{\"scope\":\"file:///root\",\"id\":\"api\"}}]');
 });
 

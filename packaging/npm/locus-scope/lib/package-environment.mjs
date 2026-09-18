@@ -13,7 +13,8 @@ export async function buildPackageEnvironment(scopeRoot) {
   const rootManifest = await readOptionalPackageJson(rootPackageJson);
   if (rootManifest === null) {
     return {
-      root: { scopeRoot: canonicalScopeRoot, packageRoot: '', dependencies: {} },
+      rootScope: canonicalScopeRoot,
+      rootDependencies: {},
       packages: {},
     };
   }
@@ -87,11 +88,8 @@ export async function buildPackageEnvironment(scopeRoot) {
   }
 
   return {
-    root: {
-      scopeRoot: canonicalScopeRoot,
-      packageRoot: canonicalScopeRoot,
-      dependencies: directDependencies,
-    },
+    rootScope: canonicalScopeRoot,
+    rootDependencies: directDependencies,
     packages,
   };
 }
