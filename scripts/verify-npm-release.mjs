@@ -7,6 +7,7 @@ import {
   assertOrdinaryFile,
   ensureOrdinaryDirectory,
   isMain,
+  readVersion,
   run,
   tempRoot,
   writeJson
@@ -51,6 +52,7 @@ export async function verifyNpmRelease(version) {
     validationRoot,
     'add',
     '--ignore-scripts',
+    '--config.optional=false',
     '--save-exact',
     adapterTarball,
     platformTarball
@@ -60,7 +62,7 @@ export async function verifyNpmRelease(version) {
     '--dir',
     validationRoot,
     'exec',
-    'locus-scope-node',
+    'locus-scope',
     'validate',
     '--json'
   ], { encoding: 'utf8', stdio: ['ignore', 'pipe', 'inherit'] })
@@ -110,7 +112,7 @@ function formatMode(mode) {
 }
 
 if (isMain(import.meta.url)) {
-  verifyNpmRelease(process.argv[2] ?? '').catch(error => {
+  verifyNpmRelease(process.argv[2] || await readVersion()).catch(error => {
     console.error(error.message)
     process.exitCode = 1
   })
