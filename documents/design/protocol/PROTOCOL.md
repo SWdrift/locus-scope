@@ -159,6 +159,7 @@ relations:
     - from: api
       type: calls
       to: worker
+```
 
 其定义结果等价于 Scope 内的：
 

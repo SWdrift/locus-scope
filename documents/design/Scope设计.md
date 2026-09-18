@@ -9,7 +9,7 @@ v1 从一个本地 root Scope 开始，沿 Imports 读取全部依赖，验证 E
 本文负责本地 Source、文件发现、Workspace 装配、声明 provenance、受控写入、诊断和 `locus-scope` CLI 契约。不负责 package 获取或执行。
 
 - Entity、Scope、Import、Export、Projection 和 Relation 的语义以 [PROTOCOL.md](protocol/PROTOCOL.md) 为唯一权威来源。
-- Package environment、npm identity、lock/store 和安装流程由[Package设计](Package设计.md)负责。
+- Package environment、npm identity 和安装流程由[Package设计](Package设计.md)负责。
 - 代码目录与依赖方向只在[当前架构](../current-architecture.md)中维护，本文不重复目录树。
 
 ## 术语表
@@ -24,7 +24,7 @@ v1 从一个本地 root Scope 开始，沿 Imports 读取全部依赖，验证 E
 
 ## example：基本 Scope 装配
 
-一个项目以唯一的 root Scope manifest 作为入口。依赖 Package、lock 和物化状态由[Package设计](Package设计.md)定义，不在本例重复：
+一个项目以唯一的 root Scope manifest 作为入口。依赖 Package 及其 resolved Environment 由[Package设计](Package设计.md)定义，不在本例重复：
 
 ```text
 app/
@@ -110,7 +110,7 @@ relations:
 | 目录边界      | 普通子目录只组织文件，不产生 Group、Source identity、Import、Export 或可见性边界。后代目录一旦包含 Scope manifest，就是独立 Scope 边界；父 Scope 的递归发现不得进入，也不得自动将其加入 Workspace，只有 manifest `imports` 显式引用时才作为独立 Source 加入 reachable graph。                                                    |
 | Group         | Group 继续按[核心协议](protocol/PROTOCOL.md#group)由 definition document 的 `group` 字段显式声明，与目录路径无关。无论文件位置如何，没有显式 Group 的 Entity 都属于 Scope 根命名空间；同一个 Group 可跨多个文档。Workspace 保留每个声明的 Group/provenance 供查询和写入，但 Group 不成为 ownership 或可见性边界。 |
 | 解码          | YAML 与 JSON 使用同一严格结构；manifest `id`、Import alias/value 和 Export reference 必须有效。Entity `id` 单独保存，其余字段进入属性 map。                                                                                                                                                                                 |
-| Import        | 本地 root Source 可使用相对声明 Scope 目录的路径或绝对目录。bare npm name 由 importer 的 package dependency edge 解析。npm package Source 只能使用 bare package Import，不能以本地路径越过 package 边界。 |
+| Import        | Scope Import 只声明依赖目标。本地 root Source 可使用相对声明 Scope 目录的路径或绝对目录；bare npm name 由当前 importer 的 resolved direct dependency edge 解析。Package Scope 不得从 root dependencies 或全局 Package 集合查找同名目标，也不能以本地路径越过 package 边界。 |
 | 装配          | Scope 解码后先按 `Source.Key` 注册，再由 Resolver 解析 Imports 并加载尚未注册的 Source；循环 Import 复用已注册 Scope。Import alias 在运行时映射到目标 `ScopeKey`。                                                                                                                                                           |
 | 解析          | `Workspace.Resolve` 必须遵守 [PROTOCOL.md](protocol/PROTOCOL.md) 的可见性和 ownership 规则；返回的 `EntityKey` 始终包含原始 owner。Relation 两端使用同一解析路径。                                                                                                                                                           |
 | 完成          | 全部 reachable Scopes 加载后先验证 Exports，再解析 Relations；Relation 按起点 ScopeKey、起点 ID、名称、终点 ScopeKey、终点 ID 排序。任一步失败都不返回 Workspace。                                                                                                                                                           |
@@ -120,7 +120,7 @@ relations:
 
 ## CLI
 
-`locus-scope` 和 `locus-scope-node` 是同一 Workspace 管理入口；后者仅将 Node 包装参数与 stdin 转交给 Go host。指令、参数、输出和退出状态以 [CLI 公共契约](protocol/CLI.md#workspace-管理)为准；除 `help` 和 `version` 外，命令执行前必须先加载并验证全部可达 Scope。
+`locus-scope` 是唯一公开的 Workspace 管理入口；Node adapter 将参数、stdin 和 resolved Environment 交给私有 Go host。指令、参数、输出和退出状态以 [CLI 公共契约](protocol/CLI.md#workspace-管理)为准；除 `help` 和 `version` 外，命令执行前必须先加载并验证全部可达 Scope。
 
 ## 验收
 
@@ -132,5 +132,5 @@ relations:
 - Group 示例必须得到 `api`、`backend/api` 和 `backend/worker`，并把同文档内的短 Relation 引用展开到 `backend` Group。
 - 再次 Export、私有成员、显式 Group、循环 Import、相同 Manifest ID 的不同来源、重复 Entity ID 和无效 reference 的成功或失败边界都有 fixture 证明；错误包含对应文件、声明或 Scope 上下文。
 - 构建后的真实 CLI 能完成上述验证和检查；完整测试分层、fixture、隔离规则与执行命令见[测试设计](测试设计.md)。
-- 普通本地项目无需 `package.json`；bare package Import 缺少可用 package environment 时，诊断明确要求运行 `locus-pkg install`。
+- 普通本地项目无需声明 Package dependency；bare Package Import 缺少 direct dependency 时，诊断明确要求运行 `pnpm add` 或 `npm install`。
 - `version`、`--version` 及其 JSON 输出无需有效 Scope，并返回构建时注入的版本。
