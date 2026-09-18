@@ -67,8 +67,6 @@ type npmLifecycleHarness struct {
 	node     string
 	npm      string
 	pnpm     string
-	pkg      string
-	scope    string
 	host     string
 	token    string
 	authEnv  []string
@@ -131,12 +129,8 @@ func newNPMLifecycleHarness(t *testing.T) *npmLifecycleHarness {
 	h := &npmLifecycleHarness{
 		t: t, ctx: ctx, root: root, results: filepath.Join(root, "results"),
 		node: node, npm: npm, pnpm: pnpm,
-		pkg:   filepath.Join(root, "bin", "locus-pkg"+suffix),
-		scope: filepath.Join(root, "bin", "locus-scope"+suffix),
-		host:  filepath.Join(root, "bin", "locus-scope-node-host"+suffix),
+		host: filepath.Join(root, "bin", "locus-scope-node-host"+suffix),
 	}
-	h.build("locus-pkg", h.pkg, "./cmd/locus-pkg")
-	h.build("locus-scope", h.scope, "./cmd/locus-scope")
 	h.build("locus-scope-node-host", h.host, "./cmd/locus-scope-node-host")
 	h.registry = startVerdaccio(t, ctx, root, node, verdaccio)
 	h.endpoint = h.registry.endpoint

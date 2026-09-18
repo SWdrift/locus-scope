@@ -18,7 +18,6 @@ const EXPECTED_SEMANTICS = {
       '@example/app': 'npm:@example/app@1.0.0',
       '@example/modern': 'npm:@example/modern@1.0.0',
     },
-    hasPackageRoot: true,
   },
   packages: {
     'npm:@example/app@1.0.0': {
@@ -70,7 +69,8 @@ test('only a package.json in the exact Scope root becomes the root importer', as
   await writeJson(path.join(root, 'locus.json'), {});
 
   assert.deepEqual(await buildPackageEnvironment(root), {
-    root: { scopeRoot: await realpath(root), packageRoot: '', dependencies: {} },
+    rootScope: await realpath(root),
+    rootDependencies: {},
     packages: {},
   });
 });

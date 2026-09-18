@@ -17,7 +17,7 @@
   },
   "exports": {},
   "bin": {
-    "locus-scope-node": "bin/locus-scope-node.mjs"
+    "locus-scope": "bin/locus-scope.mjs"
   },
   "files": [
     "bin",

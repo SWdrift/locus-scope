@@ -49,8 +49,7 @@ export function locusManifest(name, version, dependencies = {}) {
 export function semanticDescriptor(environment) {
   return {
     root: {
-      dependencies: environment.root.dependencies,
-      hasPackageRoot: environment.root.packageRoot !== '',
+      dependencies: environment.rootDependencies,
     },
     packages: Object.fromEntries(
       Object.entries(environment.packages).map(([identity, descriptor]) => [

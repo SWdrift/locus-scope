@@ -11,21 +11,19 @@ Locus Scope organizes identifiable things and their relationships into bounded g
 
 ## Usage
 
-Two usage modes are available. Both use the same Scope files and Workspace validation semantics; they differ only in which tool manages Package dependencies.
+The npm Package provides one `locus-scope` command. npm or pnpm owns dependency resolution, lockfiles, caches, and installation. The Node adapter resolves the Package graph from the installed environment, then hands it to the Go Scope engine to compose the Workspace.
 
-| Mode | When to use | Command entry point |
+| Usage | When to use | Command entry point |
 | --- | --- | --- |
-| [Using npm](https://github.com/SWdrift/locus-scope/blob/master/documents/2-Using-npm.md) | Existing Node.js projects; continues using npm or pnpm for installation, lockfiles, and caching. | `locus-scope-node` |
-| [Using the standalone CLI](https://github.com/SWdrift/locus-scope/blob/master/documents/3-Using-Standalone-CLI.md) | Non-Node.js projects; uses only local Scopes, with Locus managing Package locks and the offline cache. | `locus-scope`, `locus-pkg` |
+| [Using npm](https://github.com/SWdrift/locus-scope/blob/master/documents/2-Using-npm.md) | Manage Locus Packages with npm or pnpm, then query, validate, or mutate the Scope Workspace. | `locus-scope` |
 
 To create your first Scope, start with [Basic Usage](https://github.com/SWdrift/locus-scope/blob/master/documents/1-Basic-Usage.md).
 
-Agents can select the matching Skill by environment and task:
+Agents can select the matching Skill by task:
 
-| Environment | Use and consume Packages | Publish Packages |
-| --- | --- | --- |
-| npm / pnpm | [`$locus-use-node`](https://github.com/SWdrift/locus-scope/blob/master/.agents/skills/locus-use-node/SKILL.md) | [`$locus-publish-node`](https://github.com/SWdrift/locus-scope/blob/master/.agents/skills/locus-publish-node/SKILL.md) |
-| 独立 CLI / Pure Locus | [`$locus-use`](https://github.com/SWdrift/locus-scope/blob/master/.agents/skills/locus-use/SKILL.md) | [`$locus-publish`](https://github.com/SWdrift/locus-scope/blob/master/.agents/skills/locus-publish/SKILL.md) |
+| Use and consume Packages | Publish Packages |
+| --- | --- |
+| [`$locus-use-node`](https://github.com/SWdrift/locus-scope/blob/master/.agents/skills/locus-use-node/SKILL.md) | [`$locus-publish-node`](https://github.com/SWdrift/locus-scope/blob/master/.agents/skills/locus-publish-node/SKILL.md) |
 
 
 <details>
@@ -35,19 +33,18 @@ Requires Go 1.26+, Node.js 20.6+, and the pnpm version pinned in the root `packa
 
 ```powershell
 pnpm run build
-pnpm run deploy
+pnpm run release:npm
 ```
 
-Build artifacts are written to `temp/local/bin/`. For a user-level deployment, run `pnpm run deploy:user`. See [`scripts/README.md`](https://github.com/SWdrift/locus-scope/blob/master/scripts/README.md) for complete script documentation.
+The current-platform host build is written to `temp/build/`; npm release tarballs are written to `temp/release/npm/`.
 
 </details>
 
 ## Documentation
 
-- [Basic Usage](https://github.com/SWdrift/locus-scope/blob/master/documents/1-Basic-Usage.md): Create, validate, and compose Scopes in npm mode, with notes on differences in the standalone CLI.
-- [Using npm](https://github.com/SWdrift/locus-scope/blob/master/documents/2-Using-npm.md): Install the Node adapter and let npm or pnpm manage Packages.
-- [Using the standalone CLI](https://github.com/SWdrift/locus-scope/blob/master/documents/3-Using-Standalone-CLI.md): Install the standalone commands and manage locks, offline state, and Package publishing.
-- [CLI Reference](https://github.com/SWdrift/locus-scope/blob/master/documents/4-CLI-Reference.md): All Workspace and Package commands, options, filters, mutations, output, and exit statuses.
+- [Basic Usage](https://github.com/SWdrift/locus-scope/blob/master/documents/1-Basic-Usage.md): Create, validate, compose, and query Scopes.
+- [Using npm](https://github.com/SWdrift/locus-scope/blob/master/documents/2-Using-npm.md): Install the unified CLI and let npm or pnpm manage Packages.
+- [CLI Reference](https://github.com/SWdrift/locus-scope/blob/master/documents/4-CLI-Reference.md): Workspace queries, graph operations, diff, mutation, output, and exit statuses.
 
 ## License
 

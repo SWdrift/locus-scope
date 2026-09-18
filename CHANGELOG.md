@@ -2,6 +2,23 @@
 
 本文件记录 `locus-scope` 各发布版本的用户可见变更。
 
+## [3.0.0] - 2026-09-18
+
+### Removed
+
+- 删除 Pure Locus Package Manager：`locus-pkg`、`locus.lock`、`.locus/packages`、cache/store/materialization、offline 和 frozen-lockfile 流程。
+- 删除 Go 中重复实现的 npm Registry、SemVer resolution、tarball、integrity、pack/publish、authentication 与 dependency installation。
+- 删除 standalone Scope CLI 分发、Windows standalone installer 及其脚本、测试和文档。
+- 删除 graph 的 Gonum adapter 与 Gonum 依赖。
+
+### Changed
+
+- 项目收缩为 npm/pnpm-hosted Scope 图引擎；npm/pnpm 负责 Package 管理，Node adapter 负责解析实际安装环境。
+- Node adapter 将 exact resolved Environment 交给 Go；Go `packageenv` 只验证 Scope Resolver 所需不变量。
+- npm Package 统一暴露 `locus-scope` executable；CLI 参数解析迁移到 Cobra，业务逻辑继续位于 `scopeapp`。
+- `graph`、`path`、`impact` 改用 outgoing/incoming adjacency 与 BFS。
+- npm release 保留主 Package 与五个平台 Go host Package，并使用 npm/pnpm 原生命令完成 pack/publish。
+
 ## [2.0.2] - 2026-09-06
 
 ### Fixed

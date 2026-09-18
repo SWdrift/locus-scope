@@ -85,11 +85,18 @@ func TestRemainingCommandJSONGoldens(t *testing.T) {
 
 func TestCommandAndOperationalErrorsUseDifferentExitCodes(t *testing.T) {
 	code, _, stderr := run(t, "graph", "api", "--depth", "bad", "--json")
-	if code != 2 || !strings.Contains(stderr, "non-negative integer") {
+	if code != 2 || !strings.Contains(stderr, "invalid argument") {
 		t.Fatalf("command error code=%d stderr=%q", code, stderr)
 	}
 	code, _, stderr = run(t, "path", "db", "api", "--json")
 	if code != 1 || !strings.Contains(stderr, "no directed path") {
 		t.Fatalf("operational error code=%d stderr=%q", code, stderr)
+	}
+}
+
+func TestVersionFlagHonorsJSONOutput(t *testing.T) {
+	code, stdout, stderr := run(t, "--json", "--version")
+	if code != 0 || stderr != "" || !strings.Contains(stdout, `"name":"locus-scope"`) {
+		t.Fatalf("version code=%d stdout=%q stderr=%q", code, stdout, stderr)
 	}
 }
