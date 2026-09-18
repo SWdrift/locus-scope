@@ -5,11 +5,6 @@ description: "创建或更新项目控制平面（cp）文档。用于用户要�
 
 # Create Control Plane
 
-## 当前项目登记
-
-- 当前项目的控制平面入口目录为项目根目录下的 `.cp/`。
-- 元控制平面入口为 `.cp/cp-meta.md`；实例 CP 与同 scope CPM 均放在 `.cp/`。
-
 ## 工作流
 
 1. 先定位项目根或用户指定目录；存在“当前项目登记”时优先使用登记入口，否则未指定时默认使用当前项目根。控制平面与同 scope CPM 建立在入口目录，不放在 `.agents/` 下；`.agents/` 只承载 skills 等 agent 配套资产。
