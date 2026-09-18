@@ -4,7 +4,6 @@ import (
 	"fmt"
 	"sort"
 
-	"gonum.org/v1/gonum/graph/multi"
 	"locus-scope/internal/scope"
 )
 
@@ -28,37 +27,31 @@ type ImpactResult struct {
 	Relations []Relation `json:"relations"`
 }
 
-type graphAdapter struct {
-	graph *multi.DirectedGraph
-	nodes map[scope.EntityKey]int64
+type adjacency struct {
+	outgoing map[scope.EntityKey][]int
+	incoming map[scope.EntityKey][]int
 }
 
-func newGraphAdapter(workspace *scope.Workspace) *graphAdapter {
-	adapter := &graphAdapter{graph: multi.NewDirectedGraph(), nodes: make(map[scope.EntityKey]int64)}
-	keys := make([]scope.EntityKey, 0)
-	for owner, current := range workspace.Scopes {
-		for id := range current.Entities {
-			keys = append(keys, scope.EntityKey{Scope: owner, ID: id})
-		}
+func newAdjacency(workspace *scope.Workspace) adjacency {
+	result := adjacency{outgoing: map[scope.EntityKey][]int{}, incoming: map[scope.EntityKey][]int{}}
+	for index, relation := range workspace.Relations {
+		result.outgoing[relation.From] = append(result.outgoing[relation.From], index)
+		result.incoming[relation.To] = append(result.incoming[relation.To], index)
 	}
-	sortEntityKeys(keys)
-	for _, key := range keys {
-		node := adapter.graph.NewNode()
-		adapter.graph.AddNode(node)
-		adapter.nodes[key] = node.ID()
+	for _, indexes := range result.outgoing {
+		sort.Ints(indexes)
 	}
-	for _, relation := range workspace.Relations {
-		from, to := adapter.graph.Node(adapter.nodes[relation.From]), adapter.graph.Node(adapter.nodes[relation.To])
-		adapter.graph.SetLine(adapter.graph.NewLine(from, to))
+	for _, indexes := range result.incoming {
+		sort.Ints(indexes)
 	}
-	return adapter
+	return result
 }
 
 func (s *Service) Graph(seeds []scope.EntityKey, depth int, via []scope.Predicate, withSource bool) (GraphResult, error) {
 	if depth < 0 {
 		return GraphResult{}, fmt.Errorf("graph depth must be non-negative")
 	}
-	adapter := newGraphAdapter(s.workspace)
+	graph := newAdjacency(s.workspace)
 	levels := make(map[scope.EntityKey]int)
 	queue := make([]scope.EntityKey, 0, len(seeds))
 	for _, seed := range seeds {
@@ -71,17 +64,15 @@ func (s *Service) Graph(seeds []scope.EntityKey, depth int, via []scope.Predicat
 		}
 	}
 	selected := make(map[int]struct{})
-	for len(queue) != 0 {
+	for len(queue) > 0 {
 		current := queue[0]
 		queue = queue[1:]
 		if levels[current] >= depth {
 			continue
 		}
-		for index, relation := range s.workspace.Relations {
-			if relation.From != current || !s.matchRelation(relation, via) {
-				continue
-			}
-			if !adapter.graph.HasEdgeFromTo(adapter.nodes[relation.From], adapter.nodes[relation.To]) {
+		for _, index := range graph.outgoing[current] {
+			relation := s.workspace.Relations[index]
+			if !s.matchRelation(relation, via) {
 				continue
 			}
 			selected[index] = struct{}{}
@@ -101,19 +92,20 @@ func (s *Service) Path(from, to scope.EntityKey, via []scope.Predicate, withSour
 	if _, err := s.EntityByKey(to, false); err != nil {
 		return PathResult{}, err
 	}
-	newGraphAdapter(s.workspace)
+	graph := newAdjacency(s.workspace)
 	previous := make(map[scope.EntityKey]scope.EntityKey)
 	previousRelation := make(map[scope.EntityKey]int)
 	seen := map[scope.EntityKey]struct{}{from: {}}
 	queue := []scope.EntityKey{from}
-	for len(queue) != 0 {
+	for len(queue) > 0 {
 		current := queue[0]
 		queue = queue[1:]
 		if current == to {
 			break
 		}
-		for index, relation := range s.workspace.Relations {
-			if relation.From != current || !s.matchRelation(relation, via) {
+		for _, index := range graph.outgoing[current] {
+			relation := s.workspace.Relations[index]
+			if !s.matchRelation(relation, via) {
 				continue
 			}
 			if _, exists := seen[relation.To]; exists {
@@ -129,7 +121,7 @@ func (s *Service) Path(from, to scope.EntityKey, via []scope.Predicate, withSour
 		return PathResult{}, fmt.Errorf("no directed path from %s#%s to %s#%s", from.Scope, from.ID, to.Scope, to.ID)
 	}
 	keys := []scope.EntityKey{to}
-	relationIndexes := make([]int, 0)
+	relationIndexes := []int{}
 	for current := to; current != from; {
 		relationIndexes = append(relationIndexes, previousRelation[current])
 		current = previous[current]
@@ -141,34 +133,34 @@ func (s *Service) Path(from, to scope.EntityKey, via []scope.Predicate, withSour
 	if err != nil {
 		return PathResult{}, err
 	}
-	relations := s.relationsByIndexes(relationIndexes, withSource)
-	return PathResult{From: nodes[0], To: nodes[len(nodes)-1], Nodes: nodes, Relations: relations}, nil
+	return PathResult{From: nodes[0], To: nodes[len(nodes)-1], Nodes: nodes, Relations: s.relationsByIndexes(relationIndexes, withSource)}, nil
 }
 
 func (s *Service) Impact(seeds []scope.EntityKey, via []scope.Predicate, withSource bool) (ImpactResult, error) {
-	seen := make(map[scope.EntityKey]struct{})
-	seedSet := make(map[scope.EntityKey]struct{})
+	graph := newAdjacency(s.workspace)
+	seen, seedSet := map[scope.EntityKey]struct{}{}, map[scope.EntityKey]struct{}{}
 	queue := make([]scope.EntityKey, 0, len(seeds))
 	for _, seed := range seeds {
 		if _, err := s.EntityByKey(seed, false); err != nil {
 			return ImpactResult{}, err
 		}
-		if _, ok := seen[seed]; !ok {
+		if _, exists := seen[seed]; !exists {
 			seen[seed] = struct{}{}
 			seedSet[seed] = struct{}{}
 			queue = append(queue, seed)
 		}
 	}
 	selected := make(map[int]struct{})
-	for len(queue) != 0 {
+	for len(queue) > 0 {
 		current := queue[0]
 		queue = queue[1:]
-		for index, relation := range s.workspace.Relations {
-			if relation.To != current || !s.matchRelation(relation, via) {
+		for _, index := range graph.incoming[current] {
+			relation := s.workspace.Relations[index]
+			if !s.matchRelation(relation, via) {
 				continue
 			}
 			selected[index] = struct{}{}
-			if _, ok := seen[relation.From]; !ok {
+			if _, exists := seen[relation.From]; !exists {
 				seen[relation.From] = struct{}{}
 				queue = append(queue, relation.From)
 			}
@@ -211,7 +203,6 @@ func (s *Service) matchRelation(relation scope.Relation, predicates []scope.Pred
 	metadata := map[string]any{"scope": s.scopeRefs[relation.Source.Scope], "fromScope": s.scopeRefs[relation.From.Scope], "toScope": s.scopeRefs[relation.To.Scope]}
 	return scope.Match(object, metadata, predicates)
 }
-
 func (s *Service) entitiesByKeys(keys []scope.EntityKey, withSource bool) ([]Entity, error) {
 	result := make([]Entity, 0, len(keys))
 	for _, key := range keys {

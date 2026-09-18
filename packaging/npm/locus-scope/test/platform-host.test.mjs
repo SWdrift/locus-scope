@@ -90,7 +90,7 @@ process.stdin.on('data', (chunk) => { input += chunk; });
 process.stdin.on('end', () => {
   const request = JSON.parse(input);
   process.stdout.write(JSON.stringify({
-    version: 2,
+    version: 3,
     exitCode: 2,
     stdout: 'seen:' + request.arguments.join(',') + '\\n',
     stderr: 'query failed\\n'
@@ -102,25 +102,24 @@ process.stdin.on('end', () => {
   const stdout = captureStream();
   const stderr = captureStream();
   const request = {
-    version: 2,
+    version: 3,
     workingDirectory: root,
-    arguments: ['resolve', 'missing'],
-    root: { scopeRoot: root, packageRoot: '', dependencies: {} },
-    packages: {},
+    arguments: ['entity', 'missing'],
+    environment: { rootScope: root, rootDependencies: {}, packages: {} },
   };
 
   const exitCode = await runHost('synthetic-host', request, stdout, stderr, {
     spawnProcess: (_host, options) => spawn(process.execPath, [fakeHost], options),
   });
   assert.equal(exitCode, 2);
-  assert.equal(stdout.value(), 'seen:resolve,missing\n');
+  assert.equal(stdout.value(), 'seen:entity,missing\n');
   assert.equal(stderr.value(), 'query failed\n');
 });
 
 test('host protocol rejects malformed, extended, and exit-mismatched responses', async (t) => {
   assert.throws(() => decodeResponse('not-json'), /returned invalid JSON/);
   assert.throws(
-    () => decodeResponse('{"version":2,"exitCode":0,"stdout":"","stderr":"","extra":true}'),
+    () => decodeResponse('{"version":3,"exitCode":0,"stdout":"","stderr":"","extra":true}'),
     /response fields are invalid/,
   );
   assert.throws(
@@ -134,12 +133,12 @@ test('host protocol rejects malformed, extended, and exit-mismatched responses',
     fakeHost,
     `process.stdin.resume();
 process.stdin.on('end', () => {
-  process.stdout.write(JSON.stringify({version: 2, exitCode: 1, stdout: '', stderr: ''}));
+  process.stdout.write(JSON.stringify({version: 3, exitCode: 1, stdout: '', stderr: ''}));
 });
 `,
   );
   await assert.rejects(
-    runHost('synthetic-host', { version: 2 }, captureStream(), captureStream(), {
+    runHost('synthetic-host', { version: 3 }, captureStream(), captureStream(), {
       spawnProcess: (_host, options) => spawn(process.execPath, [fakeHost], options),
     }),
     /protocol exit mismatch: process exited 0, response declared 1/,

@@ -24,25 +24,14 @@ export async function build({ quiet = false } = {}) {
   await removeOwnedDirectory(artifactRoot, 'build output')
   await mkdir(artifactRoot)
 
-  const ldflags = `-X locus-scope/internal/buildinfo.Version=${version}`
-  for (const [name, packagePath] of [
-    ['locus-scope', './cmd/locus-scope'],
-    ['locus-pkg', './cmd/locus-pkg']
-  ]) {
-    const outputPath = join(artifactRoot, `${name}${extension}`)
-    run('go', ['build', '-trimpath', '-ldflags', ldflags, '-o', outputPath, packagePath])
-    if (!quiet) console.log(`Built ${outputPath}`)
-  }
-
-  return { artifactRoot, extension, version }
+  const outputPath = join(artifactRoot, `locus-scope-node-host${extension}`)
+  run('go', ['build', '-trimpath', '-ldflags', `-X locus-scope/internal/buildinfo.Version=${version}`, '-o', outputPath, './cmd/locus-scope-node-host'])
+  if (!quiet) console.log(`Built ${outputPath}`)
+  return { artifactRoot, extension, outputPath, version }
 }
 
 function runGoEnv(name) {
-  const result = run('go', ['env', name], {
-    encoding: 'utf8',
-    stdio: ['ignore', 'pipe', 'inherit']
-  })
-  return result.stdout.trim()
+  return run('go', ['env', name], { encoding: 'utf8', stdio: ['ignore', 'pipe', 'inherit'] }).stdout.trim()
 }
 
 if (isMain(import.meta.url)) {

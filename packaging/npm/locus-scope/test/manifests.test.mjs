@@ -28,7 +28,7 @@ test('@sundw/locus-scope source manifest defers release versions to VERSION', as
   assert.equal(manifest.type, 'module');
   assert.deepEqual(manifest.engines, { node: '>=20.6' });
   assert.deepEqual(manifest.exports, {});
-  assert.deepEqual(manifest.bin, { 'locus-scope-node': 'bin/locus-scope-node.mjs' });
+  assert.deepEqual(manifest.bin, { 'locus-scope': 'bin/locus-scope.mjs' });
   assert.deepEqual(manifest.files, ['bin', 'lib']);
   assert.deepEqual(
     manifest.optionalDependencies,

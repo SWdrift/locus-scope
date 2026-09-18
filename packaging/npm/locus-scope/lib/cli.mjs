@@ -25,17 +25,14 @@ export async function main(
     const absoluteWorkingDirectory = path.resolve(workingDirectory);
     const host = await locateHost({ platform, architecture });
     const request = {
-      version: 2,
+      version: 3,
       workingDirectory: absoluteWorkingDirectory,
       arguments: options.arguments,
-      root: { scopeRoot: '', packageRoot: '', dependencies: {} },
-      packages: {},
+      environment: { rootScope: '', rootDependencies: {}, packages: {} },
     };
     if (!isRootless(options.arguments)) {
       const scopeRoot = await discoverRoot(absoluteWorkingDirectory, options.scopeDirectory);
-      const environment = await buildEnvironment(scopeRoot);
-      request.root = environment.root;
-      request.packages = environment.packages;
+      request.environment = await buildEnvironment(scopeRoot);
     }
     if (usesStdin(options.arguments)) {
       request.stdin = await readStream(stdin);
@@ -44,7 +41,7 @@ export async function main(
   } catch (error) {
     const message = error instanceof Error ? error.message : String(error);
     if (jsonOutput) stderr.write(`${JSON.stringify({ error: message })}\n`);
-    else stderr.write(`locus-scope-node: ${message}\n`);
+    else stderr.write(`locus-scope: ${message}\n`);
     return 1;
   }
 }
