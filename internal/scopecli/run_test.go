@@ -94,6 +94,19 @@ func TestCommandAndOperationalErrorsUseDifferentExitCodes(t *testing.T) {
 	}
 }
 
+func TestUnknownCommandHonorsJSONOutput(t *testing.T) {
+	for _, arguments := range [][]string{
+		{"--json", "definitely-not-a-command"},
+		{"definitely-not-a-command", "--json"},
+	} {
+		code, stdout, stderr := run(t, arguments...)
+		const want = "{\"error\":\"unknown command \\\"definitely-not-a-command\\\" for \\\"locus-scope\\\"\"}\n"
+		if code != 2 || stdout != "" || stderr != want {
+			t.Fatalf("arguments=%q code=%d stdout=%q stderr=%q want stderr=%q", arguments, code, stdout, stderr, want)
+		}
+	}
+}
+
 func TestVersionFlagHonorsJSONOutput(t *testing.T) {
 	code, stdout, stderr := run(t, "--json", "--version")
 	if code != 0 || stderr != "" || !strings.Contains(stdout, `"name":"locus-scope"`) {

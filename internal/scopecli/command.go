@@ -39,6 +39,12 @@ func Run(context Context, arguments []string, stdout, stderr io.Writer) int {
 	}
 	state := &options{}
 	root := newRootCommand(context, state, stdout)
+	for _, argument := range arguments {
+		if argument == "--json" {
+			state.json = true
+			break
+		}
+	}
 	root.SetArgs(arguments)
 	root.SetOut(stdout)
 	root.SetErr(stderr)
