@@ -10,6 +10,7 @@
 
 - 控制平面文件统一使用 `cp-*.md` 命名；`cp` 是 control plane 的固定缩写。
 - `cp-meta.md` 是元控制平面；其他 `cp-*.md` 是实例控制平面。
+- 控制平面及同 scope 的 CPM 统一收纳在 `.cp/` 目录。
 - 实例名应表达被控制的目标边界，例如 `cp-scene.md`、`cp-message-center.md`。
 - 新增实例前先判断是否能并入现有控制平面；只有当 scope、核心规则或任务板需要独立维护时才新增。
 
