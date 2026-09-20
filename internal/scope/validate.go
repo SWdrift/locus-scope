@@ -53,7 +53,7 @@ func relationText(declaration relationDecl) string {
 	return declaration.from + " " + declaration.typ + " " + declaration.to
 }
 
-// CompareRelations returns a stable ordering for resolved relations.
+// CompareRelations 为已解析的 relations 给出稳定排序。
 func CompareRelations(left, right Relation) int {
 	values := [][2]string{
 		{string(left.From.Scope), string(right.From.Scope)},

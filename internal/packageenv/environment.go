@@ -10,18 +10,18 @@ import (
 	"locus-scope/internal/scope"
 )
 
-// Identity is the stable identity assigned by the Node package adapter.
+// Identity 是 Node package adapter 分配的稳定标识。
 type Identity string
 
-// PackageDescriptor describes one installed Locus package. Each dependency
-// edge is resolved by npm or pnpm in this package's importer context.
+// PackageDescriptor 描述一个已安装的 Locus package；每条 dependency edge
+// 都由 npm 或 pnpm 在该 package 的 importer 上下文中解析。
 type PackageDescriptor struct {
 	Root         string              `json:"root"`
 	Entry        string              `json:"entry"`
 	Dependencies map[string]Identity `json:"dependencies"`
 }
 
-// Environment is the exact installed package graph resolved by the Node adapter.
+// Environment 是 Node adapter 解析出的精确已安装 package graph。
 type Environment struct {
 	RootScope        string                         `json:"rootScope"`
 	RootDependencies map[string]Identity            `json:"rootDependencies"`
@@ -35,7 +35,7 @@ type resolver struct {
 	packageSources   map[Identity]scope.Source
 }
 
-// Load adapts an already-resolved npm package graph to the Scope loader.
+// Load 把已经解析好的 npm package graph 适配到 Scope loader。
 func Load(environment Environment) (*scope.Workspace, error) {
 	root, err := scope.NewLocalSource(environment.RootScope)
 	if err != nil {
@@ -118,8 +118,8 @@ func (r *resolver) Resolve(from scope.Source, reference string) (scope.Source, e
 		return r.local.Resolve(from, reference)
 	}
 
-	// A package import is resolved only through the declaring package's edges.
-	// Root dependencies are not a global fallback for distributed packages.
+	// package import 只通过声明它的 package 的 edges 解析；
+	// 对 distributed package 而言，根 dependencies 不是全局兜底。
 	dependencies := r.rootDependencies
 	importer := "local root"
 	if distributed {

@@ -5,8 +5,8 @@ import (
 	"strings"
 )
 
-// Resolve resolves ref from the named scope while enforcing every projection's
-// export boundary. The returned key always names the entity's owning scope.
+// Resolve 从指定 scope 解析 ref，并强制执行每个 projection 的 export 边界。
+// 返回的 key 始终指向 entity 的 owning scope。
 func (w *Workspace) Resolve(from ScopeKey, ref string) (EntityKey, error) {
 	current, ok := w.Scopes[from]
 	if !ok {

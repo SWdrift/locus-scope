@@ -9,18 +9,18 @@ import (
 	"strings"
 )
 
-// Source identifies a scope independently from the local directory used to read it.
+// Source 标识一个 scope，与读取它所用的本地目录无关。
 type Source struct {
 	Key       ScopeKey
 	LocalPath string
 }
 
-// Resolver resolves one manifest import from its owning source.
+// Resolver 从 import 所属的 Source 解析一条 manifest import。
 type Resolver interface {
 	Resolve(from Source, reference string) (Source, error)
 }
 
-// LocalResolver resolves filesystem imports from file sources.
+// LocalResolver 从 file source 解析 filesystem imports。
 type LocalResolver struct{}
 
 type pendingScope struct {
@@ -30,8 +30,8 @@ type pendingScope struct {
 	sourceValue string
 }
 
-// FindScope walks from start toward the filesystem root and returns the nearest
-// directory containing a locus manifest.
+// FindScope 从 start 向文件系统根目录逐级查找，返回最近的、
+// 包含 locus manifest 的目录。
 func FindScope(start string) (string, error) {
 	current, err := filepath.Abs(start)
 	if err != nil {
@@ -64,7 +64,7 @@ func FindScope(start string) (string, error) {
 	return "", fmt.Errorf("no locus manifest found from %q to the filesystem root", start)
 }
 
-// NewLocalSource validates a local scope directory and assigns its canonical file URI key.
+// NewLocalSource 校验本地 scope 目录，并赋予其规范的 file URI key。
 func NewLocalSource(path string) (Source, error) {
 	localPath, err := canonicalScopeDirectory(path)
 	if err != nil {
@@ -73,7 +73,7 @@ func NewLocalSource(path string) (Source, error) {
 	return Source{Key: localScopeKey(localPath), LocalPath: localPath}, nil
 }
 
-// Resolve resolves relative and absolute filesystem imports from a file source.
+// Resolve 从 file source 解析相对和绝对的 filesystem imports。
 func (LocalResolver) Resolve(from Source, reference string) (Source, error) {
 	parsed, err := url.Parse(string(from.Key))
 	if err != nil || parsed.Scheme != "file" || !strings.HasPrefix(string(from.Key), "file://") {
@@ -94,7 +94,7 @@ func (LocalResolver) Resolve(from Source, reference string) (Source, error) {
 	return resolved, nil
 }
 
-// ReadSource decodes and validates one source without resolving imports.
+// ReadSource 解码并校验单个 Source，不解析 imports。
 func ReadSource(source Source) (*Scope, error) {
 	normalized, err := normalizeSource(source)
 	if err != nil {
@@ -103,13 +103,13 @@ func ReadSource(source Source) (*Scope, error) {
 	return decodeScope(normalized)
 }
 
-// CheckSource validates the local files for one source without resolving imports.
+// CheckSource 校验单个 Source 的本地文件，不解析 imports。
 func CheckSource(source Source) error {
 	_, err := ReadSource(source)
 	return err
 }
 
-// Load discovers every reachable import and returns a fully validated workspace.
+// Load 发现所有可达的 imports，返回完全校验过的 Workspace。
 func Load(root Source, resolve Resolver) (*Workspace, error) {
 	if resolve == nil {
 		return nil, fmt.Errorf("load root scope: resolver is required")
@@ -147,7 +147,7 @@ func Load(root Source, resolve Resolver) (*Workspace, error) {
 			return nil, wrapImportError(workspace, pending, err)
 		}
 
-		// Register before discovering children so cyclic imports are ordinary.
+		// 先注册再发现子节点，使循环 import 成为普通情况。
 		workspace.Scopes[source.Key] = loaded
 
 		aliases := sortedStringKeys(loaded.Manifest.Imports)

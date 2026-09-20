@@ -5,7 +5,7 @@ import (
 	"path/filepath"
 )
 
-// LoadDefinitionFile loads one definition document as an isolated synthetic Scope.
+// LoadDefinitionFile 把单个 definition 文档加载为孤立的 synthetic Scope。
 func LoadDefinitionFile(path string) (*Workspace, error) {
 	absolute, err := filepath.Abs(path)
 	if err != nil {

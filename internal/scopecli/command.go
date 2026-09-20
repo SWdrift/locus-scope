@@ -1,4 +1,4 @@
-// Package scopecli implements the shared locus-scope command surface.
+// Package scopecli 实现共享的 locus-scope 命令面。
 package scopecli
 
 import (

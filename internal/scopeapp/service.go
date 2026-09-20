@@ -1,4 +1,4 @@
-// Package scopeapp exposes transport-independent Scope management operations.
+// Package scopeapp 提供与传输方式无关的 Scope 管理操作。
 package scopeapp
 
 import (

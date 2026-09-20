@@ -1,15 +1,15 @@
 package scope
 
-// ScopeKey identifies one physical scope source within a workspace.
+// ScopeKey 标识 Workspace 内的一个物理 scope source。
 type ScopeKey string
 
-// EntityKey is the stable identity of an entity.
+// EntityKey 是 entity 的稳定标识。
 type EntityKey struct {
 	Scope ScopeKey `json:"scope"`
 	ID    string   `json:"id"`
 }
 
-// Provenance identifies the declaration that produced an object.
+// Provenance 标识产生某个对象的声明。
 type Provenance struct {
 	Scope ScopeKey `json:"scope"`
 	File  string   `json:"file"`
@@ -19,7 +19,7 @@ type Provenance struct {
 	Path  string   `json:"-"`
 }
 
-// Entity stores a canonical Scope-local ID and protocol-opaque properties.
+// Entity 保存规范的 Scope 内 ID 以及对协议不透明的 properties。
 type Entity struct {
 	ID         string         `json:"id"`
 	Properties map[string]any `json:"-"`
@@ -27,14 +27,14 @@ type Entity struct {
 	LocalID    string         `json:"-"`
 }
 
-// Manifest contains the scope-level declarations from locus.yaml, locus.yml, or locus.json.
+// Manifest 保存 locus.yaml、locus.yml 或 locus.json 中的 scope 级声明。
 type Manifest struct {
 	ID      string            `json:"id"`
 	Imports map[string]string `json:"imports"`
 	Exports []string          `json:"exports"`
 }
 
-// Scope is one loaded source. Key is its stable source identity, independent of LocalPath.
+// Scope 是一个已加载的 source；Key 是其稳定的 source 标识，与 LocalPath 无关。
 type Scope struct {
 	Key          ScopeKey            `json:"key"`
 	Manifest     Manifest            `json:"manifest"`
@@ -48,7 +48,7 @@ type Scope struct {
 	relationDecls []relationDecl
 }
 
-// Relation is a resolved directed edge with protocol-opaque properties.
+// Relation 是带协议不透明 properties 的已解析有向边。
 type Relation struct {
 	From       EntityKey      `json:"from"`
 	Type       string         `json:"type"`
@@ -59,7 +59,7 @@ type Relation struct {
 	Source     Provenance     `json:"-"`
 }
 
-// Workspace contains the complete graph reachable from Root.
+// Workspace 包含从 Root 可达的完整 graph。
 type Workspace struct {
 	Root      ScopeKey            `json:"root"`
 	Scopes    map[ScopeKey]*Scope `json:"scopes"`
