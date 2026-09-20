@@ -2,6 +2,8 @@
 
 ## 目录
 
+只列实现与交付目录；`test/`、`documents/`、`.agents/` 与仓库根文件不在此列。
+
 ```text
 cmd/
 └── locus-scope-node-host/
@@ -54,7 +56,7 @@ flowchart LR
 - `internal/scopeapp` 是 Scope 的稳定 application API；`internal/scopecli` 是 Cobra CLI frontend。
 - `internal/packageenv` 只把 Node 提供的 resolved Environment 转为 `scope.Resolver`，不重新实现 npm name、SemVer 或 package manager 规则。
 - `@sundw/locus-scope` 负责从实际 npm/pnpm 安装环境构造 importer-relative graph、选择 platform host 并转发进程 I/O；不解析 Locus definitions。
-- 私有 Go host 通过单次 JSON request 接收 Environment，装配 Workspace，并调用共享 `scopeapp` 与 `scopecli`。
+- 私有 Go host 通过单次 JSON request 接收 Environment，装配 Workspace，并调用共享 `scopecli`；`scopeapp` 由 `scopecli` 内部使用。
 
 ## 目录规则
 
