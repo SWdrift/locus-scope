@@ -15,7 +15,7 @@ description: "精简、压缩或清理控制平面（cp）动态任务区。用�
 
 ## 精简流程
 
-1. 读取 `cp-meta.md`、目标 `cp-<scope>.md` 和同目录 `cpm-<scope>.md`；CPM 不存在时按需创建。
+1. 读取 `.cp/cp-meta.md`、目标 `.cp/cp-<scope>.md` 和同目录 `cpm-<scope>.md`；CPM 不存在时按需创建。
 2. 冻结本次精简范围：只处理 `Task Board` 及其后动态章节；除规则冲突或用户要求外，不改 `Task Board` 之前的固定结构区。
 3. 分类动态内容：
    - 长期规则、决策、坑点：写入同目录同 scope 的 `cpm-<scope>.md`，或提升到 `Core Rules`。
