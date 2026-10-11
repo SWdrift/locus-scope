@@ -33,9 +33,22 @@ type DiffResult struct {
 	Changed DiffChanged `json:"changed"`
 }
 
+type relationIdentity struct {
+	from scope.EntityKey
+	typ  string
+	to   scope.EntityKey
+}
+
 type semanticGraph struct {
-	entities  map[string]Entity
-	relations map[string]Relation
+	entities  map[scope.EntityKey]Entity
+	relations map[relationIdentity]Relation
+}
+
+func lessEntityKey(left, right scope.EntityKey) bool {
+	if left.Scope != right.Scope {
+		return left.Scope < right.Scope
+	}
+	return left.ID < right.ID
 }
 
 func (s *Service) Diff(left, right string, loadPath func(string) (*scope.Workspace, error)) (DiffResult, error) {
@@ -48,7 +61,7 @@ func (s *Service) Diff(left, right string, loadPath func(string) (*scope.Workspa
 		return DiffResult{}, err
 	}
 	result := DiffResult{Added: DiffSide{Entities: []Entity{}, Relations: []Relation{}}, Removed: DiffSide{Entities: []Entity{}, Relations: []Relation{}}, Changed: DiffChanged{Entities: []EntityChange{}, Relations: []RelationChange{}}}
-	for _, id := range sortedMapKeys(leftGraph.entities) {
+	for _, id := range sortedEntityKeys(leftGraph.entities) {
 		before := leftGraph.entities[id]
 		after, exists := rightGraph.entities[id]
 		if !exists {
@@ -57,12 +70,12 @@ func (s *Service) Diff(left, right string, loadPath func(string) (*scope.Workspa
 			result.Changed.Entities = append(result.Changed.Entities, EntityChange{before, after})
 		}
 	}
-	for _, id := range sortedMapKeys(rightGraph.entities) {
+	for _, id := range sortedEntityKeys(rightGraph.entities) {
 		if _, exists := leftGraph.entities[id]; !exists {
 			result.Added.Entities = append(result.Added.Entities, rightGraph.entities[id])
 		}
 	}
-	for _, id := range sortedMapKeys(leftGraph.relations) {
+	for _, id := range sortedRelationKeys(leftGraph.relations) {
 		before := leftGraph.relations[id]
 		after, exists := rightGraph.relations[id]
 		if !exists {
@@ -71,7 +84,7 @@ func (s *Service) Diff(left, right string, loadPath func(string) (*scope.Workspa
 			result.Changed.Relations = append(result.Changed.Relations, RelationChange{before, after})
 		}
 	}
-	for _, id := range sortedMapKeys(rightGraph.relations) {
+	for _, id := range sortedRelationKeys(rightGraph.relations) {
 		if _, exists := leftGraph.relations[id]; !exists {
 			result.Added.Relations = append(result.Added.Relations, rightGraph.relations[id])
 		}
@@ -131,10 +144,10 @@ func (s *Service) graphForWorkspace() semanticGraph {
 	return s.graphForKeys(selected)
 }
 func (s *Service) graphForKeys(selected map[scope.EntityKey]struct{}) semanticGraph {
-	result := semanticGraph{entities: make(map[string]Entity), relations: make(map[string]Relation)}
+	result := semanticGraph{entities: make(map[scope.EntityKey]Entity), relations: make(map[relationIdentity]Relation)}
 	for key := range selected {
 		item, _ := s.EntityByKey(key, false)
-		result.entities[key.ID] = item
+		result.entities[key] = item
 	}
 	for _, relation := range s.QueryRelations(nil, false) {
 		if _, ok := selected[relation.FromKey]; !ok {
@@ -144,16 +157,32 @@ func (s *Service) graphForKeys(selected map[scope.EntityKey]struct{}) semanticGr
 			continue
 		}
 		relationType, _ := relation.Object["type"].(string)
-		identity := relation.FromKey.ID + "\x00" + relationType + "\x00" + relation.ToKey.ID
+		identity := relationIdentity{from: relation.FromKey, typ: relationType, to: relation.ToKey}
 		result.relations[identity] = relation
 	}
 	return result
 }
-func sortedMapKeys[V any](values map[string]V) []string {
-	keys := make([]string, 0, len(values))
+func sortedEntityKeys[V any](values map[scope.EntityKey]V) []scope.EntityKey {
+	keys := make([]scope.EntityKey, 0, len(values))
 	for key := range values {
 		keys = append(keys, key)
 	}
-	sort.Strings(keys)
+	sort.Slice(keys, func(i, j int) bool { return lessEntityKey(keys[i], keys[j]) })
+	return keys
+}
+func sortedRelationKeys[V any](values map[relationIdentity]V) []relationIdentity {
+	keys := make([]relationIdentity, 0, len(values))
+	for key := range values {
+		keys = append(keys, key)
+	}
+	sort.Slice(keys, func(i, j int) bool {
+		if keys[i].from != keys[j].from {
+			return lessEntityKey(keys[i].from, keys[j].from)
+		}
+		if keys[i].typ != keys[j].typ {
+			return keys[i].typ < keys[j].typ
+		}
+		return lessEntityKey(keys[i].to, keys[j].to)
+	})
 	return keys
 }

@@ -32,8 +32,11 @@ func TestRunReturnsScopeFailuresThroughCLIContract(t *testing.T) {
 		t.Fatalf("response = %#v", result)
 	}
 	var failure map[string]string
-	if err := json.Unmarshal([]byte(result.Stderr), &failure); err != nil || !strings.Contains(failure["error"], "resolved environment") {
+	if err := json.Unmarshal([]byte(result.Stderr), &failure); err != nil || failure["error"] != "scope operation failed" {
 		t.Fatalf("stderr = %q, decode error = %v", result.Stderr, err)
+	}
+	if strings.Contains(result.Stderr, root) {
+		t.Fatalf("stderr exposed workspace path: %q", result.Stderr)
 	}
 }
 

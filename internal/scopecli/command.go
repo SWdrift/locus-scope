@@ -33,6 +33,13 @@ type options struct {
 
 var errVersionPrinted = errors.New("version printed")
 
+type operationalFailure struct {
+	err error
+}
+
+func (e operationalFailure) Error() string { return e.err.Error() }
+func (e operationalFailure) Unwrap() error { return e.err }
+
 func Run(context Context, arguments []string, stdout, stderr io.Writer) int {
 	if context.Stdin == nil {
 		context.Stdin = strings.NewReader("")
@@ -55,7 +62,7 @@ func Run(context Context, arguments []string, stdout, stderr io.Writer) int {
 		if errors.Is(err, errVersionPrinted) {
 			return 0
 		}
-		if apperror.CodeOf(err) == apperror.Internal {
+		if apperror.CodeOf(err) == apperror.Internal && !isOperational(err) {
 			err = apperror.Invalid("scope.selector_invalid", err)
 		}
 		return fail(stderr, state.json, err)
@@ -518,13 +525,23 @@ func loadPath(context Context, path string) (*scope.Workspace, error) {
 func invalid(format string, values ...any) error {
 	return apperror.Invalid("scope.selector_invalid", fmt.Errorf(format, values...))
 }
-func operational(err error) error { return apperror.Normalize(err, "scope.execute") }
+func operational(err error) error {
+	return operationalFailure{err: apperror.Normalize(err, "scope.execute")}
+}
+func isOperational(err error) bool {
+	var failure operationalFailure
+	return errors.As(err, &failure)
+}
 func fail(output io.Writer, jsonOutput bool, err error) int {
 	application := apperror.Normalize(err, "scope.cli")
+	message := application.Message
+	if application.Code == apperror.Internal {
+		message = "scope operation failed"
+	}
 	if jsonOutput {
-		_ = json.NewEncoder(output).Encode(map[string]string{"error": application.Message})
+		_ = json.NewEncoder(output).Encode(map[string]string{"error": message})
 	} else {
-		fmt.Fprintf(output, "locus-scope: %s\n", application.Message)
+		fmt.Fprintf(output, "locus-scope: %s\n", message)
 	}
 	return apperror.ExitCode(application)
 }

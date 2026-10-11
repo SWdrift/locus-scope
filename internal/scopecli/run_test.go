@@ -2,6 +2,7 @@ package scopecli_test
 
 import (
 	"bytes"
+	"fmt"
 	"strings"
 	"testing"
 
@@ -111,5 +112,20 @@ func TestVersionFlagHonorsJSONOutput(t *testing.T) {
 	code, stdout, stderr := run(t, "--json", "--version")
 	if code != 0 || stderr != "" || !strings.Contains(stdout, `"name":"locus-scope"`) {
 		t.Fatalf("version code=%d stdout=%q stderr=%q", code, stdout, stderr)
+	}
+}
+
+func TestOperationalLoadErrorKeepsRuntimeCodeAndHidesPath(t *testing.T) {
+	var stdout, stderr bytes.Buffer
+	code := scopecli.Run(scopecli.Context{
+		Load: func() (*scope.Workspace, error) {
+			return nil, fmt.Errorf("read X:\\secret\\workspace\\locus.yaml: permission denied")
+		},
+	}, []string{"validate", "--json"}, &stdout, &stderr)
+	if code != 1 || stdout.String() != "" {
+		t.Fatalf("code=%d stdout=%q stderr=%q", code, stdout.String(), stderr.String())
+	}
+	if got, want := stderr.String(), "{\"error\":\"scope operation failed\"}\n"; got != want {
+		t.Fatalf("stderr=%q want=%q", got, want)
 	}
 }

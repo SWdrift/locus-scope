@@ -62,3 +62,55 @@ func TestMutationRoundTripAndRollback(t *testing.T) {
 		t.Fatalf("default definition not retained: %v", err)
 	}
 }
+
+func TestMutationRejectsSymlinkOutsideRoot(t *testing.T) {
+	root, err := filepath.Abs(filepath.Join("..", "..", "temp", "e2e-run", "scopecli-symlink"))
+	if err != nil {
+		t.Fatal(err)
+	}
+	if err := os.RemoveAll(root); err != nil {
+		t.Fatal(err)
+	}
+	if err := os.MkdirAll(filepath.Join(root, "inside"), 0o755); err != nil {
+		t.Fatal(err)
+	}
+	outside := filepath.Join(filepath.Dir(root), "scopecli-symlink-outside.locus.yaml")
+	if err := os.WriteFile(outside, []byte("entities:\n  - id: keep\n"), 0o644); err != nil {
+		t.Fatal(err)
+	}
+	t.Cleanup(func() {
+		_ = os.RemoveAll(root)
+		_ = os.Remove(outside)
+	})
+	link := filepath.Join(root, "inside", "target.locus.yaml")
+	if err := os.Symlink(outside, link); err != nil {
+		t.Skipf("symlink creation unavailable: %v", err)
+	}
+	if err := os.WriteFile(filepath.Join(root, "locus.yaml"), []byte("id: app\n"), 0o644); err != nil {
+		t.Fatal(err)
+	}
+	load := func() (*scope.Workspace, error) {
+		source, err := scope.NewLocalSource(root)
+		if err != nil {
+			return nil, err
+		}
+		return scope.Load(source, scope.LocalResolver{})
+	}
+	var stdout, stderr bytes.Buffer
+	code := scopecli.Run(scopecli.Context{WorkingDirectory: root, Load: load, Reload: load},
+		[]string{"entity", "add", "new", "type=service", "--file", "inside/target.locus.yaml", "--json"},
+		&stdout, &stderr)
+	if code != 1 || stdout.String() != "" || stderr.String() != "{\"error\":\"scope operation failed\"}\n" {
+		t.Fatalf("code=%d stdout=%q stderr=%q", code, stdout.String(), stderr.String())
+	}
+	if strings.Contains(stderr.String(), outside) {
+		t.Fatalf("stderr exposed outside path: %q", stderr.String())
+	}
+	data, err := os.ReadFile(outside)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if string(data) != "entities:\n  - id: keep\n" {
+		t.Fatalf("outside target was modified: %q", data)
+	}
+}

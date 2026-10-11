@@ -2,6 +2,14 @@
 
 本文件记录 `locus-scope` 各发布版本的用户可见变更。
 
+## [3.1.0] - 2026-10-12
+
+### Fixed
+
+- `diff path:` 在不同 Scope 含有相同 ID 时保留带 Scope 限定的 Entity 和 Relation identity。
+- Scope mutation 拒绝解析后越出可写 root Scope 的符号链接目标。
+- 修复向无 Details 的已有错误合并 Details 时的 panic；运行时加载错误保持退出状态 `1`，CLI 输出隐藏文件系统路径。
+
 ## [3.0.1] - 2026-09-20
 
 ### Fixed

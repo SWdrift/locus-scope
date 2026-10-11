@@ -110,6 +110,9 @@ func (s *Service) mutationTarget(root *scope.Scope, request MutationRequest) (st
 		if err != nil || relative == ".." || strings.HasPrefix(relative, ".."+string(filepath.Separator)) {
 			return "", "", -1, fmt.Errorf("definition path must remain inside root Scope")
 		}
+		if err := ensureMutationPath(root.LocalPath, absolute); err != nil {
+			return "", "", -1, err
+		}
 		if err := rejectNestedScope(root.LocalPath, absolute); err != nil {
 			return "", "", -1, err
 		}
@@ -124,6 +127,9 @@ func (s *Service) mutationTarget(root *scope.Scope, request MutationRequest) (st
 			return "", "", -1, apperror.Message(apperror.PermissionDenied, "scope.object_read_only", "dependency Entity %q is read-only", request.Ref)
 		}
 		entity := root.Entities[key.ID]
+		if err := ensureMutationPath(root.LocalPath, entity.Source.Path); err != nil {
+			return "", "", -1, err
+		}
 		return entity.Source.Path, entity.LocalID, -1, nil
 	}
 	from, err := s.workspace.Resolve(s.workspace.Root, request.From)
@@ -139,10 +145,59 @@ func (s *Service) mutationTarget(root *scope.Scope, request MutationRequest) (st
 			if relation.Source.Scope != s.workspace.Root {
 				return "", "", -1, apperror.Message(apperror.PermissionDenied, "scope.object_read_only", "dependency Relation is read-only")
 			}
+			if err := ensureMutationPath(root.LocalPath, relation.Source.Path); err != nil {
+				return "", "", -1, err
+			}
 			return relation.Source.Path, "", relation.Source.Index - 1, nil
 		}
 	}
 	return "", "", -1, apperror.Message(apperror.NotFound, "scope.object_not_found", "relation %s %s %s not found", request.From, request.Type, request.To)
+}
+
+// ensureMutationPath rejects paths whose resolved target (or nearest existing
+// parent for a new file) escapes the root through a symlink.
+func ensureMutationPath(root, target string) error {
+	rootAbs, err := filepath.Abs(root)
+	if err != nil {
+		return err
+	}
+	rootReal, err := filepath.EvalSymlinks(rootAbs)
+	if err != nil {
+		return fmt.Errorf("inspect mutation root: %w", err)
+	}
+	targetAbs, err := filepath.Abs(target)
+	if err != nil {
+		return err
+	}
+	probe := targetAbs
+	var suffix []string
+	for {
+		_, statErr := os.Lstat(probe)
+		if statErr == nil {
+			break
+		}
+		if !os.IsNotExist(statErr) {
+			return fmt.Errorf("inspect mutation path: %w", statErr)
+		}
+		parent := filepath.Dir(probe)
+		if parent == probe {
+			return fmt.Errorf("definition path must remain inside root Scope")
+		}
+		suffix = append(suffix, filepath.Base(probe))
+		probe = parent
+	}
+	realProbe, err := filepath.EvalSymlinks(probe)
+	if err != nil {
+		return fmt.Errorf("inspect mutation path: %w", err)
+	}
+	for i := len(suffix) - 1; i >= 0; i-- {
+		realProbe = filepath.Join(realProbe, suffix[i])
+	}
+	relative, err := filepath.Rel(rootReal, realProbe)
+	if err != nil || relative == ".." || strings.HasPrefix(relative, ".."+string(filepath.Separator)) || filepath.IsAbs(relative) {
+		return fmt.Errorf("definition path must remain inside root Scope")
+	}
+	return nil
 }
 
 func readMutableDocument(path string) (mutableDocument, []byte, bool, error) {

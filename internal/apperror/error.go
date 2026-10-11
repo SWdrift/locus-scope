@@ -38,6 +38,9 @@ func Wrap(code Code, reason, message string, cause error, details map[string]str
 	var existing *Error
 	if errors.As(cause, &existing) {
 		merged := cloneDetails(existing.Details)
+		if merged == nil && len(details) > 0 {
+			merged = make(map[string]string, len(details))
+		}
 		for key, value := range details {
 			if _, exists := merged[key]; !exists {
 				merged[key] = value

@@ -76,3 +76,44 @@ func TestGraphPathAndImpact(t *testing.T) {
 		t.Fatalf("impact = %#v", impact)
 	}
 }
+
+func TestDiffPreservesCrossScopeIdentity(t *testing.T) {
+	first := scope.ScopeKey("file:///first")
+	second := scope.ScopeKey("file:///second")
+	makeWorkspace := func(secondValue string) *scope.Workspace {
+		entity := func(key scope.ScopeKey) scope.Entity {
+			value := "before"
+			if key == second {
+				value = secondValue
+			}
+			return scope.Entity{ID: "same", LocalID: "same", Properties: map[string]any{"value": value}, Source: scope.Provenance{Scope: key, File: "x.yaml"}}
+		}
+		return &scope.Workspace{
+			Root: first,
+			Scopes: map[scope.ScopeKey]*scope.Scope{
+				first:  {Key: first, Entities: map[string]scope.Entity{"same": entity(first)}, Imports: map[string]scope.ScopeKey{}},
+				second: {Key: second, Entities: map[string]scope.Entity{"same": entity(second)}, Imports: map[string]scope.ScopeKey{}},
+			},
+			Relations: []scope.Relation{
+				{From: scope.EntityKey{Scope: first, ID: "same"}, Type: "links", To: scope.EntityKey{Scope: second, ID: "same"}, Properties: map[string]any{"value": secondValue}},
+			},
+		}
+	}
+	left := makeWorkspace("before")
+	right := makeWorkspace("after")
+	result, err := scopeapp.New(left).Diff("path:left", "path:right", func(path string) (*scope.Workspace, error) {
+		if path == "left" {
+			return left, nil
+		}
+		return right, nil
+	})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if len(result.Changed.Entities) != 1 || len(result.Added.Entities) != 0 || len(result.Removed.Entities) != 0 {
+		t.Fatalf("entities = %#v", result)
+	}
+	if len(result.Changed.Relations) != 1 || len(result.Added.Relations) != 0 || len(result.Removed.Relations) != 0 {
+		t.Fatalf("relations = %#v", result)
+	}
+}
