@@ -163,6 +163,35 @@ test('mutation rolls back export validation and removes newly-created files on r
   await assert.rejects(readFile(generated));
 });
 
+test('mutation reports rollback cleanup and reload failures', async t => {
+  const root = await setup(t, 'rollback-failure', {
+    'locus.yaml': 'id: app\n',
+    'entities.locus.yaml': 'entities:\n  - id: api\n',
+  });
+  const file = path.join(root, 'entities.locus.yaml');
+  const application = new ApplicationService(await loadAt(root));
+  let reloads = 0;
+  await assert.rejects(
+    application.mutate({ kind: 'entity', action: 'set', ref: 'api', object: {}, fields: { value: 1 } }, async () => {
+      reloads += 1;
+      if (reloads === 1) {
+        await rm(file);
+        await mkdir(file);
+        throw new Error('synthetic reload failure');
+      }
+      throw new Error('synthetic rollback reload failure');
+    }),
+    error => {
+      assert.ok(error instanceof ApplicationError);
+      assert.equal(error.code, 'invalid_data');
+      assert.equal(error.reason, 'scope.mutation_invalid');
+      assert.ok(error.cause instanceof AggregateError);
+      assert.equal(error.cause.errors.length, 3);
+      return true;
+    },
+  );
+});
+
 test('mutation refuses dependency writes and nested or escaping targets', async t => {
   const compositionRoot = path.resolve('test/e2e/case/scope-composition/app');
   const dependencyApp = new ApplicationService(await loadAt(compositionRoot));

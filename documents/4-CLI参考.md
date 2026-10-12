@@ -335,7 +335,7 @@ locus-scope relation remove backend uses database
 relation remove <from> <type> <to>
 ```
 
-所有写入命令都会先验证变更后的 Workspace，再以 atomic write 修改声明。dependency Scope 只读。写入失败时，文件和已加载 Workspace 都保持不变。
+所有写入命令都会先验证变更后的 Workspace，再以 atomic write 修改声明。dependency Scope 只读。mutation 失败时会返回错误；如果无法确认 rollback 状态，应先检查目标文件并运行 `validate`，确认 Workspace 状态后再重试。
 
 ## 比较与验证命令
 

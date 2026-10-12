@@ -26,7 +26,6 @@
 
 ## Task Board
 
-- [ ] 修复或明确处理 mutation rollback cleanup 失败：恢复原文件、删除新文件或二次 reload 失败时，不能只丢弃错误；该问题属于 3.1 基线已有缺口，不是 TypeScript 迁移新增回退。
 - [ ] 为中大型 Workspace 建立 graph/path/impact/diff/query 基准，重点检查 JavaScript queue 和开放属性深拷贝成本；未有基准前不宣称大规模生产性能。
 
 ## Confidence Matrix

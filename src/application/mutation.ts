@@ -42,11 +42,24 @@ ApplicationService.prototype.mutate = async function mutate(this: ApplicationSer
   let workspace: Workspace;
   try { workspace = await reload(); }
   catch (error) {
+    const rollbackErrors: unknown[] = [];
     try {
       if (loaded.existed && loaded.original) await writeFileAtomic(target.path, loaded.original);
       else await rm(target.path, { force: true });
+    } catch (rollbackError) {
+      rollbackErrors.push(rollbackError);
+    }
+    try {
       await reload();
-    } catch { /* preserve the original validation error */ }
+    } catch (reloadError) {
+      rollbackErrors.push(reloadError);
+    }
+    if (rollbackErrors.length > 0) {
+      throw mutationInvalidData(
+        'mutation rollback failed',
+        new AggregateError([error, ...rollbackErrors], 'mutation rollback failed'),
+      );
+    }
     throw mutationInvalidData('mutation produced invalid scope data', error);
   }
   const updated = new ApplicationService(workspace);

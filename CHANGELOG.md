@@ -2,6 +2,12 @@
 
 本文件记录 `locus-scope` 各发布版本的用户可见变更。
 
+## [4.0.1] - 2026-10-13
+
+### Fixed
+
+- Scope mutation rollback 不再静默丢弃恢复原文件、删除新文件或二次 reload 失败；原始 reload 错误与 rollback 错误通过 `AggregateError` 保留并暴露。
+
 ## [4.0.0] - 2026-10-12
 
 ### Changed

@@ -335,7 +335,7 @@ Syntax:
 relation remove <from> <type> <to>
 ```
 
-All mutation commands validate the changed Workspace before atomically writing the declaration. Dependency Scopes are read-only. A failed mutation leaves both the file and loaded Workspace unchanged.
+All mutation commands validate the changed Workspace before atomically writing the declaration. Dependency Scopes are read-only. A failed mutation reports an error; if rollback state cannot be confirmed, inspect the target file and run `validate` before retrying.
 
 ## Comparison and Validation Commands
 

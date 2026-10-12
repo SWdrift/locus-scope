@@ -79,6 +79,7 @@ class ApplicationError extends Error {
 - 未分类错误在 application API 边界转换为 `internal`。
 - 包装不得重复添加同一 operation、resource 或 location。
 - Workspace load 和 mutation 保持 fail-fast；失败不返回可消费的部分结果。
+- Mutation 首次 reload 失败后会尝试恢复原文件或删除新文件，并执行二次 reload。任一 rollback cleanup 或二次 reload 失败时，`scope.mutation_invalid` 的 `cause` 为 `AggregateError`，包含首次 reload 错误和全部 rollback 错误；不得将其视为已确认恢复。
 
 
 

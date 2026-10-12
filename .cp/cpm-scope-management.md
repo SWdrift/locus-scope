@@ -11,6 +11,6 @@
 - `diff` 比较归一化 Entity/Relation 子图；mutation 使用原子写与 reload 验证。
 - CLI 参数错误退出 `2`，加载、验证、查询、权限、冲突和事务错误退出 `1`。
 
-## 已知基线缺口
+## 已解决的基线缺口
 
-- 3.1 mutation rollback 在恢复原文件、删除新文件或二次 reload 失败时忽略 cleanup 错误；该问题必须单独修复或明确记录，不能归因于 TypeScript 迁移。
+- mutation rollback 在恢复原文件、删除新文件或二次 reload 失败时，统一保留原始 reload 错误并通过 `AggregateError` 暴露全部 rollback 错误；不得静默丢弃。
