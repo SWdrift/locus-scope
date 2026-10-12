@@ -1,5 +1,3 @@
 #!/usr/bin/env node
-
-import { main } from '../lib/cli.mjs';
-
-process.exitCode = await main(process.argv.slice(2));
+process.env.LOCUS_SCOPE_VERSION ??= process.env.npm_package_version ?? 'development'
+await import('../lib/bin.js')

@@ -8,7 +8,7 @@ pnpm exec locus-scope [--scope <dir>] [--json] <command>
 npx locus-scope [--scope <dir>] [--json] <command>
 ```
 
-`@sundw/locus-scope` Node adapter 解析 npm 或 pnpm 已安装的依赖，选择私有平台 Go host，并转发命令。除 `help` 和 `version` 外，命令执行前会加载并验证所有可达 Scope。省略 `--scope` 时，CLI 从当前目录向上查找最近的 Scope。
+`@sundw/locus-scope` runtime 解析 npm 或 pnpm 已安装的依赖，并在同一进程执行共享 domain/application API。除 `help` 和 `version` 外，命令执行前会加载并验证所有可达 Scope。省略 `--scope` 时，CLI 从当前目录向上查找最近的 Scope。
 
 ## Workspace 参数
 

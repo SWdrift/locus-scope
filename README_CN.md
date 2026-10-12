@@ -10,7 +10,7 @@ Locus Scope 将具有身份的事物及其关系组织成有边界的图。Entit
 
 ## 使用
 
-项目以 npm Package 提供统一的 `locus-scope` 命令。npm 或 pnpm 负责依赖解析、lockfile、缓存和安装；Node adapter 从实际安装环境解析 Package graph，再交给 Go Scope 引擎装配 Workspace。
+项目以 npm Package 提供统一的 `locus-scope` 命令和 library API。npm 或 pnpm 负责依赖解析、lockfile、缓存和安装；runtime 从实际安装环境解析 Package graph，并在同一进程装配、验证 Workspace。
 
 | 使用方式 | 适用情况 | 命令入口 |
 | --- | --- | --- |
@@ -26,15 +26,16 @@ Agent 可按任务选择对应 Skill：
 
 <details>
 <summary>从源码构建</summary>
-
-要求 Go 1.26+、Node.js 20.6+ 和根 `package.json` 固定的 pnpm：
+要求使用根 `package.json` 声明的 Node.js LTS 版本，以及其中固定的 pnpm：
 
 ```powershell
+pnpm install --frozen-lockfile
+pnpm run typecheck
 pnpm run build
 pnpm run release:npm
 ```
 
-当前平台 host 的本地构建产物位于 `temp/build/`；npm release tarball 位于 `temp/release/npm/`。
+TypeScript 构建产物位于 `temp/ts-build/`；npm release tarball 位于 `temp/release/npm/`。
 
 </details>
 

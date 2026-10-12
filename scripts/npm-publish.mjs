@@ -2,14 +2,7 @@ import { join } from 'node:path'
 import { assertOrdinaryFile, isMain, readVersion, repositoryRoot, run } from './lib/workspace.mjs'
 
 const officialNpmRegistry = 'https://registry.npmjs.org/'
-const tarballStems = [
-  'sundw-locus-scope-win32-x64',
-  'sundw-locus-scope-linux-x64',
-  'sundw-locus-scope-linux-arm64',
-  'sundw-locus-scope-darwin-x64',
-  'sundw-locus-scope-darwin-arm64',
-  'sundw-locus-scope'
-]
+const tarballStems = ['sundw-locus-scope']
 
 export function buildNpmPublishArgs(tarball, args) {
   const publishArgs = args[0] === '--' ? args.slice(1) : args

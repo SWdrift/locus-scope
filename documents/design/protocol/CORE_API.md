@@ -2,45 +2,45 @@
 
 ## 简述
 
-`internal/scopeapp` 是 transport-independent application API。CLI、Node host 和未来消费层不直接实现或复制领域语义。
+`src/application` 是 transport-independent application API。CLI、Node library consumer 和未来消费层不直接实现或复制领域语义。
 
 ## 职责
 
-本文定义 Scope 的进程内 Go 契约及分层边界。CLI 参数、文本输出和退出状态由 [CLI](CLI.md) 定义；Entity、Scope 与 Relation 规则由[核心协议](PROTOCOL.md)定义；resolved Package environment 由 [Package 设计](../Package设计.md)定义。
+本文定义 Scope 的进程内 TypeScript application 契约及分层边界。CLI 参数、文本输出和退出状态由 [CLI](CLI.md) 定义；Entity、Scope 与 Relation 规则由[核心协议](PROTOCOL.md)定义；resolved Package environment 由 [Package 设计](../Package设计.md)定义。
 
 ## 分层
 
 ```mermaid
 flowchart LR
-    CLI[scopecli]
-    HOST[Node host]
-    APP[internal/scopeapp]
-    DOMAIN[internal/scope]
-    ENV[internal/packageenv]
+    CLI[src/cli]
+    LIB[Node library consumer]
+    APP[src/application]
+    DOMAIN[src/domain]
+    ENV[src/packageenv]
 
     CLI --> APP
-    HOST --> CLI
+    LIB --> APP
     ENV --> DOMAIN
     APP --> DOMAIN
 ```
 
 分层规则：
 
-- `scopecli` 只负责参数、输出和退出状态。
-- `scopeapp` 的 exported types 和 methods 是稳定 application API。
-- `scope` 实现领域规则和用例所需能力。
-- `packageenv` 是 resolved Package graph 到 Scope Resolver 的 adapter。
-- CLI、host protocol 或未来 transport 类型不得进入 `scopeapp` 或领域包。
+- `src/cli` 只负责参数、输出和退出状态。
+- `src/application` 的 exported types 和 methods 是稳定 application API。
+- `src/packageenv` 是 resolved Package graph 到 Scope Resolver 的 adapter。
+- `src/domain` 实现领域规则和用例所需能力。
+- CLI、package manager 或未来 transport 类型不得进入 application 或 domain。
 
 ## Scope API
 
-`scopeapp` 通过 execution context 使用一个已加载 Workspace，并可按同一宿主策略 load/reload：
+`src/application` 通过 execution context 使用一个已加载 Workspace，并可按同一宿主策略 load/reload：
 
-```go
-type Environment interface {
-    Current() *scope.Workspace
-    LoadPath(path string) (*scope.Workspace, error)
-    Reload() (*scope.Workspace, error)
+```ts
+interface WorkspaceEnvironment {
+  current(): Workspace
+  loadPath(path: string): Promise<Workspace>
+  reload(): Promise<Workspace>
 }
 ```
 
@@ -58,8 +58,8 @@ type Environment interface {
 
 宿主与 application 的边界如下：
 
-- Workspace 来源由宿主提供的 resolved Environment 决定；本地-only Scope 可以使用空 Package graph。
-- Node host 使用 npm/pnpm resolved Package graph。
+- Workspace 来源由 runtime 提供的 resolved Environment 决定；本地-only Scope 可以使用空 Package graph。
+- Node runtime 使用 npm/pnpm resolved Package graph。
 - stdin、cwd 和路径加载能力由共享 runner context 注入。
 - Scope application 不读取进程全局 stdin 或 cwd。
 - Entity result 使用 `{key, ref?, object, source?}`。
@@ -76,6 +76,6 @@ type Environment interface {
 
 ## 验证
 
-- `scopeapp` 测试排序、ownership、reference resolution、graph、diff、mutation 和 DTO 契约。
+- `src/application` 测试排序、ownership、reference resolution、graph、diff、mutation 和 DTO 契约。
 - CLI 测试只覆盖参数、输出和退出状态，不重复 application/domain semantics。
-- Node adapter、host 与 E2E 验证 resolved Environment 进入同一核心 API 后得到一致结果。
+- Node adapter、library API 与 E2E 验证 resolved Environment 进入同一核心 API 后得到一致结果。
