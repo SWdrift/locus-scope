@@ -4,7 +4,7 @@ This guide walks through the basic workflow, from creating a Scope to composing 
 
 ## Installation
 
-Install Node.js 20.6 or later, then install the Node adapter in your project:
+Install the Node.js LTS version declared by the package, then install the TypeScript Locus package in your project:
 
 ```text
 pnpm add @sundw/locus-scope

@@ -11,7 +11,7 @@ Locus Scope organizes identifiable things and their relationships into bounded g
 
 ## Usage
 
-The npm Package provides one `locus-scope` command. npm or pnpm owns dependency resolution, lockfiles, caches, and installation. The Node adapter resolves the Package graph from the installed environment, then hands it to the Go Scope engine to compose the Workspace.
+The npm Package provides one `locus-scope` command and a library API. npm or pnpm owns dependency resolution, lockfiles, caches, and installation. The runtime resolves the Package graph from the installed environment, then composes and validates the Workspace in-process.
 
 | Usage | When to use | Command entry point |
 | --- | --- | --- |
@@ -28,15 +28,16 @@ Agents can select the matching Skill by task:
 
 <details>
 <summary>Building from source</summary>
-
-Requires Go 1.26+, Node.js 20.6+, and the pnpm version pinned in the root `package.json`:
+Requires the Node.js LTS version declared by the root `package.json` and the pnpm version pinned there:
 
 ```powershell
+pnpm install --frozen-lockfile
+pnpm run typecheck
 pnpm run build
 pnpm run release:npm
 ```
 
-The current-platform host build is written to `temp/build/`; npm release tarballs are written to `temp/release/npm/`.
+TypeScript build output is written to `temp/ts-build/`; npm release tarballs are written to `temp/release/npm/`.
 
 </details>
 

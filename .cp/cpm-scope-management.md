@@ -2,8 +2,8 @@
 
 ## 稳定决策
 
-- `locus-scope` 是唯一用户级 CLI；Cobra command tree 位于 `internal/scopecli`，业务语义位于 `internal/scopeapp`。
-- Node adapter 只构造 resolved Environment、选择 host 与转发进程 I/O；不复制 Scope 语义或命令实现。
+- `locus-scope` 是唯一用户级 CLI；TypeScript command runner 位于 `src/cli`，业务语义位于 `src/application`。
+- Node adapter 只构造 resolved Environment；不复制 Scope 语义或命令实现。
 - Entity 以 `(scope,id)` 定位；Relation 以 resolved `(from,type,to)` 定位。
 - Filter 是查询和 graph `--via` 的共享筛选实现。
 - provenance 在 decode/load 形成；dependency Scope mutation 必须拒绝。

@@ -12,9 +12,9 @@
 
 ## Scope
 
-- 入口：`internal/scope`、`internal/scopeapp`、`internal/scopecli`、`cmd/locus-scope-node-host`。
-- Workspace 是稳定事实图接口；上层分析、规划和执行不进入 Scope core。
-- CLI 仅做 Cobra parsing、dispatch、format 与 exit mapping；业务逻辑保留在 `scopeapp`。
+- 入口：`src/domain`、`src/application`、`src/cli`、`src/package-environment.ts`、`src/packageenv.ts`。
+- Workspace 是稳定事实图接口；上层分析、规划和执行不进入 domain core。
+- CLI 仅做 parsing、dispatch、format 与 exit mapping；业务逻辑保留在 `src/application`。
 
 ## Core Rules
 

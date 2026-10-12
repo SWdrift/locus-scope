@@ -8,7 +8,7 @@ pnpm exec locus-scope [--scope <dir>] [--json] <command>
 npx locus-scope [--scope <dir>] [--json] <command>
 ```
 
-The `@sundw/locus-scope` Node adapter resolves dependencies installed by npm or pnpm, selects the private platform Go host, and forwards the command. Except for `help` and `version`, commands load and validate all reachable Scopes before executing. When `--scope` is omitted, the CLI searches from the current directory upward for the nearest Scope.
+The `@sundw/locus-scope` runtime resolves dependencies installed by npm or pnpm and executes the shared domain/application API in-process. Except for `help` and `version`, commands load and validate all reachable Scopes before executing. When `--scope` is omitted, the CLI searches from the current directory upward for the nearest Scope.
 
 ## Workspace Options
 

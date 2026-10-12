@@ -1,3 +1,5 @@
 packages:
-  - "packaging/npm/*"
+  - "packaging/npm/locus-scope"
 linkWorkspacePackages: true
+allowBuilds:
+  esbuild: true

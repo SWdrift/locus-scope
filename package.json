@@ -4,15 +4,17 @@
   "type": "module",
   "packageManager": "pnpm@11.24.0",
   "engines": {
-    "node": ">=20.6"
+    "node": ">=24.0.0"
   },
   "scripts": {
     "build": "node scripts/build.mjs",
+    "typecheck": "node node_modules/typescript/bin/tsc --noEmit",
     "test": "node scripts/test.mjs all",
+    "test:unit": "node node_modules/tsx/dist/cli.mjs --test test/unit/*.test.ts",
     "test:e2e": "node scripts/test.mjs e2e",
-    "test:node": "node --test packaging/npm/locus-scope/test/*.test.mjs",
-    "check": "pnpm run check:links",
+    "test:node": "pnpm run test:unit",
     "check:links": "remark \"*.md\" \".agents/skills/*/SKILL.md\" \"documents/**/*.md\" \"scripts/**/*.md\" \"test/**/*.md\" \"test/e2e/case/**/.locus/**/*.md\" --frail --rc-path scripts/config/remark.config.mjs",
+    "check": "pnpm run check:links",
     "release:npm": "node scripts/npm-release.mjs",
     "verify:npm-release": "node scripts/verify-npm-release.mjs",
     "publish:npm": "node scripts/npm-publish.mjs",
@@ -25,8 +27,16 @@
     "branch:sync": "node scripts/branch-sync.mjs"
   },
   "devDependencies": {
+    "@types/node": "^24.19.2",
     "remark-cli": "^12.0.1",
     "remark-validate-links": "^13.1.0",
+    "tsx": "^4.23.15",
+    "typescript": "^5.9.3",
     "verdaccio": "6.10.2"
+  },
+  "dependencies": {
+    "write-file-atomic": "^7.0.1",
+    "yaml": "^2.9.1",
+    "zod": "^4.6.5"
   }
 }
