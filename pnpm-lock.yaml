@@ -49,16 +49,6 @@ importers:
         specifier: ^4.6.5
         version: 4.6.5
 
-  packaging/npm/locus-scope-darwin-arm64: {}
-
-  packaging/npm/locus-scope-darwin-x64: {}
-
-  packaging/npm/locus-scope-linux-arm64: {}
-
-  packaging/npm/locus-scope-linux-x64: {}
-
-  packaging/npm/locus-scope-win32-x64: {}
-
 packages:
 
   '@babel/code-frame@7.29.7':
