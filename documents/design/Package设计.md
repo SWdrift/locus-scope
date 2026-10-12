@@ -74,7 +74,7 @@ npm pack --json --ignore-scripts
 npm publish ./example-app-1.0.0.tgz --ignore-scripts
 ```
 
-`pack` 生成标准 npm tarball；发布前检查 packed file list 和 SHA-512 integrity，发布后核对 Registry 中确切 `name@version` 的 `dist.integrity`。Agent 工作流见 `$locus-publish-node`。
+`pack` 生成标准 npm tarball；发布前检查 packed file list 和 SHA-512 integrity，发布后核对 Registry 中确切 `name@version` 的 `dist.integrity`。Agent 工作流见 `$use-locus-scope` 的[发布指南](../../.agents/skills/use-locus-scope/references/publish-package.md)。
 
 ## example：通过 npm 或 pnpm 使用同一个 Scope
 

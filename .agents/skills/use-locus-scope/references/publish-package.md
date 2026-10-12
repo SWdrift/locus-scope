@@ -1,8 +1,3 @@
----
-name: locus-publish-node
-description: "使用 Node.js、npm 或 pnpm 校验、打包并发布 Locus Scope Package。"
----
-
 # Publish Locus Scope Package
 
 ## 前置校验
@@ -10,6 +5,7 @@ description: "使用 Node.js、npm 或 pnpm 校验、打包并发布 Locus Scope
 确认 `package.json` 包含规范 name、exact version 与 package 内 `locus.entry`。安装项目依赖后运行：
 
 ```sh
+node <skill-dir>/scripts/validate-package.mjs .
 pnpm exec locus-scope validate --json
 ```
 

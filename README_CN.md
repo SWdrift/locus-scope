@@ -20,9 +20,9 @@ Locus Scope 将具有身份的事物及其关系组织成有边界的图。Entit
 
 Agent 可按任务选择对应 Skill：
 
-| 使用与消费 Package | 发布 Package |
-| --- | --- |
-| [`$locus-use-node`](.agents/skills/locus-use-node/SKILL.md) | [`$locus-publish-node`](.agents/skills/locus-publish-node/SKILL.md) |
+| Node.js Package 工作流 |
+| --- |
+| [`$use-locus-scope`](.agents/skills/use-locus-scope/SKILL.md) |
 
 <details>
 <summary>从源码构建</summary>

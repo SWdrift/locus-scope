@@ -1,6 +1,6 @@
 ---
-name: locus-use-node
-description: "在 Node.js 项目中通过 npm 或 pnpm 安装和使用 Locus Scope，创建、验证、查询 Scope，并消费 npm Registry 中的 Locus Package。"
+name: use-locus-scope
+description: "在 Node.js 项目中通过 npm 或 pnpm 安装、使用、验证、查询、消费和发布 Locus Scope Package。"
 ---
 
 # Use Locus Scope with npm or pnpm
@@ -40,3 +40,7 @@ pnpm exec locus-scope path backend infra:database --json
 ```
 
 在 Scope 目录外使用 `--scope <dir>`。安装完成后的加载不隐式联网。Registry、认证、lockfile、cache 和 node_modules 完全遵循 npm/pnpm；不得把 package-manager cache/store 重定向到仓库。
+
+## 发布 Package
+
+发布流程独立记录在 [publish-package.md](references/publish-package.md)。需要发布时先阅读该文档；它覆盖包校验、Workspace 验证、tarball 检查、发布和 Registry integrity 核对。

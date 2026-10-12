@@ -90,7 +90,7 @@ npm mode follows the package manager's normal workflow:
 
 ## Publishing a Package
 
-For Agent-driven publication, use `$locus-publish-node`. A publishable Locus Package uses standard npm metadata: run the Skill's lightweight validator, validate the Workspace, then pack and publish the same npm tarball:
+For Agent-driven publication, use `$use-locus-scope` and read its [publishing guide](../.agents/skills/use-locus-scope/references/publish-package.md). A publishable Locus Package uses standard npm metadata: run the Skill's lightweight validator, validate the Workspace, then pack and publish the same npm tarball:
 
 ```text
 node <skill-dir>/scripts/validate-package.mjs .

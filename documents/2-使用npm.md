@@ -90,7 +90,7 @@ npm 模式遵循 package manager 的正常工作流：
 
 ## 发布 Package
 
-Agent 发布时使用 `$locus-publish-node`。可发布的 Locus Package 使用标准 npm metadata：先运行 Skill 自带的轻量校验脚本，再验证 Workspace，最后打包并发布同一个 npm tarball：
+Agent 发布时使用 `$use-locus-scope`，并阅读其[发布指南](../.agents/skills/use-locus-scope/references/publish-package.md)。可发布的 Locus Package 使用标准 npm metadata：先运行 Skill 自带的轻量校验脚本，再验证 Workspace，最后打包并发布同一个 npm tarball：
 
 ```text
 node <skill-dir>/scripts/validate-package.mjs .

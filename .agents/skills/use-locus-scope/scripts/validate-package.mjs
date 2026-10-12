@@ -48,7 +48,7 @@ if (!Array.isArray(manifest.files) || manifest.files.length === 0) {
 const entry = manifest.locus?.entry;
 if (
   typeof entry !== 'string' ||
-  !/(?:^|\/)locus\.(?:yaml|yml|json)$/.test(entry) ||
+  /(?:^|\/)locus\.(?:yaml|yml|json)$/.test(entry) === false ||
   path.isAbsolute(entry) ||
   entry.includes('\\') ||
   entry.split('/').some((part) => part === '' || part === '.' || part === '..')

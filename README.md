@@ -21,9 +21,9 @@ To create your first Scope, start with [Basic Usage](https://github.com/SWdrift/
 
 Agents can select the matching Skill by task:
 
-| Use and consume Packages | Publish Packages |
-| --- | --- |
-| [`$locus-use-node`](https://github.com/SWdrift/locus-scope/blob/master/.agents/skills/locus-use-node/SKILL.md) | [`$locus-publish-node`](https://github.com/SWdrift/locus-scope/blob/master/.agents/skills/locus-publish-node/SKILL.md) |
+| Node.js Package workflow |
+| --- |
+| [`$use-locus-scope`](https://github.com/SWdrift/locus-scope/blob/master/.agents/skills/use-locus-scope/SKILL.md) |
 
 
 <details>
