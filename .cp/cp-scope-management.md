@@ -26,4 +26,17 @@
 
 ## Task Board
 
-当前无待执行任务。
+- [ ] 修复或明确处理 mutation rollback cleanup 失败：恢复原文件、删除新文件或二次 reload 失败时，不能只丢弃错误；该问题属于 3.1 基线已有缺口，不是 TypeScript 迁移新增回退。
+- [ ] 为中大型 Workspace 建立 graph/path/impact/diff/query 基准，重点检查 JavaScript queue 和开放属性深拷贝成本；未有基准前不宣称大规模生产性能。
+
+## Confidence Matrix
+
+| 维度 | 当前把握 | 依据和限制 |
+| --- | ---: | --- |
+| 3.1 已登记语义的功能 parity | 10/10 | 33 个 parity/unit tests、完整 fixture domain 测试、完整 npm lifecycle E2E、本地 tarball consumer CLI/library 验证通过；仅保留 3.1 自身 rollback cleanup 缺口。 |
+| 小规模 Node CLI / library 使用 | 10/10 | 本地 tarball 安装、validate、query、graph、path、diff、mutation、CLI/library parity 与 E2E 均通过。 |
+| 中等规模 Workspace | 6/10 | 语义覆盖较完整，但缺少代表性 Workspace 的性能与内存基准。 |
+| 大规模 graph/diff/query | 4–5/10 | 尚无规模基准；queue、开放属性 clone 和完整 semantic diff 的成本未量化。 |
+| 并发 mutation / 多进程写入 | 5/10 | atomic write 和 rollback 已覆盖；业务级并发冲突、锁和版本检测未覆盖。 |
+| 跨平台生产稳定性 | 5/10 | 当前主要在 Windows 验证，Linux/macOS filesystem、symlink 和权限矩阵未完成。 |
+| 大规模生产承诺 | 5/10 | 在规模基准、并发测试和跨平台矩阵完成前禁止作此承诺。 |
