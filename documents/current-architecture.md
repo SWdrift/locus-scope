@@ -2,26 +2,21 @@
 
 ## 目录
 
-```text
-cmd/
-└── locus-scope-node-host/
+只列实现与交付目录；`test/`、`documents/`、`.agents/` 与仓库根文件不在此列。
 
-internal/
-├── apperror/
-├── buildinfo/
-├── packageenv/
-├── scope/
-├── scopeapp/
-└── scopecli/
+```text
+src/
+├── domain/
+├── application/
+├── package-environment.ts
+├── packageenv.ts
+├── cli/
+├── index.ts
+└── bin.ts
 
 packaging/
 └── npm/
-    ├── locus-scope/
-    ├── locus-scope-win32-x64/
-    ├── locus-scope-linux-x64/
-    ├── locus-scope-linux-arm64/
-    ├── locus-scope-darwin-x64/
-    └── locus-scope-darwin-arm64/
+    └── locus-scope/
 
 scripts/
 ├── build.mjs
@@ -39,28 +34,32 @@ scripts/
 
 ```mermaid
 flowchart LR
-    PM[npm / pnpm] --> JS["@sundw/locus-scope adapter"]
-    JS --> H[cmd/locus-scope-node-host]
-    JS --> PE[resolved Environment]
-    PE --> H
-    H --> ENV[internal/packageenv]
-    H --> CLI[internal/scopecli]
-    CLI --> APP[internal/scopeapp]
-    ENV --> S[internal/scope]
-    APP --> S
+    PM[npm / pnpm] --> JS["@sundw/locus-scope"]
+    JS --> PE["resolved Environment"]
+    PE --> ENV["packageenv resolver"]
+    ENV --> DOMAIN["src/domain"]
+    DOMAIN --> APP["src/application"]
+    APP --> CLI["src/cli / library API"]
 ```
 
-- `internal/scope` 是 Scope/Graph domain core，不依赖 npm、package.json、lock、cache、Node 或 Registry 类型。
-- `internal/scopeapp` 是 Scope 的稳定 application API；`internal/scopecli` 是 Cobra CLI frontend。
-- `internal/packageenv` 只把 Node 提供的 resolved Environment 转为 `scope.Resolver`，不重新实现 npm name、SemVer 或 package manager 规则。
-- `@sundw/locus-scope` 负责从实际 npm/pnpm 安装环境构造 importer-relative graph、选择 platform host 并转发进程 I/O；不解析 Locus definitions。
-- 私有 Go host 通过单次 JSON request 接收 Environment，装配 Workspace，并调用共享 `scopeapp` 与 `scopecli`。
+- `src/domain` 是 Scope/Graph domain core，不依赖 npm、package.json、lock、cache、Node package-manager 或 Registry 类型。
+- `src/application` 是 Scope 的稳定 application API；`src/cli` 是 Node CLI frontend。
+- `src/packageenv.ts` 只把 resolved Environment 转为 domain Resolver，不重新实现 npm name、SemVer 或 package manager 规则。
+- `src/package-environment.ts` 从实际 npm/pnpm 安装环境构造 importer-relative exact dependency graph，不解析 Locus definitions 的领域语义。
+- `@sundw/locus-scope` 在同一 Node 进程中装配 Workspace，并调用共享 domain/application API。
 
 ## 目录规则
 
-- `internal/` 只按稳定职责建立 package，不使用 `utils`、`common`、`src` 或按文件类型分组。
-- `packaging/npm/` 聚合主 Package 与五个平台 host Package；不存在第二套 standalone 交付。
+- `src/` 按稳定职责建立 domain、application、package environment 和 CLI package，不使用 `utils`、`common` 或按文件类型分组。
+- `packaging/npm/locus-scope/` 是唯一主 npm Package，不再分发平台 host package。
 - 根 `package.json` 的 package scripts 是仓库任务的唯一公共入口；跨平台实现位于 `scripts/*.mjs`。
-- Package manager 与 Node delivery adapter 不得复制 Scope、Entity、Relation、Import、ownership 或 Workspace 语义。
+- Package manager 与 Node runtime 不得复制 Scope、Entity、Relation、Import、ownership 或 Workspace 语义。
 - 项目级 Verdaccio 与测试状态只写 `temp/`；Node package-manager cache/store 继续使用机器级全局配置。
-- 根 `VERSION` 是六个 npm Package 的发行版本真相。
+- 根 `VERSION` 是主 npm Package 的发行版本真相。
+
+## 运行与编译基线
+
+- Node.js 24 LTS。
+- TypeScript 5.9，`tsconfig.json` 使用 strict、NodeNext、声明文件和 source map。
+- YAML 使用 `yaml`，外部结构使用 `zod`，mutation 使用 `write-file-atomic`。
+- 产物写入 `temp/ts-build/` 和 `temp/release/`。

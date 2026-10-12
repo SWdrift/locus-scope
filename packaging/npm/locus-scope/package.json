@@ -1,7 +1,7 @@
 {
   "name": "@sundw/locus-scope",
   "private": true,
-  "description": "Locus Scope command for npm and pnpm package environments",
+  "description": "Locus Scope command and library for npm and pnpm package environments",
   "license": "MIT",
   "repository": {
     "type": "git",
@@ -13,9 +13,12 @@
   },
   "type": "module",
   "engines": {
-    "node": ">=20.6"
+    "node": ">=24.0.0"
   },
-  "exports": {},
+  "exports": {
+    ".": "./lib/index.js",
+    "./package.json": "./package.json"
+  },
   "bin": {
     "locus-scope": "bin/locus-scope.mjs"
   },
@@ -23,11 +26,9 @@
     "bin",
     "lib"
   ],
-  "optionalDependencies": {
-    "@sundw/locus-scope-darwin-arm64": "workspace:*",
-    "@sundw/locus-scope-darwin-x64": "workspace:*",
-    "@sundw/locus-scope-linux-arm64": "workspace:*",
-    "@sundw/locus-scope-linux-x64": "workspace:*",
-    "@sundw/locus-scope-win32-x64": "workspace:*"
+  "dependencies": {
+    "write-file-atomic": "^7.0.1",
+    "yaml": "^2.9.1",
+    "zod": "^4.6.5"
   }
 }

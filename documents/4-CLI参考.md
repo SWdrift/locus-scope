@@ -8,7 +8,7 @@ pnpm exec locus-scope [--scope <dir>] [--json] <command>
 npx locus-scope [--scope <dir>] [--json] <command>
 ```
 
-`@sundw/locus-scope` Node adapter 解析 npm 或 pnpm 已安装的依赖，选择私有平台 Go host，并转发命令。除 `help` 和 `version` 外，命令执行前会加载并验证所有可达 Scope。省略 `--scope` 时，CLI 从当前目录向上查找最近的 Scope。
+`@sundw/locus-scope` runtime 解析 npm 或 pnpm 已安装的依赖，并在同一进程执行共享 domain/application API。除 `help` 和 `version` 外，命令执行前会加载并验证所有可达 Scope。省略 `--scope` 时，CLI 从当前目录向上查找最近的 Scope。
 
 ## Workspace 参数
 
@@ -335,7 +335,7 @@ locus-scope relation remove backend uses database
 relation remove <from> <type> <to>
 ```
 
-所有写入命令都会先验证变更后的 Workspace，再以 atomic write 修改声明。dependency Scope 只读。写入失败时，文件和已加载 Workspace 都保持不变。
+所有写入命令都会先验证变更后的 Workspace，再以 atomic write 修改声明。dependency Scope 只读。mutation 失败时会返回错误；如果无法确认 rollback 状态，应先检查目标文件并运行 `validate`，确认 Workspace 状态后再重试。
 
 ## 比较与验证命令
 

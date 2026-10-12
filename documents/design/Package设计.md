@@ -6,7 +6,7 @@ Locus Package 使用标准 npm-compatible package 作为唯一分发模型。一
 
 ## 职责
 
-本文定义 package metadata、Import 与 identity、Node adapter、resolved Environment 和私有 Go host。Entity、Scope、Export、Projection、Relation 和 Group 语义仍以[核心协议](protocol/PROTOCOL.md)为唯一权威来源；本地 Scope 发现、Workspace 装配和检查语义见[Scope 设计](Scope设计.md)。
+本文定义 package metadata、Import 与 identity、Node adapter、resolved Environment 和 runtime。Entity、Scope、Export、Projection、Relation 和 Group 语义仍以[核心协议](protocol/PROTOCOL.md)为唯一权威来源；本地 Scope 发现、Workspace 装配和检查语义见[Scope 设计](Scope设计.md)。
 
 ## 架构与数据流
 
@@ -17,23 +17,22 @@ flowchart LR
     Source["Locus npm package<br/>package.json + locus.entry"] --> Registry["npm Registry"]
     Registry --> PM["npm / pnpm"]
 
-    subgraph Runtime["consumer"]
+    subgraph Consumer["consumer"]
         Root["package.json + root Scope"]
         Modules["importer-relative installed packages"]
-        Adapter["locus-scope Node adapter"]
+        Adapter["locus-scope package-environment adapter"]
         Environment["resolved Environment"]
-        Host["private platform Go host"]
         Root --> PM
         PM --> Modules
         Modules --> Adapter
         Adapter --> Environment
-        Environment --> Host
+        Environment --> Runtime
     end
 
-    Host --> PackageEnv["Go packageenv"]
-    PackageEnv --> Loader["scope.Load"]
-    Host --> CLI["scopecli"]
-    CLI --> App["scopeapp"]
+    Runtime --> PackageEnv["src/packageenv.ts"]
+    PackageEnv --> Loader["src/domain/load"]
+    Runtime --> CLI["src/cli"]
+    CLI --> App["src/application"]
     Loader --> App
 ```
 
@@ -75,7 +74,7 @@ npm pack --json --ignore-scripts
 npm publish ./example-app-1.0.0.tgz --ignore-scripts
 ```
 
-`pack` 生成标准 npm tarball；发布前检查 packed file list 和 SHA-512 integrity，发布后核对 Registry 中确切 `name@version` 的 `dist.integrity`。Agent 工作流见 `$locus-publish-node`。
+`pack` 生成标准 npm tarball；发布前检查 packed file list 和 SHA-512 integrity，发布后核对 Registry 中确切 `name@version` 的 `dist.integrity`。Agent 工作流见 `$use-locus-scope` 的[发布指南](../../.agents/skills/use-locus-scope/references/publish-package.md)。
 
 ## example：通过 npm 或 pnpm 使用同一个 Scope
 
@@ -93,7 +92,7 @@ pnpm add @sundw/locus-scope @example/app @example/modern
 pnpm exec locus-scope validate --json
 ```
 
-`locus-scope` Node adapter 从 root importer 开始，在每个 importer 自己的解析上下文中发现 Locus dependency，再把一次性 resolved Environment 交给平台 Go host。npm hoist 与 pnpm symlink 可以产生不同物理目录，但相同 `npm:<name>@<version>`、entry 和 dependency edges 必须得到相同的 Scope、Entity 和 Relation JSON。
+`locus-scope` package-environment adapter 从 root importer 开始，在每个 importer 自己的解析上下文中发现 Locus dependency，再把一次性 resolved Environment 交给 Node runtime。npm hoist 与 pnpm symlink 可以产生不同物理目录，但相同 `npm:<name>@<version>`、entry 和 dependency edges 必须得到相同的 Scope、Entity 和 Relation JSON。
 
 ## 约束
 
@@ -108,16 +107,13 @@ pnpm exec locus-scope validate --json
 | Import 声明 | Package Scope 的 Package Import 只声明依赖目标，即 bare npm package name；本地 root Scope 仍可使用本地 Import。Import 不声明版本、range、resolved identity 或安装位置。 |
 | Import edge | 每个 bare Scope Import 必须是当前 importer 的 direct dependency，并且只按该 importer 的 resolved dependency edge 查找。Package Scope 不得从 root dependency 集合或全局 Package 集合回退查找同名 Package。 |
 | Scope graph | npm dependency graph 决定可解析 Package universe；Scope graph 仍只由各 `locus.entry` 中的 Imports 选择。JavaScript 不解析 Locus definition，也不复制 Scope/Graph 语义。 |
-| Package identity | npm 或 pnpm 负责版本解析与实际安装位置；Node adapter 将每条 edge 固化为 `npm:<name>@<exact-version>`。Go 只消费 exact identity，不解析版本、range 或物理安装布局。 |
-| 冲突 identity | 同一 identity 只能对应一组一致的 entry 和 resolved Locus dependency edges；物理多副本不一致时必须在启动 host 前失败。 |
+| Package identity | npm 或 pnpm 负责版本解析与实际安装位置；adapter 将每条 edge 固化为 `npm:<name>@<exact-version>`。runtime 只消费 exact identity，不解析版本、range 或物理安装布局。 |
+| 冲突 identity | 同一 identity 只能对应一组一致的 entry 和 resolved Locus dependency edges；物理多副本不一致时必须在执行 Scope 命令前失败。 |
 | Node root | adapter 应用显式 `--scope` 或最近 ancestor manifest 规则；Scope root 有 `package.json` 时建立 root importer，没有时使用空 root dependencies。只有出现 bare Package Import 时才要求对应 direct dependency。 |
 | Node 解析 | 每个 importer 在自己的 Node resolution context 中解析 direct dependencies；不得扫描或拼接 `node_modules`、pnpm store 等物理布局。 |
 | Environment | adapter 递归生成 `rootScope`、`rootDependencies` 和以 exact identity 为 key 的 `packages`；每个 Package 只包含 canonical root、relative entry 与 resolved Locus dependency edges，maps 确定性排序。 |
-| Go 边界 | `packageenv` 只验证 identity 非空、target 存在、entry 位于 canonical root 内且为合法 Scope manifest，并把 Environment 转成 `scope.Resolver`；不得重新实现 npm name、SemVer、package.json 或 lockfile 规则。 |
-| Host request | 私有 host 无公开 flags 或交互 RPC，从 stdin 读取一个 protocol v3 JSON request：`version`、`workingDirectory`、`arguments`、`environment` 和可选 stdin；拒绝未知字段、unsupported version 与 trailing JSON。 |
-| Host response | host 写一个 protocol v3 response：`version`、`exitCode`、`stdout`、`stderr`。adapter 原样转发 stdout、stderr 和 exit code。 |
-| Node 公开面 | `@sundw/locus-scope` 是 ESM，只公开 `locus-scope` CLI，不公开 Node Workspace API 或 lifecycle install script；五个 exact-version optional platform packages 只携带对应 Go host。 |
-| 共用执行核心 | host 调用同一 `packageenv`、`scope.Load`、`scopeapp` 与 `scopecli`；不得在 JavaScript 或其他入口复制 Scope validation、query 或稳定 JSON view。 |
+| Resolver 边界 | packageenv resolver 只验证 identity 非空、target 存在、entry 位于 canonical root 内且为合法 Scope manifest，并把 Environment 转成 Scope Resolver；不得重新实现 npm name、SemVer、package.json 或 lockfile 规则。 |
+| 共用执行核心 | CLI 和 library consumer 调用同一 Scope domain/application 实现；不得复制 Scope validation、query 或稳定 JSON view。 |
 
 ## 验收
 
@@ -126,7 +122,7 @@ pnpm exec locus-scope validate --json
 | Importer-relative 多版本 | 同一 consumer 可同时解析 `@example/base` 1.x 与 2.x；两个 `npm:` identity、dependency edges 和 ownership 均正确。 |
 | 普通 npm dependency | dependency 由 npm/pnpm 安装，但不进入 resolved Environment 或 Scope graph。 |
 | npm/pnpm 布局一致 | hoisted npm layout 与 pnpm symlink layout 产生相同的规范 Scope、Entity 和 Relation JSON。 |
-| 安全失败 | 缺失直接依赖、blocked package.json export、entry escape、冲突 identity、missing host 或 platform/version mismatch 在执行 Scope 命令前失败。 |
-| 交付边界 | 主 Package 只暴露 `locus-scope`；平台 Package 只携带私有 host；不存在 standalone installer。 |
+| 安全失败 | 缺失直接依赖、blocked package.json export、entry escape 和冲突 identity 在执行 Scope 命令前失败。 |
+| 交付边界 | 主 Package 只暴露 `locus-scope` 和进程内 library API；不存在平台 Package 或 standalone installer。 |
 
 完整测试注册、fixture、隔离方式和完成命令见[测试设计](测试设计.md)。

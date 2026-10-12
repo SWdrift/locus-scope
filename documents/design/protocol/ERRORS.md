@@ -2,7 +2,7 @@
 
 ## 简述
 
-Scope application API 使用统一、可分类并保留 cause 的错误。CLI、Node host 和未来其他 adapter 只负责 transport 映射，不解析错误文本判断行为。
+Scope application API 使用统一、可分类并保留 cause 的 application Error。CLI、library consumer 和未来其他 adapter 只负责 transport 映射，不解析错误文本判断行为。
 
 ## 职责
 
@@ -10,13 +10,13 @@ Scope application API 使用统一、可分类并保留 cause 的错误。CLI、
 
 ## 错误模型
 
-```go
-type Error struct {
-    Code    Code
-    Reason  string
-    Message string
-    Details map[string]string
-    Cause   error
+```ts
+class ApplicationError extends Error {
+    readonly code: ErrorCode
+    readonly reason: string
+    readonly message: string
+    readonly details?: Record<string, string>
+    readonly cause?: unknown
 }
 ```
 
@@ -27,7 +27,7 @@ type Error struct {
     - 已发布 Reason 不得改变或复用其语义。
 - `Message` 面向人类，可以改善措辞；程序不得解析它。
 - `Details` 保存该 reason 所需的结构化上下文。
-- `Cause` 支持 Go `errors.Is`、`errors.As` 和诊断，不进入外部协议。
+- `Cause` 使用标准 JavaScript `Error.cause` 保存诊断信息，不进入外部协议。
 
 ## Code
 
@@ -79,6 +79,7 @@ type Error struct {
 - 未分类错误在 application API 边界转换为 `internal`。
 - 包装不得重复添加同一 operation、resource 或 location。
 - Workspace load 和 mutation 保持 fail-fast；失败不返回可消费的部分结果。
+- Mutation 首次 reload 失败后会尝试恢复原文件或删除新文件，并执行二次 reload。任一 rollback cleanup 或二次 reload 失败时，`scope.mutation_invalid` 的 `cause` 为 `AggregateError`，包含首次 reload 错误和全部 rollback 错误；不得将其视为已确认恢复。
 
 
 

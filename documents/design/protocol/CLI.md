@@ -4,7 +4,7 @@
 
 locus-scope 提供一个公开 Workspace 管理入口：
 
-- `locus-scope`：由 Node adapter 从 npm 或 pnpm 已安装依赖构造 resolved Environment，再由私有 Go host 执行命令。
+- `locus-scope`：由包声明的 Node.js LTS runtime 运行，从 npm 或 pnpm 已安装依赖构造 resolved Environment，并在同一进程执行命令。
 
 Package 的安装、更新、lockfile、缓存、打包和发布使用 npm 或 pnpm 原生命令，不属于 Locus CLI。
 
@@ -38,7 +38,7 @@ Package 的安装、更新、lockfile、缓存、打包和发布使用 npm 或 p
 | `version` | 输出 CLI 版本，不加载 Workspace。 |
 | `help` | 输出指令帮助，不加载 Workspace。 |
 
-除 `version` 和 `help` 外，命令先加载并验证 Workspace。`--scope` 显式选择 root Scope；省略时从当前目录向上发现最近的 Scope。Node adapter 从当前 npm 或 pnpm 安装环境解析 Package graph，并把 resolved Environment 交给私有 Go host。
+除 `version` 和 `help` 外，命令先加载并验证 Workspace。`--scope` 显式选择 root Scope；省略时从当前目录向上发现最近的 Scope。runtime 从当前 npm 或 pnpm 安装环境解析 Package graph，并在同一进程调用 domain/application API。
 
 ### 引用与筛选
 
@@ -85,5 +85,5 @@ Entity query envelope 固定包含 `key` 和开放 `object`；仅当 root 可解
 
 - 未知指令、未知参数、缺少参数、不允许的参数组合和无效 filter 归入 `invalid_argument`。
 - `--json` 同时约束成功与失败输出；成功 schema 由对应命令定义，失败保持 `{"error":"<message>"}`。
-- Node host protocol v3 在内部传递 `version`、`exitCode`、`stdout` 和 `stderr`；Node adapter 对外原样转发 stdout、stderr 和退出状态。
-- 公开输出不包含 Go cause、stack trace、凭据或工作区外敏感路径。
+- runtime 直接完成 Environment、Workspace 和 application 执行；不存在独立 host protocol 或平台 host package。
+- 公开输出不包含 cause、stack trace、凭据或工作区外敏感路径。

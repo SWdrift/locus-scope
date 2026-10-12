@@ -120,7 +120,7 @@ relations:
 
 ## CLI
 
-`locus-scope` 是唯一公开的 Workspace 管理入口；Node adapter 将参数、stdin 和 resolved Environment 交给私有 Go host。指令、参数、输出和退出状态以 [CLI 公共契约](protocol/CLI.md#workspace-管理)为准；除 `help` 和 `version` 外，命令执行前必须先加载并验证全部可达 Scope。
+`locus-scope` 是唯一公开的 Workspace 管理入口；runtime 将 npm/pnpm resolved Environment 交给 packageenv，并在同一进程调用 domain/application API。指令、参数、输出和退出状态以 [CLI 公共契约](protocol/CLI.md#workspace-管理)为准；除 `help` 和 `version` 外，命令执行前必须先加载并验证全部可达 Scope。
 
 ## 验收
 

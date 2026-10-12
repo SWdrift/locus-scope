@@ -1,0 +1,4 @@
+interface:
+  display_name: "Locus Scope · npm 使用与发布"
+  short_description: "指导 npm/pnpm 安装、使用、验证、消费和发布 Locus Package。"
+  default_prompt: "使用 $use-locus-scope 指导我在 Node.js 项目中使用或发布 Locus Scope。"

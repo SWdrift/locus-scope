@@ -4,7 +4,7 @@ npm 模式由 npm 或 pnpm 管理 Package 版本、lockfile、下载缓存和 `n
 
 ## 安装
 
-要求 Node.js 20.6 或更新版本。在项目中安装 Node adapter：
+要求使用 Package 声明的 Node.js LTS 版本。在项目中安装 TypeScript Locus package：
 
 ```text
 pnpm add @sundw/locus-scope
@@ -86,11 +86,11 @@ npm 模式遵循 package manager 的正常工作流：
 - CI 使用项目既有的 frozen-lockfile 安装方式，再运行 `locus-scope validate`。
 - 不为 Locus 建立第二套 Package lock、缓存或安装状态。
 
-Scope Import 只写依赖目标，不写版本或安装位置。npm 或 pnpm 负责版本解析和实际安装；Node adapter 从每个 Package 自己的依赖上下文生成指向 exact identity 的 importer-relative edge。Package Scope 的 Import 只沿自己的 edge 解析，不能从 root dependencies 或全局 Package 集合查找同名 Package。Go 只消费这个 resolved Environment，并加载、验证 Scope 文件。
+- Scope Import 只写依赖目标，不写版本或安装位置。npm 或 pnpm 负责版本解析和实际安装；package-environment adapter 从每个 Package 自己的依赖上下文生成指向 exact identity 的 importer-relative edge。Package Scope 的 Import 只沿自己的 edge 解析，不能从 root dependencies 或全局 Package 集合查找同名 Package。runtime 只消费这个 resolved Environment，并加载、验证 Scope 文件。
 
 ## 发布 Package
 
-Agent 发布时使用 `$locus-publish-node`。可发布的 Locus Package 使用标准 npm metadata：先运行 Skill 自带的轻量校验脚本，再验证 Workspace，最后打包并发布同一个 npm tarball：
+Agent 发布时使用 `$use-locus-scope`，并阅读其[发布指南](../.agents/skills/use-locus-scope/references/publish-package.md)。可发布的 Locus Package 使用标准 npm metadata：先运行 Skill 自带的轻量校验脚本，再验证 Workspace，最后打包并发布同一个 npm tarball：
 
 ```text
 node <skill-dir>/scripts/validate-package.mjs .
@@ -106,6 +106,5 @@ npm publish <workspace>/temp/locus-publish/<filename> --ignore-scripts --registr
 项目只有一种 Package environment：
 
 - npm 或 pnpm 负责版本解析、安装、lockfile 和缓存。
-- Node adapter 发现 importer-relative 的已安装 Package graph。
-- 私有 Go host 验证 resolved Environment，并执行共享 Scope application。
+- runtime 发现 importer-relative 的已安装 Package graph，并在同一进程执行共享 domain/application API。
 - 只使用本地 Scope 时仍使用同一个 `locus-scope` 命令，也不要求存在 Package Import。

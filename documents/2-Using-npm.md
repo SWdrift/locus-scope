@@ -4,7 +4,7 @@ In npm mode, npm or pnpm manages Package versions, the lockfile, the download ca
 
 ## Installation
 
-Node.js 20.6 or later is required. Install the Node adapter in your project:
+The Node.js LTS version declared by the package is required. Install the TypeScript Locus package in your project:
 
 ```text
 pnpm add @sundw/locus-scope
@@ -86,11 +86,11 @@ npm mode follows the package manager's normal workflow:
 - In CI, use the project's existing frozen-lockfile installation method, then run `locus-scope validate`.
 - Do not create a second Package lock, cache, or installation state for Locus.
 
-A Scope Import names only its dependency target, not a version or installation path. npm or pnpm owns version resolution and physical installation; the Node adapter resolves an importer-relative edge to an exact identity in each Package's own dependency context. A Package Scope resolves an Import only through its own edge, never by searching root dependencies or a global Package set. Go only consumes that resolved Environment and loads and validates the Scope files.
+- Scope Import names only its dependency target, not a version or installation path. npm or pnpm owns version resolution and physical installation; the package-environment adapter resolves an importer-relative edge to an exact identity in each Package's own dependency context. A Package Scope resolves an Import only through its own edge, never by searching root dependencies or a global Package set. The runtime consumes that resolved Environment and loads and validates the Scope files.
 
 ## Publishing a Package
 
-For Agent-driven publication, use `$locus-publish-node`. A publishable Locus Package uses standard npm metadata: run the Skill's lightweight validator, validate the Workspace, then pack and publish the same npm tarball:
+For Agent-driven publication, use `$use-locus-scope` and read its [publishing guide](../.agents/skills/use-locus-scope/references/publish-package.md). A publishable Locus Package uses standard npm metadata: run the Skill's lightweight validator, validate the Workspace, then pack and publish the same npm tarball:
 
 ```text
 node <skill-dir>/scripts/validate-package.mjs .
@@ -106,6 +106,5 @@ Before publishing, inspect the files and SHA-512 integrity returned by `npm pack
 There is one Package environment:
 
 - npm or pnpm owns version resolution, installation, the lockfile, and cache.
-- The Node adapter discovers the importer-relative installed Package graph.
-- The private Go host validates the resolved Environment and executes the shared Scope application.
+- The runtime discovers the importer-relative installed Package graph and executes the shared domain/application API in-process.
 - Local-only Scopes use the same `locus-scope` command and do not require Package Imports.
