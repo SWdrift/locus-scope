@@ -46,39 +46,66 @@ class ApplicationError extends Error {
 
 `Reason` 是稳定的、可供程序消费的错误标识。每个 Reason 必须有唯一 Code 和明确语义；具体 message 可以改善措辞，但不得改变 Reason 的含义。
 
+### 调用输入：`invalid_argument`
+
+| Reason | 说明 |
+| --- | --- |
+| `scope.selector_invalid` | 命令 selector、位置参数、选项或参数组合格式错误。 |
+| `scope.filter_invalid` | Filter 语法、路径、操作符或值格式错误。 |
+| `scope.reference_unresolved` | 调用提供的 Entity/Scope/Relation reference 无法解析。 |
+| `scope.graph_seed_invalid` | Graph/Impact 的 seed 或 stdin Entity envelope 格式错误。 |
+| `scope.field_invalid` | Mutation field 名称、路径或赋值格式错误。 |
+| `scope.diff_input_invalid` | Diff 两侧输入数量、selector 或 selector 组合格式错误。 |
+
+### Source 与 package 加载：`not_found`、`permission_denied`、`invalid_data`
+
 | Reason | Code | 说明 |
 | --- | --- | --- |
-| `scope.manifest_missing` | `invalid_data` | Scope 目录中没有可用的 `locus.yaml`、`locus.yml` 或 `locus.json` manifest。 |
-| `scope.manifest_ambiguous` | `invalid_data` | Scope 目录中同时存在多个 manifest，无法确定唯一入口。 |
-| `scope.manifest_invalid` | `invalid_data` | Manifest 存在，但字段、类型或值不符合协议。 |
 | `scope.source_not_found` | `not_found` | 请求的 Scope source、目录或文件不存在。 |
 | `scope.source_unreadable` | `permission_denied` | Scope source 存在，但当前进程无权读取。 |
 | `scope.source_invalid` | `invalid_data` | Source 路径存在，但不是可加载的 Scope source。 |
+| `scope.manifest_missing` | `invalid_data` | Scope 目录中没有可用的 `locus.yaml`、`locus.yml` 或 `locus.json` manifest。 |
+| `scope.manifest_ambiguous` | `invalid_data` | Scope 目录中同时存在多个 manifest，无法确定唯一入口。 |
+| `scope.manifest_invalid` | `invalid_data` | Manifest 存在，但字段、类型或值不符合协议。 |
+| `scope.package_invalid` | `invalid_data` | npm package manifest、`locus.entry` 或 package 元数据不符合包协议。 |
+| `scope.dependency_unresolved` | `invalid_data` | 声明为 Locus package 的依赖无法解析或加载。 |
+
+### Workspace 数据：`invalid_data`、`conflict`
+
+| Reason | Code | 说明 |
+| --- | --- | --- |
 | `scope.definition_invalid` | `invalid_data` | Entity/Relation definition 文件无法解析，或结构不符合 definition 协议。 |
 | `scope.entity_id_invalid` | `invalid_data` | Entity 的 id 缺失、类型错误或包含禁止的内容。 |
-| `scope.entity_duplicate` | `conflict` | 同一 Scope 中出现重复的 Entity identity。 |
 | `scope.import_unresolved` | `invalid_data` | Scope import 无法解析到目标 Scope。 |
 | `scope.export_unresolved` | `invalid_data` | Scope export 引用无法解析到可导出的 Entity。 |
 | `scope.relation_invalid` | `invalid_data` | Relation 缺少必要字段，或字段类型/值不符合协议。 |
-| `scope.relation_duplicate` | `conflict` | Workspace 中出现重复的 Relation identity。 |
 | `scope.relation_start_unresolved` | `invalid_data` | Relation 的起点引用无法解析。 |
 | `scope.relation_end_unresolved` | `invalid_data` | Relation 的终点引用无法解析。 |
+| `scope.entity_duplicate` | `conflict` | 同一 Scope 中出现重复的 Entity identity。 |
+| `scope.relation_duplicate` | `conflict` | Workspace 中出现重复的 Relation identity。 |
 | `scope.source_identity_conflict` | `conflict` | 同一个 Scope identity 指向了互相冲突的 source。 |
-| `scope.package_invalid` | `invalid_data` | npm package manifest、`locus.entry` 或 package 元数据不符合包协议。 |
-| `scope.dependency_unresolved` | `invalid_data` | 声明为 Locus package 的依赖无法解析或加载。 |
-| `scope.reference_unresolved` | `invalid_argument` | 调用提供的 Entity/Scope/Relation reference 无法解析。 |
-| `scope.selector_invalid` | `invalid_argument` | 命令 selector、位置参数、选项或参数组合格式错误。 |
-| `scope.filter_invalid` | `invalid_argument` | Filter 语法、路径、操作符或值格式错误。 |
-| `scope.graph_seed_invalid` | `invalid_argument` | Graph/Impact 的 seed 或 stdin Entity envelope 格式错误。 |
-| `scope.path_unreachable` | `not_found` | 起点和终点存在，但没有满足条件的有向路径。 |
+
+### 查询结果：`not_found`、`permission_denied`
+
+| Reason | Code | 说明 |
+| --- | --- | --- |
 | `scope.object_not_found` | `not_found` | 请求的 Scope、Group、Entity 或 Relation 不存在。 |
+| `scope.path_unreachable` | `not_found` | 起点和终点存在，但没有满足条件的有向路径。 |
 | `scope.object_read_only` | `permission_denied` | 请求修改只读对象或只读 source。 |
-| `scope.field_invalid` | `invalid_argument` | Mutation field 名称、路径或赋值格式错误。 |
-| `scope.mutation_conflict` | `conflict` | Mutation 与当前 identity、provenance 或 Workspace 状态冲突。 |
+
+### Mutation：`invalid_data`、`conflict`、`internal`
+
+| Reason | Code | 说明 |
+| --- | --- | --- |
 | `scope.mutation_invalid` | `invalid_data` | Mutation 请求结构完整，但无法形成符合协议的数据。 |
+| `scope.mutation_conflict` | `conflict` | Mutation 与当前 identity、provenance 或 Workspace 状态冲突。 |
 | `scope.mutation_write_failed` | `internal` | Mutation 已进入写入流程，但 atomic write 或 reload 失败。 |
-| `scope.diff_input_invalid` | `invalid_argument` | Diff 两侧输入数量、selector 或 selector 组合格式错误。 |
-| `scope.internal` | `internal` | 错误无法归入其他已声明 Reason，通常表示实现错误或未分类故障。 |
+
+### 未分类故障：`internal`
+
+| Reason | 说明 |
+| --- | --- |
+| `scope.internal` | 错误无法归入其他已声明 Reason，通常表示实现错误或未分类故障。 |
 
 Reason 的新增、删除或语义改变属于协议变更；仅改善 message 不属于 Reason 变更。
 
