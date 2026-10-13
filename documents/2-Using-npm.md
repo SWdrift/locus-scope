@@ -36,7 +36,7 @@ A Locus Package is a standard npm Package containing `locus.entry`. First, decla
 ```yaml
 id: app
 imports:
-    infra: "@example/infra"
+  infra: "@example/infra"
 ```
 
 The Package name does not include a version or subpath. The version range is declared in `package.json.dependencies` in the same directory, and the package manager lockfile pins the resolved result.

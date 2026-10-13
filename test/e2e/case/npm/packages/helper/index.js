@@ -1,1 +1,1 @@
-module.exports = 'ordinary npm dependency'
+module.exports = "ordinary npm dependency";

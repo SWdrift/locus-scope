@@ -1,11 +1,11 @@
-export * from './domain/index.js';
+export * from "./domain/index.js";
 export {
   load as loadPackageEnvironment,
   secureEntry,
   type Environment,
   type Identity,
-  type PackageDescriptor,
-} from './packageenv.js';
+  type PackageDescriptor
+} from "./packageenv.js";
 export type {
   Entity as EntityView,
   EntityChange,
@@ -21,14 +21,9 @@ export type {
   RelationChange,
   Scope as ScopeView,
   Source as ApplicationSource,
-  ValidationResult,
-} from './application/types.js';
-export {
-  ApplicationService,
-  New,
-  Service,
-  WorkspaceApplication,
-} from './application/index.js';
+  ValidationResult
+} from "./application/types.js";
+export { ApplicationService, New, Service, WorkspaceApplication } from "./application/index.js";
 export {
   decodeRequest,
   encodeRequest,
@@ -42,6 +37,6 @@ export {
   type CliContext,
   type CliIO,
   type CliRequest,
-  type CliResponse,
-} from './cli/index.js';
-export { buildPackageEnvironment } from './package-environment.js';
+  type CliResponse
+} from "./cli/index.js";
+export { buildPackageEnvironment } from "./package-environment.js";

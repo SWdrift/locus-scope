@@ -1,7 +1,7 @@
-import assert from 'node:assert/strict';
-import { cp, mkdir, rm, writeFile } from 'node:fs/promises';
-import path from 'node:path';
-import { test } from 'node:test';
+import assert from "node:assert/strict";
+import { cp, mkdir, rm, writeFile } from "node:fs/promises";
+import path from "node:path";
+import { test } from "node:test";
 import {
   FindScope,
   Load,
@@ -13,11 +13,12 @@ import {
   type EntityKey,
   type Resolver,
   type Source,
-  type Workspace,
-} from '../../src/domain/index.js';
+  type Workspace
+} from "../../src/domain/index.js";
+import { ApplicationError } from "../../src/domain/errors.js";
 
-const fixtureRoot = path.resolve('test/e2e/case');
-const stateRoot = path.resolve('temp/e2e-run/domain');
+const fixtureRoot = path.resolve("test/e2e/case");
+const stateRoot = path.resolve("temp/e2e-run/domain");
 
 async function materializeCase(name: string, ...rootParts: string[]): Promise<string> {
   const source = path.join(fixtureRoot, name);
@@ -35,98 +36,97 @@ async function loadCase(name: string, ...rootParts: string[]) {
 }
 
 function relation(workspace: Workspace, from: EntityKey, type: string, to: EntityKey) {
-  return workspace.relations.find(candidate =>
-    candidate.from.scope === from.scope &&
-    candidate.from.id === from.id &&
-    candidate.type === type &&
-    candidate.to.scope === to.scope &&
-    candidate.to.id === to.id,
+  return workspace.relations.find(
+    candidate =>
+      candidate.from.scope === from.scope &&
+      candidate.from.id === from.id &&
+      candidate.type === type &&
+      candidate.to.scope === to.scope &&
+      candidate.to.id === to.id
   );
 }
 
-test('TestLoadScopeComposition: composition keeps opaque entity and relation properties', async () => {
-  const { source, workspace } = await loadCase('scope-composition', 'app');
+test("TestLoadScopeComposition: composition keeps opaque entity and relation properties", async () => {
+  const { source, workspace } = await loadCase("scope-composition", "app");
   assert.equal(workspace.scopes.size, 2);
   assert.match(source.key, /^file:\/\//u);
   assert.equal(workspace.relations.length, 4);
 
   const root = workspace.scopes.get(workspace.root);
   assert.ok(root);
-  const infraKey = root.imports.get('infra');
+  const infraKey = root.imports.get("infra");
   assert.ok(infraKey);
 
-  const database = workspace.resolve(workspace.root, 'infra:database');
-  assert.deepEqual(database, { scope: infraKey, id: 'database' });
-  const worker = workspace.resolve(workspace.root, 'infra:backend/worker');
-  assert.deepEqual(worker, { scope: infraKey, id: 'backend/worker' });
+  const database = workspace.resolve(workspace.root, "infra:database");
+  assert.deepEqual(database, { scope: infraKey, id: "database" });
+  const worker = workspace.resolve(workspace.root, "infra:backend/worker");
+  assert.deepEqual(worker, { scope: infraKey, id: "backend/worker" });
 
-  assert.equal(workspace.scopes.get(database.scope)?.entities.get(database.id)?.properties.engine, 'postgres');
-  const monitor = workspace.scopes.get(infraKey)?.entities.get('backend/monitor');
+  assert.equal(workspace.scopes.get(database.scope)?.entities.get(database.id)?.properties.engine, "postgres");
+  const monitor = workspace.scopes.get(infraKey)?.entities.get("backend/monitor");
   const nested = (monitor?.properties.anything as { nested?: { values?: unknown } } | undefined)?.nested;
-  assert.deepEqual(nested?.values, ['are', 'allowed']);
+  assert.deepEqual(nested?.values, ["are", "allowed"]);
 
-  const workerRelation = relation(workspace, worker, 'reports_to', { scope: infraKey, id: 'backend/monitor' });
+  const workerRelation = relation(workspace, worker, "reports_to", { scope: infraKey, id: "backend/monitor" });
   assert.ok(workerRelation);
-  const api = { scope: workspace.root, id: 'api' };
-  const apiRelation = relation(workspace, api, 'uses', database);
+  const api = { scope: workspace.root, id: "api" };
+  const apiRelation = relation(workspace, api, "uses", database);
   assert.ok(apiRelation);
   assert.equal(apiRelation.properties.critical, true);
   assert.deepEqual(apiRelation.properties.policy, { retries: 3 });
 });
 
-test('TestDefinitionDiscoveryRecursesHonorsIgnoreAndStopsAtNestedScope', async () => {
-  const directory = await materializeCase('discovery');
-  await mkdir(path.join(directory, '.git'), { recursive: true });
-  await writeFile(path.join(directory, '.git', 'ignored.locus.yaml'), 'invalid: git state\n');
-  await mkdir(path.join(directory, '.locus'), { recursive: true });
-  await writeFile(path.join(directory, '.locus', 'generated.locus.yaml'), 'invalid: generated state\n');
+test("TestDefinitionDiscoveryRecursesHonorsIgnoreAndStopsAtNestedScope", async () => {
+  const directory = await materializeCase("discovery");
+  await mkdir(path.join(directory, ".git"), { recursive: true });
+  await writeFile(path.join(directory, ".git", "ignored.locus.yaml"), "invalid: git state\n");
+  await mkdir(path.join(directory, ".locus"), { recursive: true });
+  await writeFile(path.join(directory, ".locus", "generated.locus.yaml"), "invalid: generated state\n");
   const source = await NewLocalSource(directory);
   const workspace = await Load(source, new LocalResolver());
   const root = workspace.scopes.get(workspace.root);
   assert.ok(root);
-  assert.deepEqual([...root.entities.keys()].sort(), ['child', 'root']);
+  assert.deepEqual([...root.entities.keys()].sort(), ["child", "root"]);
 });
 
-test('TestGroupedRelationKeepsExternalRootReference', async () => {
-  const { workspace } = await loadCase('group-fallback');
-  const worker = { scope: workspace.root, id: 'backend/worker' };
-  const database = { scope: workspace.root, id: 'database' };
-  assert.ok(relation(workspace, worker, 'uses', database));
+test("TestGroupedRelationKeepsExternalRootReference", async () => {
+  const { workspace } = await loadCase("group-fallback");
+  const worker = { scope: workspace.root, id: "backend/worker" };
+  const database = { scope: workspace.root, id: "database" };
+  assert.ok(relation(workspace, worker, "uses", database));
 });
 
-test('TestMultilevelReexportKeepsOriginalOwnership', async () => {
-  const { workspace } = await loadCase('reexport', 'product');
-  const resolved = workspace.resolve(workspace.root, 'app:infra:database');
+test("TestMultilevelReexportKeepsOriginalOwnership", async () => {
+  const { workspace } = await loadCase("reexport", "product");
+  const resolved = workspace.resolve(workspace.root, "app:infra:database");
   const owner = workspace.scopes.get(resolved.scope);
   assert.ok(owner);
-  assert.equal(owner.manifest.id, 'infra');
-  assert.equal(resolved.id, 'database');
+  assert.equal(owner.manifest.id, "infra");
+  assert.equal(resolved.id, "database");
   assert.notEqual(resolved.scope, workspace.root);
   assert.throws(
-    () => workspace.resolve(workspace.root, 'app:infra:secret'),
-    error => error instanceof Error &&
-      error.message.includes('scope "app"') &&
-      error.message.includes('does not export "infra:secret"'),
+    () => workspace.resolve(workspace.root, "app:infra:secret"),
+    error => error instanceof ApplicationError && error.reason === "scope.object_not_found"
   );
 });
 
-test('TestCyclicImportsLoadAndResolve', async () => {
-  const { workspace } = await loadCase('cycle', 'a');
+test("TestCyclicImportsLoadAndResolve", async () => {
+  const { workspace } = await loadCase("cycle", "a");
   assert.equal(workspace.scopes.size, 2);
-  const beta = workspace.resolve(workspace.root, 'b:beta');
-  assert.equal(workspace.scopes.get(beta.scope)?.manifest.id, 'b');
-  assert.ok(relation(workspace, { scope: workspace.root, id: 'alpha' }, 'reaches', beta));
+  const beta = workspace.resolve(workspace.root, "b:beta");
+  assert.equal(workspace.scopes.get(beta.scope)?.manifest.id, "b");
+  assert.ok(relation(workspace, { scope: workspace.root, id: "alpha" }, "reaches", beta));
 });
 
-test('TestDistinctSourcesMayShareManifestID', async () => {
-  const { workspace } = await loadCase('same-manifest-id', 'root');
-  const east = workspace.resolve(workspace.root, 'east:item');
-  const west = workspace.resolve(workspace.root, 'west:item');
+test("TestDistinctSourcesMayShareManifestID", async () => {
+  const { workspace } = await loadCase("same-manifest-id", "root");
+  const east = workspace.resolve(workspace.root, "east:item");
+  const west = workspace.resolve(workspace.root, "west:item");
   assert.notEqual(east.scope, west.scope);
-  assert.equal(workspace.scopes.get(east.scope)?.manifest.id, 'shared');
-  assert.equal(workspace.scopes.get(west.scope)?.manifest.id, 'shared');
-  assert.equal(workspace.scopes.get(east.scope)?.entities.get(east.id)?.properties.side, 'east');
-  assert.equal(workspace.scopes.get(west.scope)?.entities.get(west.id)?.properties.side, 'west');
+  assert.equal(workspace.scopes.get(east.scope)?.manifest.id, "shared");
+  assert.equal(workspace.scopes.get(west.scope)?.manifest.id, "shared");
+  assert.equal(workspace.scopes.get(east.scope)?.entities.get(east.id)?.properties.side, "east");
+  assert.equal(workspace.scopes.get(west.scope)?.entities.get(west.id)?.properties.side, "west");
 });
 
 class FixtureResolver implements Resolver {
@@ -139,46 +139,54 @@ class FixtureResolver implements Resolver {
   }
 }
 
-test('TestResolverSourceKeyDefinesIdentityAcrossMaterializations', async () => {
-  const packageKey = 'npm:@example/package@1.0.0';
+test("TestResolverSourceKeyDefinesIdentityAcrossMaterializations", async () => {
+  const packageKey = "npm:@example/package@1.0.0";
   const resolved: EntityKey[] = [];
-  for (const name of ['first', 'second']) {
-    const base = path.join(stateRoot, 'source-key', name);
-    const rootDirectory = path.join(base, 'root');
-    const packageDirectory = path.join(base, 'materialized-package');
+  for (const name of ["first", "second"]) {
+    const base = path.join(stateRoot, "source-key", name);
+    const rootDirectory = path.join(base, "root");
+    const packageDirectory = path.join(base, "materialized-package");
     await rm(base, { recursive: true, force: true });
     await mkdir(rootDirectory, { recursive: true });
     await mkdir(packageDirectory, { recursive: true });
-    await writeFile(path.join(rootDirectory, 'locus.yaml'), 'id: root\nimports:\n  pkg: package\nexports:\n  - pkg:item\n');
-    await writeFile(path.join(packageDirectory, 'locus.yaml'), 'id: package\nimports:\n  root: root\nexports:\n  - item\n');
-    await writeFile(path.join(packageDirectory, 'entities.locus.yaml'), 'entities:\n  - id: item\n');
+    await writeFile(
+      path.join(rootDirectory, "locus.yaml"),
+      "id: root\nimports:\n  pkg: package\nexports:\n  - pkg:item\n"
+    );
+    await writeFile(
+      path.join(packageDirectory, "locus.yaml"),
+      "id: package\nimports:\n  root: root\nexports:\n  - item\n"
+    );
+    await writeFile(path.join(packageDirectory, "entities.locus.yaml"), "entities:\n  - id: item\n");
 
     const rootSource = await NewLocalSource(rootDirectory);
     const packageSource: Source = { key: packageKey, localPath: packageDirectory };
-    const resolver = new FixtureResolver(new Map([
-      [rootSource.key, new Map([['package', packageSource]])],
-      [packageKey, new Map([['root', rootSource]])],
-    ]));
+    const resolver = new FixtureResolver(
+      new Map([
+        [rootSource.key, new Map([["package", packageSource]])],
+        [packageKey, new Map([["root", rootSource]])]
+      ])
+    );
     const workspace = await Load(rootSource, resolver);
-    resolved.push(workspace.resolve(workspace.root, 'pkg:item'));
+    resolved.push(workspace.resolve(workspace.root, "pkg:item"));
   }
   assert.deepEqual(resolved[0], resolved[1]);
-  assert.deepEqual(resolved[0], { scope: packageKey, id: 'item' });
+  assert.deepEqual(resolved[0], { scope: packageKey, id: "item" });
 });
 
-test('TestValidationDiagnostics: diagnostics retain filename, line, and context', async () => {
-  const cases: Array<{ name: string; want: string[] }> = [
-    { name: 'duplicate-expanded', want: ['team.locus.yaml', 'entity "team/worker"', 'after group expansion'] },
-    { name: 'missing-relation', want: ['entities.locus.yaml', 'relation "source points_to absent"', 'end reference "absent"'] },
-    { name: 'validation/missing-manifest', want: ['manifest missing', 'locus.yaml'] },
-    { name: 'validation/duplicate-manifest', want: ['multiple manifests', 'locus.json', 'locus.yaml'] },
-    { name: 'validation/missing-scope-id', want: ['locus.yaml', 'scope id is required'] },
-    { name: 'validation/missing-entity-id', want: ['entities.locus.yaml', 'line 2', 'entity 1', 'id is required'] },
-    { name: 'validation/missing-import', want: ['locus.yaml', 'import "absent"', 'does-not-exist'] },
-    { name: 'validation/missing-projection', want: ['locus.yaml', 'export "ghost:item"', 'does not import projection "ghost"'] },
-    { name: 'validation/malformed-relation', want: ['entities.locus.yaml', 'line 4', 'relation from, type, and to must be non-empty strings'] },
-    { name: 'validation/relation-tuple', want: ['entities.locus.yaml', 'line 5', 'relation must be an object'] },
-    { name: 'validation/invalid-locusignore', want: ['.locusignore:1', 'invalid ignore pattern', 'syntax error in pattern'] },
+test("TestValidationDiagnostics: diagnostics retain structured reasons and safe details", async () => {
+  const cases: Array<{ name: string; reason: ApplicationError["reason"] }> = [
+    { name: "duplicate-expanded", reason: "scope.entity_duplicate" },
+    { name: "missing-relation", reason: "scope.relation_end_unresolved" },
+    { name: "validation/missing-manifest", reason: "scope.manifest_missing" },
+    { name: "validation/duplicate-manifest", reason: "scope.manifest_ambiguous" },
+    { name: "validation/missing-scope-id", reason: "scope.manifest_invalid" },
+    { name: "validation/missing-entity-id", reason: "scope.entity_id_invalid" },
+    { name: "validation/missing-import", reason: "scope.source_not_found" },
+    { name: "validation/missing-projection", reason: "scope.export_unresolved" },
+    { name: "validation/malformed-relation", reason: "scope.relation_invalid" },
+    { name: "validation/relation-tuple", reason: "scope.relation_invalid" },
+    { name: "validation/invalid-locusignore", reason: "scope.definition_invalid" }
   ];
 
   for (const item of cases) {
@@ -192,68 +200,71 @@ test('TestValidationDiagnostics: diagnostics retain filename, line, and context'
         return caught;
       }
     })();
-    assert.ok(error instanceof Error, `${item.name} unexpectedly loaded`);
-    for (const fragment of item.want) {
-      const escaped = fragment.replace(/[.*+?^${}()|[\]\\]/gu, '\\$&');
-      assert.match(error.message, new RegExp(escaped, 'u'));
-    }
+    assert.ok(error instanceof ApplicationError, `${item.name} unexpectedly loaded`);
+    assert.equal(error.reason, item.reason, item.name);
+    assert.equal(
+      Object.values(error.details ?? {}).some(value => value.includes("file://") || /[A-Za-z]:[\\/]/u.test(value)),
+      false,
+      item.name
+    );
   }
 });
 
-test('TestFindScopeWalksToNearestAncestor', async () => {
-  const directory = await materializeCase('cycle', 'a');
-  const nested = path.join(directory, 'nested', 'deeper');
+test("TestFindScopeWalksToNearestAncestor", async () => {
+  const directory = await materializeCase("cycle", "a");
+  const nested = path.join(directory, "nested", "deeper");
   await mkdir(nested, { recursive: true });
   const found = await FindScope(nested);
   const source = await NewLocalSource(found);
   const workspace = await Load(source, new LocalResolver());
-  assert.equal(workspace.scopes.get(workspace.root)?.manifest.id, 'a');
+  assert.equal(workspace.scopes.get(workspace.root)?.manifest.id, "a");
 });
 
-test('TestFilterStrictNestedAndMetadataSemantics', () => {
-  const object = { id: 'api', network: { region: 'tokyo' }, replicas: 3, labels: ['prod'] };
-  const metadata = { scope: '.', group: 'backend' };
+test("TestFilterStrictNestedAndMetadataSemantics", () => {
+  const object = { id: "api", network: { region: "tokyo" }, replicas: 3, labels: ["prod"] };
+  const metadata = { scope: ".", group: "backend" };
   for (const filters of [
-    ['network.region=tokyo'],
-    ['id~=^a.*'],
-    ['id^=ap'],
-    ['id*=pi'],
-    ['@scope=.', '@group=backend'],
-    ['replicas=3'],
+    ["network.region=tokyo"],
+    ["id~=^a.*"],
+    ["id^=ap"],
+    ["id*=pi"],
+    ["@scope=.", "@group=backend"],
+    ["replicas=3"]
   ]) {
-    assert.equal(Match(object, metadata, ParseFilters(filters)), true, filters.join(','));
+    assert.equal(Match(object, metadata, ParseFilters(filters)), true, filters.join(","));
   }
-  for (const filters of [['missing!=value'], ['replicas*=three'], ['labels*=prod'], ['@scope=dependency']]) {
-    assert.equal(Match(object, metadata, ParseFilters(filters)), false, filters.join(','));
+  for (const filters of [["missing!=value"], ["replicas*=three"], ["labels*=prod"], ["@scope=dependency"]]) {
+    assert.equal(Match(object, metadata, ParseFilters(filters)), false, filters.join(","));
   }
-  assert.throws(() => ParseFilters(['id~=[']), /invalid regexp/u);
+  assert.throws(
+    () => ParseFilters(["id~=["]),
+    error => error instanceof ApplicationError && error.reason === "scope.filter_invalid"
+  );
 });
 
-test('synthetic definitions preserve declaration line provenance', async () => {
-  const filename = path.join(stateRoot, 'synthetic', 'entities.locus.yaml');
+test("synthetic definitions preserve declaration line provenance", async () => {
+  const filename = path.join(stateRoot, "synthetic", "entities.locus.yaml");
   await rm(path.dirname(filename), { recursive: true, force: true });
   await mkdir(path.dirname(filename), { recursive: true });
-  await writeFile(filename, 'entities:\n  - id: api\nrelations:\n  - from: api\n    type: calls\n    to: api\n');
+  await writeFile(filename, "entities:\n  - id: api\nrelations:\n  - from: api\n    type: calls\n    to: api\n");
   const workspace = await LoadDefinitionFile(filename);
-  const entity = [...workspace.scopes.values()][0]?.entities.get('api');
+  const entity = [...workspace.scopes.values()][0]?.entities.get("api");
   assert.equal(entity?.source.line, 2);
   assert.equal([...workspace.relations][0]?.source.line, 4);
 });
 
-test('synthetic definitions reject strict fields and multiple documents', async () => {
-  const filename = path.join(stateRoot, 'synthetic-invalid', 'entities.locus.yaml');
+test("synthetic definitions reject strict fields and multiple documents", async () => {
+  const filename = path.join(stateRoot, "synthetic-invalid", "entities.locus.yaml");
   await rm(path.dirname(filename), { recursive: true, force: true });
   await mkdir(path.dirname(filename), { recursive: true });
-  await writeFile(filename, 'unknown: true\nentities:\n  - id: api\n');
+  await writeFile(filename, "unknown: true\nentities:\n  - id: api\n");
   await assert.rejects(
     () => LoadDefinitionFile(filename),
-    error => error instanceof Error && error.message.includes(filename) && error.message.includes('unknown'),
+    error => error instanceof ApplicationError && error.reason === "scope.definition_invalid"
   );
-  await writeFile(filename, 'entities:\n  - id: api\n---\nentities:\n  - id: other\n');
+  await writeFile(filename, "entities:\n  - id: api\n---\nentities:\n  - id: other\n");
   await assert.rejects(
     () => LoadDefinitionFile(filename),
-    error => error instanceof Error &&
-      error.message.includes(filename) &&
-      error.message.includes('multiple YAML/JSON documents'),
+    error => error instanceof ApplicationError && error.reason === "scope.definition_invalid"
   );
 });

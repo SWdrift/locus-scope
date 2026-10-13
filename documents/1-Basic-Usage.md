@@ -18,7 +18,7 @@ Create `app/locus.yaml`:
 id: app
 
 exports:
-    - backend
+  - backend
 ```
 
 `locus.yaml` defines a Scope. `id` is its name within its content; `exports` lists the Entities that other Scopes are allowed to access.
@@ -27,18 +27,18 @@ Define Entities and Relations in `app/model/services.locus.yaml`:
 
 ```yaml
 entities:
-    - id: database
-      type: postgres
-      host: db.internal
-      port: 5432
+  - id: database
+    type: postgres
+    host: db.internal
+    port: 5432
 
-    - id: backend
-      type: service
+  - id: backend
+    type: service
 
 relations:
-    - from: backend
-      type: uses
-      to: database
+  - from: backend
+    type: uses
+    to: database
 ```
 
 An Entity is an open object with the required identity field `id`. A Relation is an open object with the three required locator fields `from`, `type`, and `to`. Both may declare any additional nested properties directly.
@@ -241,18 +241,18 @@ The same data can answer two other types of graph questions:
 
 ### Other Key Operations
 
-| Purpose | Command |
-| --- | --- |
-| View the root Scope | `scope .` |
-| List or filter Groups | `group [<group-ref>\|<filter>...]` |
-| List all Entities | `entity` |
-| List all Relations | `relation` |
-| Add, modify, or remove an Entity | `entity add\|set\|unset\|remove` |
-| Add, modify, or remove a Relation | `relation add\|set\|unset\|remove` |
-| Compare two semantic subgraphs | `diff <selector-a> <selector-b>` |
-| Show declaration sources | Append `--source` to a query command |
+| Purpose                           | Command                              |
+| --------------------------------- | ------------------------------------ |
+| View the root Scope               | `scope .`                            |
+| List or filter Groups             | `group [<group-ref>\|<filter>...]`   |
+| List all Entities                 | `entity`                             |
+| List all Relations                | `relation`                           |
+| Add, modify, or remove an Entity  | `entity add\|set\|unset\|remove`     |
+| Add, modify, or remove a Relation | `relation add\|set\|unset\|remove`   |
+| Compare two semantic subgraphs    | `diff <selector-a> <selector-b>`     |
+| Show declaration sources          | Append `--source` to a query command |
 
-After entering `app` or one of its subdirectories, you can omit `--scope ./app`. The default formatted JSON is suitable for interactive reading; agents, scripts, and CI can append `--json` to receive stable single-line JSON. See the [CLI Reference](4-CLI-Reference.md) for all commands, arguments, filters, mutations, and exit statuses.
+After entering `app` or one of its subdirectories, you can omit `--scope ./app`. The default formatted JSON is suitable for interactive reading; agents, scripts, and CI can append `--json` to receive stable single-line JSON. See the [CLI Reference](3-CLI-Reference.md) for all commands, arguments, filters, mutations, and exit statuses.
 
 ## Composing Local Scopes
 
@@ -262,10 +262,10 @@ Suppose the sibling directory `infra/` is also a Scope and exports `database`. A
 id: app
 
 imports:
-    infra: ../infra
+  infra: ../infra
 
 exports:
-    - backend
+  - backend
 ```
 
 `infra` is the alias assigned to this Import by the current Scope. Use the alias to inspect the exported Entity:
@@ -288,10 +288,10 @@ Then change the Import in `app/locus.yaml` to the Package name:
 id: app
 
 imports:
-    infra: "@example/infra"
+  infra: "@example/infra"
 
 exports:
-    - backend
+  - backend
 ```
 
 Validate and inspect it again:

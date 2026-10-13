@@ -60,30 +60,29 @@ Package 的安装、更新、lockfile、缓存、打包和发布使用 npm 或 p
 
 ### 通用参数
 
-| 参数 | 作用 |
-| --- | --- |
-| `--scope <dir>` | 指定 root Scope 目录；省略时从当前目录沿祖先目录发现。 |
-| `--json` | 输出稳定 JSON；失败格式见[输出与退出状态](#输出与退出状态)。 |
-| `--source` | 在查询对象 envelope 中增加实际声明 provenance。 |
-| `--version` | 等价于 `version`，不加载 Workspace。 |
-| `--help`、`-h` | 等价于 `help`，不加载 Workspace。 |
+| 参数            | 作用                                                         |
+| --------------- | ------------------------------------------------------------ |
+| `--scope <dir>` | 指定 root Scope 目录；省略时从当前目录沿祖先目录发现。       |
+| `--json`        | 输出稳定 JSON；失败格式见[输出与退出状态](#输出与退出状态)。 |
+| `--source`      | 在查询对象 envelope 中增加实际声明 provenance。              |
+| `--version`     | 等价于 `version`，不加载 Workspace。                         |
+| `--help`、`-h`  | 等价于 `help`，不加载 Workspace。                            |
 
 Entity query envelope 固定包含 `key` 和开放 `object`；仅当 root 可解析时包含 `ref`。Relation envelope 固定包含 `fromKey`、`toKey` 和声明 ref 组成的开放 `object`。`--source` 增加 Scope identity、manifest id、Scope-relative file 和当前快照可用的 line/index；line/index 不是 identity。
 
 `diff` 的 `scope:`、`group:` 从当前 Workspace 选择语义子图；`path:` 接受 Scope 目录或单个 definition document。单文件使用 file URI 作为 synthetic Scope，只解析文件内 Entity/Relation，外部 Relation ref 失败。两侧归一化后按 Entity key 和 resolved Relation 三元组比较；changed 使用 `{before,after}`。
 
-
 ## 输出与退出状态
 
 错误的模型和分类由[错误契约](ERRORS.md#错误模型)定义；CLI 根据错误 Code 确定公开输出和退出状态。
 
-| 执行结果 | stdout | stderr | 退出状态 |
-| --- | --- | --- | --- |
-| 成功 | 命令的成功结果 | 空 | `0` |
-| Code 为 `invalid_argument` | 空 | 错误信息 | `2` |
-| 其他错误 Code | 空 | 错误信息 | `1` |
+| 执行结果                   | stdout         | stderr   | 退出状态 |
+| -------------------------- | -------------- | -------- | -------- |
+| 成功                       | 命令的成功结果 | 空       | `0`      |
+| Code 为 `invalid_argument` | 空             | 错误信息 | `2`      |
+| 其他错误 Code              | 空             | 错误信息 | `1`      |
 
 - 未知指令、未知参数、缺少参数、不允许的参数组合和无效 filter 归入 `invalid_argument`。
-- `--json` 同时约束成功与失败输出；成功 schema 由对应命令定义，失败保持 `{"error":"<message>"}`。
+- `--json` 同时约束成功与失败输出；失败至少包含 `error`、`code` 和 `reason`，安全的结构化上下文可通过 `details` 提供；成功 schema 由对应命令定义。
 - runtime 直接完成 Environment、Workspace 和 application 执行；不存在独立 host protocol 或平台 host package。
 - 公开输出不包含 cause、stack trace、凭据或工作区外敏感路径。

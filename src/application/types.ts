@@ -1,4 +1,4 @@
-import type { EntityKey, Predicate, ScopeKey, Workspace } from '../domain/index.js';
+import type { EntityKey, Predicate, ScopeKey, Workspace } from "../domain/index.js";
 
 export interface ValidationResult {
   readonly valid: boolean;
@@ -87,8 +87,8 @@ export interface DiffResult {
 }
 
 export interface MutationRequest {
-  readonly kind: 'entity' | 'relation' | string;
-  readonly action: 'add' | 'remove' | 'set' | 'unset' | string;
+  readonly kind: "entity" | "relation" | string;
+  readonly action: "add" | "remove" | "set" | "unset" | string;
   readonly ref?: string;
   readonly from?: string;
   readonly type?: string;

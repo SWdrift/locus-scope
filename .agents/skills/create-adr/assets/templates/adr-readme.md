@@ -18,4 +18,3 @@ An Architecture Decision Record (ADR) captures an important architecture decisio
 - If replaced later: create a new ADR and mark the old one `superseded` with a link.
 
 ## ADRs
-

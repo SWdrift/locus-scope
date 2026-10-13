@@ -31,7 +31,7 @@
 ## Confidence Matrix
 
 | 维度 | 当前把握 | 依据和限制 |
-| --- | ---: | --- |
+| --- | --: | --- |
 | 3.1 已登记语义的功能 parity | 10/10 | 33 个 parity/unit tests、完整 fixture domain 测试、完整 npm lifecycle E2E、本地 tarball consumer CLI/library 验证通过；仅保留 3.1 自身 rollback cleanup 缺口。 |
 | 小规模 Node CLI / library 使用 | 10/10 | 本地 tarball 安装、validate、query、graph、path、diff、mutation、CLI/library parity 与 E2E 均通过。 |
 | 中等规模 Workspace | 6/10 | 语义覆盖较完整，但缺少代表性 Workspace 的性能与内存基准。 |

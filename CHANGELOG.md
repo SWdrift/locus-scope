@@ -2,6 +2,23 @@
 
 本文件记录 `locus-scope` 各发布版本的用户可见变更。
 
+## [4.0.3] - 2026-10-13
+
+### Fixed
+
+- CLI `--json` 错误输出统一包含 `error`、`code` 和 `reason`，可选安全 `details`；Scope、package 和 mutation 错误不再统一降级为不可诊断的内部错误。
+- 加载、解析和查询错误的公开诊断改为相对路径并过滤绝对路径、凭据和内部 cause。
+- CLI Reference 文档编号统一为 `3`，修正 README 与 Basic Usage 中的链接。
+
+## [4.0.2] - 2026-10-13
+
+### Fixed
+
+- 非法 diff selector 返回参数错误（CLI 退出码 2），不再误报内部错误并隐藏输入诊断。
+- graph library API 对负 depth 返回 `invalid_argument`，不再抛裸 `Error`。
+- 统一 application/domain 错误 Reason 注册、Code 映射和 CLI JSON 错误输出；公开诊断不再泄露绝对路径。
+- 将 Scope、package environment 和 mutation 的已知失败迁移到结构化错误分类，并保留底层 cause。
+
 ## [4.0.1] - 2026-10-13
 
 ### Fixed

@@ -24,8 +24,8 @@ Scope 内的 Entity 默认私有。只有被 Scope 显式 export 的 Entity 或 
 
 ```yaml
 exports:
-    - api
-    - infra:database
+  - api
+  - infra:database
 ```
 
 Export 不复制 Entity，也不改变 Entity ownership。
@@ -36,7 +36,7 @@ Scope 可以导入其他 Scope。每个 Import 在当前 Scope 中声明一个 P
 
 ```yaml
 imports:
-    infra: infra-source
+  infra: infra-source
 ```
 
 `infra-source` 只表示由实现解析的 Source 声明；Core 不规定它采用本地路径、Package reference 或其他定位形式。
@@ -107,11 +107,11 @@ scope/
 id: app
 
 imports:
-    infra: infra-source
+  infra: infra-source
 
 exports:
-    - api
-    - infra:database
+  - api
+  - infra:database
 ```
 
 本文只固定 `id`、`imports` 和 `exports` 的逻辑角色；路径解析、Source 获取和 codec 选择属于实现层。
@@ -122,24 +122,24 @@ exports:
 
 ```yaml
 entities:
-    - id: api
-      type: service
-      runtime: go
-      port: 8080
+  - id: api
+    type: service
+    runtime: go
+    port: 8080
 
-    - id: worker
-      anything:
-          any:
-              structure: allowed
+  - id: worker
+    anything:
+      any:
+        structure: allowed
 
 relations:
-    - from: api
-      type: calls
-      to: worker
-    - from: api
-      type: uses
-      to: infra:database
-      critical: true
+  - from: api
+    type: calls
+    to: worker
+  - from: api
+    type: uses
+    to: infra:database
+    critical: true
 ```
 
 除 `id` 外，Entity 中的所有内容均为不透明属性。除 `from`、`type` 和 `to` 外，Relation 中的所有内容同样为不透明属性。Relation 声明必须使用对象形式；tuple、字符串及其他非对象形式均为无效输入。
@@ -152,13 +152,13 @@ Definition document 可以声明可选的 `group`：
 group: backend
 
 entities:
-    - id: api
-    - id: worker
+  - id: api
+  - id: worker
 
 relations:
-    - from: api
-      type: calls
-      to: worker
+  - from: api
+    type: calls
+    to: worker
 ```
 
 其定义结果等价于 Scope 内的：
@@ -217,4 +217,3 @@ Entity reference 只能解析为以下两类目标：
 11. Relation 是开放对象，以解析后的 `(from, type, to)` 在完整 Workspace 内唯一。
 12. Group 只是 definition format 中的局部 ID 前缀，不是新的 Scope。
 13. `locus-scope` Core 不规定存储、序列化、包管理、传输、查询或执行实现。
-

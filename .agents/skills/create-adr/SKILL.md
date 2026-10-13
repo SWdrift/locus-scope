@@ -10,6 +10,7 @@ description: "创建和维护面向 agent 编码工作流的 Architecture Decisi
 ADRs created with this skill are **agent-first**: they are written so that a coding agent can read one and implement the decision without further clarification. Humans review and approve, but the primary consumer is an agent working from the ADR.
 
 This means:
+
 - Constraints must be explicit and measurable, not vibes
 - Decisions must be specific enough to act on ("use PostgreSQL 16 with pgvector" not "use a database")
 - Consequences must map to concrete follow-up tasks
@@ -36,6 +37,7 @@ Before writing anything, interview the human to understand the decision space. A
 8. **What would you tell a new engineer (or agent) implementing this?** — This surfaces the practical context that often gets left out.
 
 **Adaptive follow-ups**: Based on answers, probe deeper where the decision is fuzzy. Common follow-ups:
+
 - "What's the worst-case outcome if this decision is wrong?"
 - "What would make you revisit this in 6 months?"
 - "Is there anything you're explicitly choosing NOT to do?"
@@ -69,6 +71,7 @@ Before writing anything, interview the human to understand the decision space. A
 After drafting, review the ADR against the agent-readiness checklist in `references/review-checklist.md`. Present findings to the human and iterate.
 
 Key questions the review answers:
+
 - Could an agent implement this decision from the ADR alone?
 - Are there ambiguities that would cause an agent to guess or ask for clarification?
 - Are consequences actionable (specific tasks, not vague aspirations)?
@@ -93,6 +96,7 @@ Do not finalize until the ADR passes the checklist or the human explicitly accep
 If the repo has an ADR index/log file (often `README.md` or `index.md` in the ADR dir), keep it updated.
 
 Preferred: let `scripts/new_adr.js --update-index` do it. Otherwise:
+
 - Add a bullet entry for the new ADR.
 - Keep ordering consistent (numeric if numbered; date or alpha if slugs).
 
@@ -125,17 +129,20 @@ Numbers are local to each category. Choose a categorization scheme early (by lay
 ## Resources
 
 ### scripts/
+
 - `scripts/new_adr.js` — create a new ADR file from a template, using repo conventions.
 - `scripts/set_adr_status.js` — update an ADR status in-place (YAML front matter or inline). Use `--json` for machine output.
 - `scripts/bootstrap_adr.js` — create ADR dir, `README.md`, and initial "Adopt ADRs" decision.
 
 ### references/
+
 - `references/review-checklist.md` — agent-readiness checklist for Phase 3 review.
 - `references/adr-conventions.md` — directory, filename, status, and lifecycle conventions.
 - `references/template-variants.md` — when to use simple vs MADR-style templates.
 - `references/examples.md` — filled-out short and long ADR examples.
 
 ### assets/
+
 - `assets/templates/adr-simple.md` — lean template for straightforward decisions.
 - `assets/templates/adr-madr.md` — MADR 4.0 template for decisions with multiple options and structured tradeoffs.
 - `assets/templates/adr-readme.md` — default ADR index scaffold used by `scripts/bootstrap_adr.js`.
@@ -159,6 +166,7 @@ node /path/to/adr-skill/scripts/bootstrap_adr.js --dir docs/decisions
 ```
 
 Notes:
+
 - Scripts auto-detect ADR directory and filename strategy.
 - Use `--dir` and `--strategy` to override.
 - Use `--json` to emit machine-readable output.

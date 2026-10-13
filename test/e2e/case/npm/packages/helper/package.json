@@ -1,6 +1,9 @@
 {
   "name": "@example/helper",
   "version": "1.0.0",
-  "files": ["package.json", "index.js"],
+  "files": [
+    "package.json",
+    "index.js"
+  ],
   "main": "index.js"
 }

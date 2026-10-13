@@ -36,7 +36,7 @@ Locus Package 是包含 `locus.entry` 的标准 npm Package。先在消费项目
 ```yaml
 id: app
 imports:
-    infra: "@example/infra"
+  infra: "@example/infra"
 ```
 
 Package 名不携带版本或子路径。版本范围由同目录的 `package.json.dependencies` 声明，并由 package manager lockfile 固定解析结果。

@@ -14,13 +14,13 @@ npx locus-scope [--scope <dir>] [--json] <command>
 
 以下参数适用于 `locus-scope`：
 
-| 参数 | 说明 |
-| --- | --- |
+| 参数                               | 说明                                                          |
+| ---------------------------------- | ------------------------------------------------------------- |
 | `--scope <dir>` 或 `--scope=<dir>` | 使用指定目录作为 root Scope；否则从当前目录发现最近的 Scope。 |
-| `--json` | 输出稳定的单行 JSON；错误格式为 `{"error":"<message>"}`。 |
-| `--source` | 在查询结果中增加声明来源。 |
-| `--version` | 不加载 Workspace，直接输出 CLI 版本。 |
-| `--help`、`-h` | 不加载 Workspace，直接输出命令帮助。 |
+| `--json`                           | 输出稳定的单行 JSON；错误格式为 `{"error":"<message>"}`。     |
+| `--source`                         | 在查询结果中增加声明来源。                                    |
+| `--version`                        | 不加载 Workspace，直接输出 CLI 版本。                         |
+| `--help`、`-h`                     | 不加载 Workspace，直接输出命令帮助。                          |
 
 除非命令语法另有说明，参数可以放在命令前后。
 
@@ -28,27 +28,27 @@ npx locus-scope [--scope <dir>] [--json] <command>
 
 ### Scope、Group 与 Entity 引用
 
-| 引用 | 含义 |
-| --- | --- |
-| `.` | root Scope。 |
-| `infra` | 别名为 `infra` 的 imported Scope。 |
-| `platform:infra` | 沿 alias chain 解析的嵌套 Import。 |
-| `.#services` | root Scope 中的 `services` Group。 |
-| `infra#storage` | imported `infra` Scope 中的 `storage` Group。 |
-| `database` | 当前 Scope 上下文中的 Entity。 |
-| `infra:database` | 通过 `infra` Import 访问的 exported Entity。 |
+| 引用             | 含义                                          |
+| ---------------- | --------------------------------------------- |
+| `.`              | root Scope。                                  |
+| `infra`          | 别名为 `infra` 的 imported Scope。            |
+| `platform:infra` | 沿 alias chain 解析的嵌套 Import。            |
+| `.#services`     | root Scope 中的 `services` Group。            |
+| `infra#storage`  | imported `infra` Scope 中的 `storage` Group。 |
+| `database`       | 当前 Scope 上下文中的 Entity。                |
+| `infra:database` | 通过 `infra` Import 访问的 exported Entity。  |
 
 ### Filter
 
 Filter 格式为 `field<operator>value`，多个 filter 使用 AND 语义。
 
-| Operator | 含义 |
-| --- | --- |
-| `=` | 严格 JSON 相等。 |
-| `!=` | 严格 JSON 不等。 |
-| `^=` | 字符串以指定值开头。 |
-| `*=` | 字符串包含指定值。 |
-| `~=` | 使用正则表达式匹配字符串。 |
+| Operator | 含义                       |
+| -------- | -------------------------- |
+| `=`      | 严格 JSON 相等。           |
+| `!=`     | 严格 JSON 不等。           |
+| `^=`     | 字符串以指定值开头。       |
+| `*=`     | 字符串包含指定值。         |
+| `~=`     | 使用正则表达式匹配字符串。 |
 
 value 会优先解析为 JSON，失败后作为字符串。例如，`port=5432` 比较数字，`type=postgres` 比较字符串。点路径可遍历 JSON object，例如 `metadata.owner=platform`，但不会索引 array。字段不存在时不匹配任何 predicate。
 
@@ -403,11 +403,10 @@ locus-scope -h
 
 ## 输出与退出状态
 
-| 结果 | stdout | stderr | 退出状态 |
-| --- | --- | --- | --- |
-| 成功 | 命令结果 | 空 | `0` |
-| 无效命令或参数 | 空 | 错误信息 | `2` |
-| 其他错误 | 空 | 错误信息 | `1` |
+| 结果           | stdout   | stderr   | 退出状态 |
+| -------------- | -------- | -------- | -------- |
+| 成功           | 命令结果 | 空       | `0`      |
+| 无效命令或参数 | 空       | 错误信息 | `2`      |
+| 其他错误       | 空       | 错误信息 | `1`      |
 
 未知命令、未知参数、缺少参数、不支持的参数组合和无效 filter 都属于参数错误。使用 `--json` 时，成功和失败都使用稳定 JSON；失败格式为 `{"error":"<message>"}`。
-

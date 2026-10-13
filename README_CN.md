@@ -20,8 +20,8 @@ Locus Scope 将具有身份的事物及其关系组织成有边界的图。Entit
 
 Agent 可按任务选择对应 Skill：
 
-| Node.js Package 工作流 |
-| --- |
+| Node.js Package 工作流                                        |
+| ------------------------------------------------------------- |
 | [`$use-locus-scope`](.agents/skills/use-locus-scope/SKILL.md) |
 
 <details>
@@ -43,7 +43,7 @@ TypeScript 构建产物位于 `temp/ts-build/`；npm release tarball 位于 `tem
 
 - [基本使用](documents/1-基本使用.md)：创建、检查、组合和查询 Scope。
 - [使用 npm](documents/2-使用npm.md)：安装统一 CLI，由 npm 或 pnpm 管理 Package。
-- [CLI 参考](documents/4-CLI参考.md)：Workspace 查询、图操作、diff、mutation、输出和退出状态。
+- [CLI 参考](documents/3-CLI参考.md)：Workspace 查询、图操作、diff、mutation、输出和退出状态。
 
 ## License
 

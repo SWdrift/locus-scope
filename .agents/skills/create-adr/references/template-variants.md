@@ -39,12 +39,12 @@ This template aligns with [MADR 4.0](https://adr.github.io/madr/).
 
 ## Choosing Between Them
 
-| Signal | Use Simple | Use MADR |
-|--------|-----------|----------|
-| Number of real options | 1–2 | 3+ |
-| Team size affected | Small / solo | Cross-team |
-| Reversibility | Easily reversed | Hard to undo |
-| Expected lifetime | Months | Years |
-| Needs stakeholder review | No | Yes |
+| Signal                   | Use Simple      | Use MADR     |
+| ------------------------ | --------------- | ------------ |
+| Number of real options   | 1–2             | 3+           |
+| Team size affected       | Small / solo    | Cross-team   |
+| Reversibility            | Easily reversed | Hard to undo |
+| Expected lifetime        | Months          | Years        |
+| Needs stakeholder review | No              | Yes          |
 
 When in doubt, start with Simple. You can always expand to MADR if the discussion reveals more complexity.
