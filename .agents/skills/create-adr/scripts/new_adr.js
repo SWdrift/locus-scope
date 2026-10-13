@@ -17,7 +17,9 @@ function die(msg) {
 }
 
 function slugify(text) {
-  const t = String(text || "").trim().toLowerCase();
+  const t = String(text || "")
+    .trim()
+    .toLowerCase();
   const noQuotes = t.replace(/['"`]/g, "");
   const dashed = noQuotes.replace(/[^a-z0-9]+/g, "-").replace(/-{2,}/g, "-");
   const trimmed = dashed.replace(/^-+/, "").replace(/-+$/, "");
@@ -42,7 +44,7 @@ function parseArgs(argv) {
     chosenOption: "",
     updateIndex: false,
     indexFile: null,
-    json: false,
+    json: false
   };
 
   for (let i = 2; i < argv.length; i++) {
@@ -68,7 +70,7 @@ function parseArgs(argv) {
     else if (a === "--help" || a === "-h") {
       process.stdout.write(
         [
-          "Usage: node new_adr.js --title \"Choose database\" [options]",
+          'Usage: node new_adr.js --title "Choose database" [options]',
           "",
           "Options:",
           "  --repo-root <path>     Repo root (default: .)",
@@ -77,13 +79,13 @@ function parseArgs(argv) {
           "  --status <value>       ADR status (default: proposed)",
           "  --template simple|madr Template (default: simple)",
           "  --strategy auto|number|slug  Filename strategy (default: auto)",
-          "  --deciders \"a,b\"      Deciders list",
+          '  --deciders "a,b"      Deciders list',
           "  --technical-story <x>  Issue/ticket/PR link or short ref",
           "  --chosen-option <x>    MADR template: chosen option label",
           "  --update-index         Update adr/README.md (or existing index)",
           "  --index-file <path>    Override index file (relative to repo root unless absolute)",
           "  --json                 Output machine-readable JSON (default: off)",
-          "",
+          ""
         ].join("\n")
       );
       process.exit(0);
@@ -106,7 +108,7 @@ function detectAdrDir(repoRoot) {
     path.join(repoRoot, "adr"),
     path.join(repoRoot, "docs", "adr"),
     path.join(repoRoot, "docs", "adrs"),
-    path.join(repoRoot, "decisions"),
+    path.join(repoRoot, "decisions")
   ];
   for (const p of candidates) {
     try {
@@ -125,9 +127,7 @@ function listMdFiles(dir) {
   } catch {
     return [];
   }
-  return entries
-    .filter((e) => e.isFile() && e.name.toLowerCase().endsWith(".md"))
-    .map((e) => e.name);
+  return entries.filter(e => e.isFile() && e.name.toLowerCase().endsWith(".md")).map(e => e.name);
 }
 
 function detectStrategy(adrDir) {
@@ -177,24 +177,12 @@ function renderTemplate(raw, vars) {
 
   // YAML front matter fields — replace the whole placeholder pattern
   // e.g. status: "{proposed | accepted | ...}" → status: proposed
-  out = out.replace(
-    /^(status:\s*)["']?\{[^}]*\}["']?\s*$/m,
-    `$1${vars.status}`
-  );
-  out = out.replace(
-    /^(date:\s*)\{[^}]*\}\s*$/m,
-    `$1${vars.date}`
-  );
-  out = out.replace(
-    /^(decision-makers:\s*)["']?\{[^}]*\}["']?\s*$/m,
-    `$1${vars.deciders || ""}`
-  );
+  out = out.replace(/^(status:\s*)["']?\{[^}]*\}["']?\s*$/m, `$1${vars.status}`);
+  out = out.replace(/^(date:\s*)\{[^}]*\}\s*$/m, `$1${vars.date}`);
+  out = out.replace(/^(decision-makers:\s*)["']?\{[^}]*\}["']?\s*$/m, `$1${vars.deciders || ""}`);
 
   // Replace MADR-style heading placeholder
-  out = out.replace(
-    /^(#\s+)\{short title[^}]*\}\s*$/m,
-    `$1${vars.title}`
-  );
+  out = out.replace(/^(#\s+)\{short title[^}]*\}\s*$/m, `$1${vars.title}`);
 
   // Inline placeholders (title in heading, etc.)
   out = out
@@ -218,7 +206,7 @@ function chooseIndexFile(adrDir) {
 
 function insertIndexEntryUnderHeading(lines, headingRegex, entryLine) {
   // Returns { lines, inserted }
-  const headingIndex = lines.findIndex((l) => headingRegex.test(l));
+  const headingIndex = lines.findIndex(l => headingRegex.test(l));
   if (headingIndex === -1) return { lines, inserted: false };
 
   let sectionEnd = lines.length;
@@ -326,7 +314,7 @@ function main() {
   const today = new Date().toISOString().slice(0, 10);
   const deciders = String(args.deciders || "")
     .split(",")
-    .map((s) => s.trim())
+    .map(s => s.trim())
     .filter(Boolean)
     .join(", ");
 
@@ -337,7 +325,7 @@ function main() {
     date: today,
     deciders,
     technicalStory: String(args.technicalStory || "").trim(),
-    chosenOption: String(args.chosenOption || "").trim(),
+    chosenOption: String(args.chosenOption || "").trim()
   });
 
   fs.writeFileSync(out, `${rendered.trimEnd()}\n`, "utf8");
@@ -348,9 +336,7 @@ function main() {
   if (args.updateIndex) {
     let indexFile;
     if (args.indexFile) {
-      indexFile = path.isAbsolute(args.indexFile)
-        ? args.indexFile
-        : path.resolve(repoRoot, args.indexFile);
+      indexFile = path.isAbsolute(args.indexFile) ? args.indexFile : path.resolve(repoRoot, args.indexFile);
     } else {
       indexFile = chooseIndexFile(adrDir);
     }
@@ -360,7 +346,7 @@ function main() {
       relLink,
       title,
       status: String(args.status).trim(),
-      date: today,
+      date: today
     });
     updatedIndexPath = indexFile;
   }
@@ -379,7 +365,7 @@ function main() {
       indexUpdated: Boolean(updatedIndexPath),
       indexChanged,
       indexPath: updatedIndexPath,
-      indexRelPath: updatedIndexPath ? toPosix(path.relative(repoRoot, updatedIndexPath)) : null,
+      indexRelPath: updatedIndexPath ? toPosix(path.relative(repoRoot, updatedIndexPath)) : null
     };
     process.stdout.write(`${JSON.stringify(payload)}\n`);
   } else {

@@ -30,6 +30,7 @@ At minimum, every ADR must clearly include:
 3. **Consequences**: what becomes easier/harder, risks, costs, follow-ups.
 
 For agent-first ADRs, also ensure:
+
 - Constraints are explicit and measurable
 - Non-goals are stated
 - Follow-up tasks are identified
@@ -48,23 +49,23 @@ decision-makers: Alice, Bob
 
 Common statuses:
 
-| Status | Meaning |
-|--------|---------|
-| `proposed` | Under discussion, not yet decided |
-| `accepted` | Decision is active and should be followed |
-| `rejected` | Considered but explicitly not adopted |
-| `deprecated` | Was accepted but no longer applies — explain replacement path |
-| `superseded by [ADR-NNNN](link)` | Replaced by a newer ADR — always link both ways |
+| Status                           | Meaning                                                       |
+| -------------------------------- | ------------------------------------------------------------- |
+| `proposed`                       | Under discussion, not yet decided                             |
+| `accepted`                       | Decision is active and should be followed                     |
+| `rejected`                       | Considered but explicitly not adopted                         |
+| `deprecated`                     | Was accepted but no longer applies — explain replacement path |
+| `superseded by [ADR-NNNN](link)` | Replaced by a newer ADR — always link both ways               |
 
 ## YAML Front Matter Fields
 
-| Field | Required | Description |
-|-------|----------|-------------|
-| `status` | Yes | Current lifecycle state |
-| `date` | Yes | Date of last status change (YYYY-MM-DD) |
-| `decision-makers` | Yes | People who own the decision |
-| `consulted` | No | Subject-matter experts consulted (two-way communication) |
-| `informed` | No | Stakeholders kept up-to-date (one-way communication) |
+| Field             | Required | Description                                              |
+| ----------------- | -------- | -------------------------------------------------------- |
+| `status`          | Yes      | Current lifecycle state                                  |
+| `date`            | Yes      | Date of last status change (YYYY-MM-DD)                  |
+| `decision-makers` | Yes      | People who own the decision                              |
+| `consulted`       | No       | Subject-matter experts consulted (two-way communication) |
+| `informed`        | No       | Stakeholders kept up-to-date (one-way communication)     |
 
 The `consulted` and `informed` fields follow the RACI model and are useful for audit trails in larger teams.
 

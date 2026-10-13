@@ -38,23 +38,23 @@ flowchart LR
 
 ```ts
 interface WorkspaceEnvironment {
-  current(): Workspace
-  loadPath(path: string): Promise<Workspace>
-  reload(): Promise<Workspace>
+  current(): Workspace;
+  loadPath(path: string): Promise<Workspace>;
+  reload(): Promise<Workspace>;
 }
 ```
 
 稳定 application surface 按领域能力组织：
 
-| 能力 | 语义 |
-| --- | --- |
-| `Query(kind, selector)` | 对 Scope、Group、Entity、Relation 执行统一 list/show/find，返回稳定 envelope。 |
-| `Graph(seeds, depth, via)` | 返回有向出边子图。 |
-| `Path(from, to, via)` | 返回一条确定的最短有向路径。 |
-| `Impact(seeds, via)` | 返回反向可达 Entity 与 Relation。 |
-| `Mutate(request)` | clone/change/validate/atomic write/reload Entity 或 Relation。 |
-| `Diff(left, right)` | 加载并归一化 selector 两侧语义子图后比较。 |
-| `Validate()` | 返回已验证 Workspace summary。 |
+| 能力                       | 语义                                                                           |
+| -------------------------- | ------------------------------------------------------------------------------ |
+| `Query(kind, selector)`    | 对 Scope、Group、Entity、Relation 执行统一 list/show/find，返回稳定 envelope。 |
+| `Graph(seeds, depth, via)` | 返回有向出边子图。                                                             |
+| `Path(from, to, via)`      | 返回一条确定的最短有向路径。                                                   |
+| `Impact(seeds, via)`       | 返回反向可达 Entity 与 Relation。                                              |
+| `Mutate(request)`          | clone/change/validate/atomic write/reload Entity 或 Relation。                 |
+| `Diff(left, right)`        | 加载并归一化 selector 两侧语义子图后比较。                                     |
+| `Validate()`               | 返回已验证 Workspace summary。                                                 |
 
 宿主与 application 的边界如下：
 
@@ -65,7 +65,6 @@ interface WorkspaceEnvironment {
 - Entity result 使用 `{key, ref?, object, source?}`。
 - Relation result 使用 `{fromKey,toKey,object,source?}`。
 - Core 和 application DTO 不暴露 graph implementation、CLI writer、exit code 或 host protocol 类型。
-
 
 ## 稳定性规则
 

@@ -27,10 +27,8 @@ function parseArgs(argv) {
         "",
         "Example:",
         "  node set_adr_status.js adr/0001-foo.md --status accepted",
-        "",
-      ].join(
-        "\n"
-      )
+        ""
+      ].join("\n")
     );
     process.exit(0);
   }
@@ -93,7 +91,7 @@ function setYamlFrontMatterStatus(lines, newStatus) {
 
 function setBulletStatus(lines, newStatus) {
   let changed = false;
-  const out = lines.map((line) => {
+  const out = lines.map(line => {
     const m = line.match(/^([*-])\s*Status:\s*(.*)$/);
     if (!m) return line;
     changed = true;
@@ -160,7 +158,7 @@ function main() {
         filePath,
         fileRelPath: toPosix(path.relative(process.cwd(), filePath)),
         status: args.status,
-        changed: true,
+        changed: true
       })}\n`
     );
   } else {

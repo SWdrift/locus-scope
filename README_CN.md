@@ -20,8 +20,8 @@ Locus Scope 将具有身份的事物及其关系组织成有边界的图。Entit
 
 Agent 可按任务选择对应 Skill：
 
-| Node.js Package 工作流 |
-| --- |
+| Node.js Package 工作流                                        |
+| ------------------------------------------------------------- |
 | [`$use-locus-scope`](.agents/skills/use-locus-scope/SKILL.md) |
 
 <details>

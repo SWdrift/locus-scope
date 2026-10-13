@@ -28,27 +28,27 @@ Options may appear before or after the command unless the command syntax states 
 
 ### Scope, Group, and Entity References
 
-| Reference | Meaning |
-| --- | --- |
-| `.` | The root Scope. |
-| `infra` | An imported Scope using the alias `infra`. |
-| `platform:infra` | A nested Import resolved through an alias chain. |
-| `.#services` | The `services` Group in the root Scope. |
-| `infra#storage` | The `storage` Group in the imported `infra` Scope. |
-| `database` | An Entity in the current Scope context. |
+| Reference        | Meaning                                                |
+| ---------------- | ------------------------------------------------------ |
+| `.`              | The root Scope.                                        |
+| `infra`          | An imported Scope using the alias `infra`.             |
+| `platform:infra` | A nested Import resolved through an alias chain.       |
+| `.#services`     | The `services` Group in the root Scope.                |
+| `infra#storage`  | The `storage` Group in the imported `infra` Scope.     |
+| `database`       | An Entity in the current Scope context.                |
 | `infra:database` | An exported Entity reached through the `infra` Import. |
 
 ### Filters
 
 A filter has the form `field<operator>value`. Multiple filters use AND semantics.
 
-| Operator | Meaning |
-| --- | --- |
-| `=` | Strict JSON equality. |
-| `!=` | Strict JSON inequality. |
-| `^=` | String starts with. |
-| `*=` | String contains. |
-| `~=` | Regular-expression match on a string. |
+| Operator | Meaning                               |
+| -------- | ------------------------------------- |
+| `=`      | Strict JSON equality.                 |
+| `!=`     | Strict JSON inequality.               |
+| `^=`     | String starts with.                   |
+| `*=`     | String contains.                      |
+| `~=`     | Regular-expression match on a string. |
 
 Values are parsed as JSON when possible; otherwise they are strings. For example, `port=5432` compares a number, while `type=postgres` compares a string. Dot paths traverse JSON objects, such as `metadata.owner=platform`; they do not index arrays. Missing fields do not match any predicate.
 
@@ -403,11 +403,10 @@ locus-scope -h
 
 ## Output and Exit Status
 
-| Result | stdout | stderr | Exit status |
-| --- | --- | --- | --- |
-| Success | Command result | Empty | `0` |
-| Invalid command or arguments | Empty | Error message | `2` |
-| Other error | Empty | Error message | `1` |
+| Result                       | stdout         | stderr        | Exit status |
+| ---------------------------- | -------------- | ------------- | ----------- |
+| Success                      | Command result | Empty         | `0`         |
+| Invalid command or arguments | Empty          | Error message | `2`         |
+| Other error                  | Empty          | Error message | `1`         |
 
 Unknown commands or options, missing arguments, unsupported option combinations, and invalid filters are argument errors. With `--json`, both success and failure output use stable JSON; failures use `{"error":"<message>"}`.
-

@@ -4,7 +4,6 @@
 
 [中文](https://github.com/SWdrift/locus-scope/blob/master/README_CN.md) | [English](https://github.com/SWdrift/locus-scope/blob/master/README.md)
 
-
 A Scope protocol and lightweight toolkit for composable Entity graphs, defining identity, relationships, scopes, and composition.
 
 Locus Scope organizes identifiable things and their relationships into bounded graphs. An Entity can represent an environment, resource, capability, code, knowledge, logical structure, or another domain object. A Scope provides ownership, naming, visibility, and composition boundaries. Each distributable npm Package corresponds to one Scope.
@@ -21,10 +20,9 @@ To create your first Scope, start with [Basic Usage](https://github.com/SWdrift/
 
 Agents can select the matching Skill by task:
 
-| Node.js Package workflow |
-| --- |
+| Node.js Package workflow                                                                                         |
+| ---------------------------------------------------------------------------------------------------------------- |
 | [`$use-locus-scope`](https://github.com/SWdrift/locus-scope/blob/master/.agents/skills/use-locus-scope/SKILL.md) |
-
 
 <details>
 <summary>Building from source</summary>

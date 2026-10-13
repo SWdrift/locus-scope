@@ -1,4 +1,4 @@
-import remarkValidateLinks from 'remark-validate-links'
+import remarkValidateLinks from "remark-validate-links";
 
 export default {
   plugins: [
@@ -6,8 +6,8 @@ export default {
       remarkValidateLinks,
       {
         repository: false,
-        root: '.'
+        root: "."
       }
     ]
   ]
-}
+};

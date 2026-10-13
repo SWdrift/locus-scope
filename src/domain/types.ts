@@ -1,4 +1,4 @@
-import { resolve } from './resolve.js';
+import { resolve } from "./resolve.js";
 export type ScopeKey = string;
 
 export interface EntityKey {
@@ -93,4 +93,3 @@ export class Workspace {
     return resolve(this, from, ref);
   }
 }
-

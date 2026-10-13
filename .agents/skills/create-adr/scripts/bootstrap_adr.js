@@ -26,7 +26,7 @@ function parseArgs(argv) {
     deciders: "",
     technicalStory: "",
     strategy: "number",
-    json: false,
+    json: false
   };
 
   for (let i = 2; i < argv.length; i++) {
@@ -60,7 +60,7 @@ function parseArgs(argv) {
           "  --first-status <text>  Status for initial ADR (default: accepted)",
           "  --strategy number|slug|auto  Filename strategy for initial ADR (default: number)",
           "  --json                 Output machine-readable JSON (default: off)",
-          "",
+          ""
         ].join("\n")
       );
       process.exit(0);
@@ -97,7 +97,9 @@ function main() {
   fs.mkdirSync(adrDir, { recursive: true });
 
   const indexFile = args.indexFile
-    ? (path.isAbsolute(args.indexFile) ? args.indexFile : path.resolve(repoRoot, args.indexFile))
+    ? path.isAbsolute(args.indexFile)
+      ? args.indexFile
+      : path.resolve(repoRoot, args.indexFile)
     : path.join(adrDir, "README.md");
 
   const indexExistedBefore = fs.existsSync(indexFile);
@@ -122,7 +124,7 @@ function main() {
     args.strategy,
     "--update-index",
     "--index-file",
-    relIndex,
+    relIndex
   ];
   if (args.deciders) cmd.push("--deciders", args.deciders);
   if (args.technicalStory) cmd.push("--technical-story", args.technicalStory);
@@ -153,7 +155,7 @@ function main() {
       indexExistedBefore,
       indexWritten,
       firstAdr: childPayload,
-      date: today,
+      date: today
     };
     process.stdout.write(`${JSON.stringify(payload)}\n`);
     return;
