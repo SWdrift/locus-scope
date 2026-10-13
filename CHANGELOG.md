@@ -8,6 +8,8 @@
 
 - 非法 diff selector 返回参数错误（CLI 退出码 2），不再误报内部错误并隐藏输入诊断。
 - graph library API 对负 depth 返回 `invalid_argument`，不再抛裸 `Error`。
+- 统一 application/domain 错误 Reason 注册、Code 映射和 CLI JSON 错误输出；公开诊断不再泄露绝对路径。
+- 将 Scope、package environment 和 mutation 的已知失败迁移到结构化错误分类，并保留底层 cause。
 
 ## [4.0.1] - 2026-10-13
 

@@ -1,7 +1,7 @@
 import { ApplicationService, compareEntityKey, entityKeyId } from './service.js';
 import type { EntityKey } from '../domain/index.js';
 import type { DiffResult, Entity, Relation, WorkspaceLoader } from './types.js';
-import { invalidArgument } from '../domain/errors.js';
+import { createError } from '../domain/errors.js';
 
 interface RelationIdentity { from: EntityKey; type: string; to: EntityKey }
 interface SemanticGraph { entities: Map<string, Entity>; relations: Map<string, Relation> }
@@ -47,20 +47,20 @@ ApplicationService.prototype.diff = async function diff(this: ApplicationService
 
 async function selectGraph(service: ApplicationService, selector: string, loadPath: WorkspaceLoader): Promise<SemanticGraph> {
   const separator = selector.indexOf(':');
-  if (separator <= 0 || separator === selector.length - 1) throw invalidArgument('scope.diff_input_invalid', 'invalid diff selector');
+  if (separator <= 0 || separator === selector.length - 1) throw createError('scope.diff_input_invalid', 'invalid diff selector');
   const kind = selector.slice(0, separator); const value = selector.slice(separator + 1);
   if (kind === 'scope') return graphForScope(service, service.resolveScope(value), '');
   if (kind === 'group') {
-    const hash = value.lastIndexOf('#'); if (hash <= 0 || hash === value.length - 1) throw invalidArgument('scope.diff_input_invalid', 'invalid group diff selector');
+    const hash = value.lastIndexOf('#'); if (hash <= 0 || hash === value.length - 1) throw createError('scope.diff_input_invalid', 'invalid group diff selector');
     return graphForScope(service, service.resolveScope(value.slice(0, hash)), value.slice(hash + 1));
   }
   if (kind === 'path') return graphForWorkspace(new ApplicationService(await loadPath(value)));
-  throw invalidArgument('scope.diff_input_invalid', 'unknown diff selector kind');
+  throw createError('scope.diff_input_invalid', 'unknown diff selector kind');
 }
 
 function graphForScope(service: ApplicationService, owner: string, group: string): SemanticGraph {
   const selected = new Set<string>(); const scope = service.workspace.scopes.get(owner);
-  if (!scope) throw new Error('scope not found');
+  if (!scope) throw createError('scope.internal', 'scope not found');
   for (const [id, entity] of scope.entities) if (!group || entity.source.group === group) selected.add(entityKeyId({ scope: owner, id }));
   return graphForKeys(service, selected);
 }

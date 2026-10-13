@@ -1,6 +1,7 @@
 import { readdir, readFile } from 'node:fs/promises';
 import type { Dirent } from 'node:fs';
 import path from 'node:path';
+import { createError, ERROR_REASON_CODES, sourceError, type ErrorReason } from './errors.js';
 
 export const MANIFEST_FILE_NAMES = ['locus.json', 'locus.yaml', 'locus.yml'] as const;
 const DEFINITION_SUFFIXES = ['.locus.json', '.locus.yaml', '.locus.yml'] as const;
@@ -26,7 +27,7 @@ function globExpression(pattern: string): RegExp {
     else if (character === '?') expression += '[^/]';
     else if (character === '[') {
       const close = pattern.indexOf(']', index + 1);
-      if (close < 0) throw new Error(`invalid character class in pattern ${pattern}`);
+      if (close < 0) throw createError('scope.definition_invalid', 'Invalid character class in ignore pattern');
       else {
         let content = pattern.slice(index + 1, close);
         if (content.startsWith('!')) content = `^${content.slice(1)}`;
@@ -35,7 +36,11 @@ function globExpression(pattern: string): RegExp {
       }
     } else expression += /[\\^$+.(){}|]/u.test(character) ? `\\${character}` : character;
   }
-  return new RegExp(`${expression}$`, 'u');
+  try { return new RegExp(`${expression}$`, 'u'); }
+  catch (error) {
+    if (!(error instanceof SyntaxError)) throw createError('scope.internal', 'Cannot compile ignore pattern', undefined, error);
+    throw createError('scope.definition_invalid', 'Invalid character class in ignore pattern', undefined, error);
+  }
 }
 
 function matches(pattern: IgnorePattern, relative: string, directory: boolean): boolean {
@@ -51,7 +56,7 @@ async function readIgnorePatterns(directory: string): Promise<IgnorePattern[]> {
     content = await readFile(filename, 'utf8');
   } catch (error) {
     if ((error as NodeJS.ErrnoException).code === 'ENOENT') return [];
-    throw new Error(`read ${filename}: ${(error as Error).message}`, { cause: error });
+    throw sourceError(error, 'Cannot read .locusignore', { file: '.locusignore' });
   }
   const patterns: IgnorePattern[] = [];
   const lines = content.split(/\r?\n/u);
@@ -59,21 +64,23 @@ async function readIgnorePatterns(directory: string): Promise<IgnorePattern[]> {
     const original = lines[index] ?? '';
     const line = original.replace(/^\uFEFF/u, '').trim();
     if (line.length === 0 || line.startsWith('#')) continue;
-    if (line.startsWith('!')) throw new Error(`${filename}:${index + 1}: negated patterns are not supported`);
-    if (line.includes('\\')) throw new Error(`${filename}:${index + 1}: ignore patterns must use '/' separators`);
+    const details = { file: '.locusignore', line: String(index + 1), field: 'pattern' };
+    if (line.startsWith('!')) throw createError('scope.definition_invalid', `.locusignore:${index + 1}: negated patterns are not supported`, details);
+    if (line.includes('\\')) throw createError('scope.definition_invalid', `.locusignore:${index + 1}: ignore patterns must use '/' separators`, details);
     const directoryOnly = line.endsWith('/');
     const anchored = line.startsWith('/');
     const value = line.replace(/^\//u, '').replace(/\/$/u, '');
     const segments = value.split('/');
     if (!value || segments.some((part) => !part || part === '.' || part === '..')) {
-      throw new Error(`${filename}:${index + 1}: invalid scope-relative ignore pattern ${JSON.stringify(original)}`);
+      throw createError('scope.definition_invalid', `.locusignore:${index + 1}: invalid scope-relative ignore pattern`, details);
     }
-    if (value.includes('**')) throw new Error(`${filename}:${index + 1}: '**' patterns are not supported`);
+    if (value.includes('**')) throw createError('scope.definition_invalid', `.locusignore:${index + 1}: '**' patterns are not supported`, details);
     try {
       const expression = globExpression(value);
       patterns.push({ value, directoryOnly, basenameOnly: !anchored && !value.includes('/'), expression });
     } catch (error) {
-      throw new Error(`${filename}:${index + 1}: invalid ignore pattern ${JSON.stringify(original)}: syntax error in pattern`, { cause: error });
+      const reason = error && typeof error === 'object' && 'reason' in error && typeof error.reason === 'string' && Object.hasOwn(ERROR_REASON_CODES, error.reason) ? error.reason as ErrorReason : 'scope.internal';
+      throw createError(reason, `.locusignore:${index + 1}: cannot compile ignore pattern`, details, error);
     }
   }
   return patterns;
@@ -88,7 +95,9 @@ function isDefinitionFile(name: string): boolean {
 }
 
 export async function discoverScopeDocuments(directory: string): Promise<DiscoveredDocuments> {
-  const entries = await readdir(directory, { withFileTypes: true });
+  let entries: Dirent[];
+  try { entries = await readdir(directory, { withFileTypes: true }); }
+  catch (error) { throw sourceError(error, 'Cannot read scope directory'); }
   const manifests = entries.filter((entry) => !entry.isDirectory() && (MANIFEST_FILE_NAMES as readonly string[]).includes(entry.name)).map((entry) => entry.name);
   const patterns = await readIgnorePatterns(directory);
   const definitions: string[] = [];
@@ -99,7 +108,9 @@ export async function discoverScopeDocuments(directory: string): Promise<Discove
       if (entry.isDirectory()) {
         if (entry.name === '.git' || entry.name === '.locus' || patterns.some((pattern) => matches(pattern, relative, true))) continue;
         const child = path.join(current, entry.name);
-        const childEntries = await readdir(child, { withFileTypes: true });
+        let childEntries: Dirent[];
+        try { childEntries = await readdir(child, { withFileTypes: true }); }
+        catch (error) { throw sourceError(error, `Cannot read scope directory ${relative}`, { file: relative }); }
         if (hasManifest(childEntries)) continue;
         await walk(child, relative, childEntries);
       } else if (!MANIFEST_FILE_NAMES.includes(entry.name as (typeof MANIFEST_FILE_NAMES)[number]) && isDefinitionFile(entry.name) && !patterns.some((pattern) => matches(pattern, relative, false))) {

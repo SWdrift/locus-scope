@@ -3,20 +3,20 @@ import { dirname, isAbsolute, join, relative, resolve, sep } from 'node:path';
 import YAML from 'yaml';
 import writeFileAtomic from 'write-file-atomic';
 import type { EntityKey, Workspace } from '../domain/index.js';
-import { ApplicationError, invalidArgument, notFound, permissionDenied } from '../domain/errors.js';
+import { ApplicationError, createError, sourceError } from '../domain/errors.js';
 import type { MutationRequest, MutationResult, WorkspaceReloader } from './types.js';
 import { ApplicationService, cloneObject, cloneValue } from './service.js';
 
 interface MutableDocument { group?: string; entities: Record<string, unknown>[]; relations: Record<string, unknown>[] }
 
 function mutationInvalid(message: string, cause?: unknown): ApplicationError {
-  return invalidArgument('scope.mutation_invalid', message, cause);
+  return createError('scope.mutation_input_invalid', message, undefined, cause);
 }
 function mutationNotFound(message: string, cause?: unknown): ApplicationError {
-  return notFound('scope.object_not_found', message, cause);
+  return createError('scope.object_not_found', message, undefined, cause);
 }
 function mutationInvalidData(message: string, cause?: unknown): ApplicationError {
-  return new ApplicationError('invalid_data', 'scope.mutation_invalid', message, { operation: 'scope.mutate' }, cause);
+  return createError('scope.mutation_invalid', message, undefined, cause);
 }
 
 function sameKey(left: EntityKey, right: EntityKey): boolean {
@@ -24,7 +24,7 @@ function sameKey(left: EntityKey, right: EntityKey): boolean {
 }
 ApplicationService.prototype.mutate = async function mutate(this: ApplicationService, request: MutationRequest, reload: WorkspaceReloader): Promise<{ result: MutationResult; workspace: Workspace }> {
   const root = this.workspace.scopes.get(this.workspace.root);
-  if (!root) throw new ApplicationError('internal', 'scope.mutation_internal', 'root scope not found', { operation: 'scope.mutate' });
+  if (!root) throw createError('scope.internal', 'root scope not found');
   if (request.kind !== 'entity' && request.kind !== 'relation') throw mutationInvalid(`unknown mutation kind ${JSON.stringify(request.kind)}`);
   if (request.action !== 'add' && request.action !== 'remove' && request.action !== 'set' && request.action !== 'unset') throw mutationInvalid(`unknown mutation action ${JSON.stringify(request.action)}`);
   const target = await mutationTarget(this, root.localPath, request);
@@ -37,7 +37,7 @@ ApplicationService.prototype.mutate = async function mutate(this: ApplicationSer
     await mkdir(dirname(target.path), { recursive: true });
     await writeFileAtomic(target.path, encoded);
   } catch (error) {
-    throw new ApplicationError('internal', 'scope.mutation_write_failed', 'mutation write failed', { operation: 'scope.mutate' }, error);
+    throw createError('scope.mutation_write_failed', 'mutation write failed', undefined, error);
   }
   let workspace: Workspace;
   try { workspace = await reload(); }
@@ -55,12 +55,16 @@ ApplicationService.prototype.mutate = async function mutate(this: ApplicationSer
       rollbackErrors.push(reloadError);
     }
     if (rollbackErrors.length > 0) {
-      throw mutationInvalidData(
+      throw createError(
+        'scope.mutation_write_failed',
         'mutation rollback failed',
+        undefined,
         new AggregateError([error, ...rollbackErrors], 'mutation rollback failed'),
       );
     }
-    throw mutationInvalidData('mutation produced invalid scope data', error);
+    if (error instanceof ApplicationError && error.code === 'invalid_data') throw mutationInvalidData('mutation produced invalid scope data', error);
+    if (error instanceof ApplicationError && error.code === 'conflict') throw createError('scope.mutation_conflict', 'mutation conflicts with existing scope data', undefined, error);
+    throw createError('scope.mutation_write_failed', 'mutation reload failed', undefined, error);
   }
   const updated = new ApplicationService(workspace);
   const result = mutationResult(updated, request, object, target.path);
@@ -83,7 +87,7 @@ async function mutationTarget(service: ApplicationService, rootPath: string, req
     let key: EntityKey;
     try { key = service.workspace.resolve(service.workspace.root, request.ref); }
     catch (error) { throw mutationNotFound(error instanceof Error ? error.message : String(error), error); }
-    if (key.scope !== service.workspace.root) throw permissionDenied('scope.object_read_only', `dependency entity ${JSON.stringify(request.ref)} is read-only`);
+    if (key.scope !== service.workspace.root) throw createError('scope.object_read_only', 'dependency entity is read-only', { reference: request.ref });
     const entity = service.workspace.scopes.get(key.scope)?.entities.get(key.id);
     if (!entity) throw mutationNotFound(`entity ${JSON.stringify(request.ref)} not found`);
     await ensureMutationPath(rootPath, entity.source.path);
@@ -100,7 +104,7 @@ async function mutationTarget(service: ApplicationService, rootPath: string, req
   }
   for (const relation of service.workspace.relations) {
     if (sameKey(relation.from, from) && relation.type === request.type && sameKey(relation.to, to)) {
-      if (relation.source.scope !== service.workspace.root) throw permissionDenied('scope.object_read_only', 'dependency relation is read-only');
+      if (relation.source.scope !== service.workspace.root) throw createError('scope.object_read_only', 'dependency relation is read-only');
       await ensureMutationPath(rootPath, relation.source.path);
       return { path: relation.source.path, localId: '', relationIndex: (relation.source.index ?? 1) - 1 };
     }
@@ -110,18 +114,18 @@ async function mutationTarget(service: ApplicationService, rootPath: string, req
 
 async function ensureMutationPath(root: string, target: string): Promise<void> {
   const rootAbsolute = resolve(root); const targetAbsolute = resolve(target);
-  const rootReal = await realpath(rootAbsolute).catch(error => { throw mutationInvalid('mutation root is unavailable', error); });
+  const rootReal = await realpath(rootAbsolute).catch(error => { throw sourceError(error, 'mutation root is unavailable'); });
   let probe = targetAbsolute; const suffix: string[] = [];
   for (;;) {
     try { await lstat(probe); break; }
     catch (error) {
-      if ((error as NodeJS.ErrnoException).code !== 'ENOENT') throw mutationInvalid('mutation path is unavailable', error);
+      if ((error as NodeJS.ErrnoException).code !== 'ENOENT') throw sourceError(error, 'mutation path is unavailable');
       const parent = dirname(probe);
       if (parent === probe) throw mutationInvalid('definition path must remain inside root Scope');
       suffix.push(probe.slice(parent.length + (parent.endsWith(sep) ? 0 : 1))); probe = parent;
     }
   }
-  let candidate = await realpath(probe).catch(error => { throw mutationInvalid('mutation path is unavailable', error); });
+  let candidate = await realpath(probe).catch(error => { throw sourceError(error, 'mutation path is unavailable'); });
   for (let index = suffix.length - 1; index >= 0; index -= 1) candidate = join(candidate, suffix[index] as string);
   const rel = relative(rootReal, candidate);
   if (rel === '..' || rel.startsWith(`..${sep}`) || isAbsolute(rel)) throw mutationInvalid('definition path must remain inside root Scope');
@@ -131,8 +135,10 @@ async function rejectNestedScope(root: string, target: string): Promise<void> {
   const rootAbsolute = resolve(root); let directory = dirname(resolve(target));
   while (directory !== rootAbsolute) {
     for (const name of ['locus.yaml', 'locus.yml', 'locus.json']) {
-      try { await lstat(join(directory, name)); throw mutationInvalid('definition path enters nested Scope'); }
-      catch (error) { if ((error as NodeJS.ErrnoException).code !== 'ENOENT') throw error; }
+      let exists = false;
+      try { await lstat(join(directory, name)); exists = true; }
+      catch (error) { if ((error as NodeJS.ErrnoException).code !== 'ENOENT') throw sourceError(error, 'inspect nested Scope failed'); }
+      if (exists) throw mutationInvalid('definition path enters nested Scope');
     }
     const parent = dirname(directory);
     if (parent === directory || directory.length < rootAbsolute.length) throw mutationInvalid('definition path must remain inside root Scope');
@@ -145,7 +151,7 @@ async function readMutableDocument(path: string): Promise<{ document: MutableDoc
   try { data = await readFile(path); }
   catch (error) {
     if ((error as NodeJS.ErrnoException).code === 'ENOENT') return { document: { entities: [], relations: [] }, existed: false };
-    throw new ApplicationError('internal', 'scope.mutation_read_failed', 'read definition failed', { operation: 'scope.mutate' }, error);
+    throw sourceError(error, 'read definition failed');
   }
   let parsed: unknown;
   try { parsed = path.endsWith('.json') ? JSON.parse(data.toString('utf8')) : YAML.parse(data.toString('utf8')); }
@@ -173,7 +179,7 @@ function mutateEntity(document: MutableDocument, request: MutationRequest, local
     const id = object.id;
     if (typeof id !== 'string' || !id.trim()) throw mutationInvalid('entity id is required');
     const local = localEntityID(id, document.group);
-    if (document.entities.some(item => item.id === local)) throw new ApplicationError('conflict', 'scope.object_exists', 'entity already exists');
+    if (document.entities.some(item => item.id === local)) throw createError('scope.entity_duplicate', 'entity already exists', { reference: id });
     object.id = local;
     document.entities.push(object);
     const result = cloneObject(object);
@@ -192,6 +198,7 @@ function mutateRelation(document: MutableDocument, request: MutationRequest, ind
     const object = cloneObject(request.object ?? {});
     applyFields(object, request.fields ?? {});
     for (const field of ['from', 'type', 'to']) if (typeof object[field] !== 'string' || !(object[field] as string).trim()) throw mutationInvalid(`relation ${field} is required`);
+    if (document.relations.some(item => item.from === object.from && item.type === object.type && item.to === object.to)) throw createError('scope.relation_duplicate', 'relation already exists');
     document.relations.push(object);
     return cloneObject(object);
   }
@@ -211,7 +218,7 @@ function applyObjectMutation(object: Record<string, unknown>, request: MutationR
   }
   if (request.action === 'unset') {
     for (const field of request.unset ?? []) {
-      if (protectedFields[field]) throw mutationInvalid(`structural field ${JSON.stringify(field)} cannot be changed`);
+      if (protectedFields[field]) throw createError('scope.field_invalid', 'structural field cannot be changed', { field });
       unsetPath(object, field);
     }
     return;
@@ -220,7 +227,7 @@ function applyObjectMutation(object: Record<string, unknown>, request: MutationR
 }
 function applyFields(object: Record<string, unknown>, fields: Record<string, unknown>, protectedFields?: Readonly<Record<string, true>>): void {
   for (const [path, value] of Object.entries(fields)) {
-    if (protectedFields?.[path]) throw mutationInvalid(`structural field ${JSON.stringify(path)} cannot be changed`);
+    if (protectedFields?.[path]) throw createError('scope.field_invalid', 'structural field cannot be changed', { field: path });
     setPath(object, path, value);
   }
 }
@@ -236,7 +243,7 @@ function mergeMap(target: Record<string, unknown>, patch: Record<string, unknown
 }
 function setPath(object: Record<string, unknown>, fieldPath: string, value: unknown): void {
   const parts = fieldPath.split('.');
-  if (!fieldPath || parts.some(part => !part)) throw mutationInvalid('invalid field path');
+  if (!fieldPath || parts.some(part => !part)) throw createError('scope.field_invalid', 'invalid field path', { field: fieldPath });
   let current = object;
   for (const part of parts.slice(0, -1)) {
     const existing = current[part];
@@ -244,21 +251,21 @@ function setPath(object: Record<string, unknown>, fieldPath: string, value: unkn
       current[part] = {};
       current = current[part] as Record<string, unknown>;
     } else if (existing && typeof existing === 'object' && !Array.isArray(existing)) current = existing as Record<string, unknown>;
-    else throw mutationInvalid('field path crosses non-object');
+    else throw createError('scope.field_invalid', 'field path crosses non-object', { field: fieldPath });
   }
   current[parts[parts.length - 1] as string] = cloneValue(value);
 }
 function unsetPath(object: Record<string, unknown>, fieldPath: string): void {
   const parts = fieldPath.split('.');
-  if (!fieldPath || parts.some(part => !part)) throw mutationInvalid('invalid field path');
+  if (!fieldPath || parts.some(part => !part)) throw createError('scope.field_invalid', 'invalid field path', { field: fieldPath });
   let current = object;
   for (const part of parts.slice(0, -1)) {
     const existing = current[part];
-    if (!existing || typeof existing !== 'object' || Array.isArray(existing)) throw mutationInvalid('field does not exist');
+    if (!existing || typeof existing !== 'object' || Array.isArray(existing)) throw createError('scope.field_invalid', 'field does not exist', { field: fieldPath });
     current = existing as Record<string, unknown>;
   }
   const leaf = parts[parts.length - 1] as string;
-  if (!(leaf in current)) throw mutationInvalid('field does not exist');
+  if (!(leaf in current)) throw createError('scope.field_invalid', 'field does not exist', { field: fieldPath });
   delete current[leaf];
 }
 function localEntityID(id: string, group: string | undefined): string {

@@ -35,8 +35,8 @@
 
 - [x] 按调用输入、Source/package 加载、Workspace 数据、查询、Mutation、未分类故障重排 Reason 文档。
 - [x] 为现有和新增 Reason 补充解释、Code 归属和公开诊断规则。
-- [ ] 盘点代码中所有 Reason 引用，建立“代码引用 ↔ 协议声明”一一对应检查。
-- [ ] 将 domain/application 的裸 Error 迁移到正确的错误工厂和 Reason。
-- [ ] 统一 CLI 普通文本与 `--json` 错误输出，加入路径脱敏和稳定 details。
-- [ ] 增加每个错误 Code 的 CLI/application 行为测试，覆盖退出码、Reason、message 和敏感信息过滤。
-- [ ] 验证完整 unit、E2E、本地 tarball consumer；确认不存在未引用 Reason、非法 Code 或未分类用户输入错误。
+- [x] 盘点代码中所有 Reason 引用，建立“代码引用 ↔ 协议声明”一一对应检查；`pnpm run check:error-contract` 强制校验。
+- [x] 将 domain/application 的裸 Error 迁移到正确的错误工厂和 Reason。
+- [x] 统一 CLI 普通文本与 `--json` 错误输出，加入路径脱敏和稳定 details。
+- [x] 增加每个错误 Code 的 CLI/application 行为测试，覆盖退出码、Reason、message 和敏感信息过滤。
+- [x] 验证完整 unit、E2E、本地 tarball consumer；确认不存在未引用 Reason、非法 Code 或未分类用户输入错误。

@@ -1,3 +1,5 @@
+import { createError } from './errors.js';
+
 export const FilterEqual = '=';
 export const FilterNotEqual = '!=';
 export const FilterPrefix = '^=';
@@ -11,22 +13,22 @@ export function parseFilters(argumentsList: string[]): Predicate[] {
   const predicates: Predicate[] = [];
   for (const argument of argumentsList) {
     const found = findFilterOperator(argument);
-    if (!found || found.index <= 0) throw new Error(`invalid filter ${JSON.stringify(argument)}`);
+    if (!found || found.index <= 0) throw createError('scope.filter_invalid', 'Filter requires a field and an operator');
     let field = argument.slice(0, found.index);
     const valueText = argument.slice(found.index + found.operator.length);
     const metadata = field.startsWith('@');
     if (metadata) field = field.slice(1);
     const parts = field.split('.');
-    if (parts.some((part) => part.length === 0)) throw new Error(`invalid filter path ${JSON.stringify(argument.slice(0, found.index))}`);
+    if (parts.some((part) => part.length === 0)) throw createError('scope.filter_invalid', 'Filter field path contains an empty segment');
     let value: unknown;
     try { value = JSON.parse(valueText); } catch { value = valueText; }
     if (found.operator === FilterPrefix || found.operator === FilterContains || found.operator === FilterRegexp) {
-      if (typeof value !== 'string') throw new Error(`filter ${JSON.stringify(argument)} requires a string value`);
+      if (typeof value !== 'string') throw createError('scope.filter_invalid', 'Filter operator requires a string value');
     }
     let regexp: RegExp | undefined;
     if (found.operator === FilterRegexp) {
       try { regexp = new RegExp(value as string); }
-      catch (error) { throw new Error(`invalid regexp in filter ${JSON.stringify(argument)}: ${(error as Error).message}`, { cause: error }); }
+      catch (error) { throw createError(error instanceof SyntaxError ? 'scope.filter_invalid' : 'scope.internal', 'Cannot compile filter regular expression', undefined, error); }
     }
     predicates.push({ path: parts, metadata, operator: found.operator, value, ...(regexp ? { regexp } : {}) });
   }

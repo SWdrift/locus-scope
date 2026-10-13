@@ -2,6 +2,7 @@ import { readFile, realpath, stat } from 'node:fs/promises';
 import { createRequire } from 'node:module';
 import path from 'node:path';
 import { pathToFileURL } from 'node:url';
+import { createError, sourceError } from './domain/errors.js';
 
 const PACKAGE_NAME = /^(?:@[a-z0-9][a-z0-9._~-]*\/)?[a-z0-9][a-z0-9._~-]*$/;
 const PACKAGE_VERSION = /^(0|[1-9]\d*)\.(0|[1-9]\d*)\.(0|[1-9]\d*)(?:-[0-9A-Za-z-]+(?:\.[0-9A-Za-z-]+)*)?(?:\+[0-9A-Za-z-]+(?:\.[0-9A-Za-z-]+)*)?$/;
@@ -14,14 +15,14 @@ export type PackageDescriptor = { root: string; entry: string; dependencies: Rec
 export type PackageEnvironment = { rootScope: string; rootDependencies: Record<string, string>; packages: Record<string, PackageDescriptor> };
 
 export async function buildPackageEnvironment(scopeRoot: string): Promise<PackageEnvironment> {
-  const canonicalScopeRoot = await realpath(scopeRoot);
+  const canonicalScopeRoot = await canonicalPath(scopeRoot);
   const rootPackageJson = path.join(canonicalScopeRoot, 'package.json');
   const rootManifest = await readOptionalPackageJson(rootPackageJson);
   if (rootManifest === null) return { rootScope: canonicalScopeRoot, rootDependencies: {}, packages: {} };
   const rootDependencies = dependencyNames(rootManifest, rootPackageJson);
   const occurrences = new Map<string, Occurrence>();
   const visitLocusPackage = async (record: PackageRecord): Promise<string> => {
-    const root = await realpath(path.dirname(record.packageJson));
+    const root = await canonicalPath(path.dirname(record.packageJson));
     const cached = occurrences.get(root);
     if (cached) return cached.identity;
     const { name, version } = packageCoordinates(record.manifest, record.packageJson);
@@ -44,10 +45,10 @@ export async function buildPackageEnvironment(scopeRoot: string): Promise<Packag
   }
   const byIdentity = new Map<string, Occurrence>();
   for (const occurrence of occurrences.values()) {
-    if (occurrence.dependencies === null) throw new Error(`dependency traversal did not complete for ${occurrence.identity}`);
+    if (occurrence.dependencies === null) throw createError('scope.internal', 'dependency traversal did not complete', { reference: occurrence.identity });
     const existing = byIdentity.get(occurrence.identity);
     if (!existing) byIdentity.set(occurrence.identity, occurrence);
-    else if (existing.entry !== occurrence.entry || JSON.stringify(existing.dependencies) !== JSON.stringify(occurrence.dependencies)) throw new Error(`conflicting npm package copies for ${occurrence.identity}: locus.entry or resolved Locus dependencies differ`);
+    else if (existing.entry !== occurrence.entry || JSON.stringify(existing.dependencies) !== JSON.stringify(occurrence.dependencies)) throw createError('scope.package_invalid', 'conflicting npm package copies have different entries or resolved dependencies', { reference: occurrence.identity });
     else if (occurrence.root < existing.root) byIdentity.set(occurrence.identity, occurrence);
   }
   const packages: Record<string, PackageDescriptor> = {};
@@ -56,36 +57,93 @@ export async function buildPackageEnvironment(scopeRoot: string): Promise<Packag
 }
 
 async function resolveDependency(importerPackageJson: string, dependency: string): Promise<PackageRecord | null> {
-  validatePackageName(dependency, `dependency of ${JSON.stringify(importerPackageJson)}`);
+  validatePackageName(dependency, 'dependency', 'dependencies');
   const importerRequire = createRequire(pathToFileURL(importerPackageJson));
+  let packageJson: string;
   let packageJsonResolutionError: unknown;
-  try { return readResolvedPackage(importerRequire.resolve(`${dependency}/package.json`)); } catch (error) { packageJsonResolutionError = error; }
+  try { packageJson = importerRequire.resolve(`${dependency}/package.json`); }
+  catch (error) { packageJsonResolutionError = error; }
+  if (packageJsonResolutionError === undefined) return readResolvedPackage(packageJson!);
   let entry: string;
-  try { entry = importerRequire.resolve(dependency); } catch { return null; }
+  try { entry = importerRequire.resolve(dependency); } catch (error) {
+    if (errorCode(error) === 'MODULE_NOT_FOUND' || errorCode(error) === 'ERR_PACKAGE_PATH_NOT_EXPORTED') return null;
+    throw sourceError(error, 'resolve dependency failed', { reference: dependency });
+  }
   const record = await findPackageFromEntry(entry, dependency, importerPackageJson);
-  if (hasLocusMetadata(record.manifest)) throw new Error(`Locus package ${JSON.stringify(dependency)} must export "./package.json"; resolving that subpath failed: ${errorMessage(packageJsonResolutionError)}`, { cause: packageJsonResolutionError });
+  if (hasLocusMetadata(record.manifest)) throw createError('scope.package_invalid', 'Locus package must export "./package.json"', { reference: dependency }, packageJsonResolutionError);
   return record;
 }
 
-async function findPackageFromEntry(entry: string, dependency: string, importerPackageJson: string): Promise<PackageRecord> {
-  let current = path.dirname(await realpath(entry));
+async function findPackageFromEntry(entry: string, dependency: string, _importerPackageJson: string): Promise<PackageRecord> {
+  let current = path.dirname(await canonicalPath(entry));
   while (true) {
     const packageJson = path.join(current, 'package.json');
     const manifest = await readOptionalPackageJson(packageJson);
-    if (manifest !== null) { validatePackageName(manifest.name, `package manifest ${JSON.stringify(packageJson)}`); if (manifest.name === dependency) return { packageJson: await realpath(packageJson), manifest }; }
+    if (manifest !== null) { validatePackageName(manifest.name, 'package manifest', 'name'); if (manifest.name === dependency) return { packageJson: await canonicalPath(packageJson), manifest }; }
     const parent = path.dirname(current);
-    if (parent === current) throw new Error(`resolved dependency ${JSON.stringify(dependency)} from ${JSON.stringify(importerPackageJson)}, but could not locate its package.json`);
+    if (parent === current) throw createError('scope.dependency_unresolved', 'resolved dependency has no package manifest', { reference: dependency });
     current = parent;
   }
 }
-async function readResolvedPackage(packageJson: string): Promise<PackageRecord> { const canonical = await realpath(packageJson); const manifest = await readPackageJson(canonical); validatePackageName(manifest.name, `package manifest ${JSON.stringify(canonical)}`); return { packageJson: canonical, manifest }; }
-async function readOptionalPackageJson(filename: string): Promise<PackageManifest | null> { try { return await readPackageJson(filename); } catch (error) { if (errorCode(error) === 'ENOENT') return null; throw error; } }
-async function readPackageJson(filename: string): Promise<PackageManifest> { let source: string; try { source = await readFile(filename, 'utf8'); } catch (error) { throw new Error(`read package manifest ${JSON.stringify(filename)}: ${errorMessage(error)}`, { cause: error }); } let manifest: unknown; try { manifest = JSON.parse(source); } catch (error) { throw new Error(`parse package manifest ${JSON.stringify(filename)}: ${errorMessage(error)}`, { cause: error }); } if (manifest === null || typeof manifest !== 'object' || Array.isArray(manifest)) throw new Error(`package manifest ${JSON.stringify(filename)} must contain a JSON object`); return manifest as PackageManifest; }
-function packageCoordinates(manifest: PackageManifest, filename: string): { name: string; version: string } { validatePackageName(manifest.name, `package manifest ${JSON.stringify(filename)}`); if (typeof manifest.version !== 'string' || !PACKAGE_VERSION.test(manifest.version)) throw new Error(`package manifest ${JSON.stringify(filename)} has invalid semantic version ${JSON.stringify(manifest.version)}`); return { name: manifest.name, version: manifest.version }; }
-function dependencyNames(manifest: PackageManifest, filename: string): string[] { if (manifest.dependencies === undefined) return []; if (manifest.dependencies === null || typeof manifest.dependencies !== 'object' || Array.isArray(manifest.dependencies)) throw new Error(`package manifest ${JSON.stringify(filename)} dependencies must be an object`); const dependencies = manifest.dependencies as Record<string, unknown>; const names = Object.keys(dependencies).sort(); for (const name of names) { validatePackageName(name, `dependencies in ${JSON.stringify(filename)}`); if (typeof dependencies[name] !== 'string' || dependencies[name] === '') throw new Error(`dependency ${JSON.stringify(name)} in ${JSON.stringify(filename)} must have a non-empty string specifier`); } return names; }
-function validatePackageName(name: unknown, context: string): asserts name is string { if (typeof name !== 'string' || !PACKAGE_NAME.test(name)) throw new Error(`${context} has invalid npm package name ${JSON.stringify(name)}`); }
+async function canonicalPath(filename: string): Promise<string> {
+  try { return await realpath(filename); }
+  catch (error) { throw sourceError(error, 'resolve package source failed'); }
+}
+async function readResolvedPackage(packageJson: string): Promise<PackageRecord> {
+  const canonical = await canonicalPath(packageJson);
+  const manifest = await readPackageJson(canonical);
+  validatePackageName(manifest.name, 'package manifest', 'name');
+  return { packageJson: canonical, manifest };
+}
+async function readOptionalPackageJson(filename: string): Promise<PackageManifest | null> {
+  try { return await readPackageJson(filename); }
+  catch (error) { if (errorCode(error) === 'ENOENT') return null; throw error; }
+}
+async function readPackageJson(filename: string): Promise<PackageManifest> {
+  let source: string;
+  try { source = await readFile(filename, 'utf8'); }
+  catch (error) { throw sourceError(error, 'read package manifest failed', { file: 'package.json' }); }
+  let manifest: unknown;
+  try { manifest = JSON.parse(source); }
+  catch (error) { throw createError('scope.package_invalid', 'parse package manifest failed', { file: 'package.json' }, error); }
+  if (manifest === null || typeof manifest !== 'object' || Array.isArray(manifest)) throw createError('scope.package_invalid', 'package manifest must contain a JSON object', { file: 'package.json' });
+  return manifest as PackageManifest;
+}
+function packageCoordinates(manifest: PackageManifest, _filename: string): { name: string; version: string } {
+  validatePackageName(manifest.name, 'package manifest', 'name');
+  if (typeof manifest.version !== 'string' || !PACKAGE_VERSION.test(manifest.version)) throw createError('scope.package_invalid', 'package manifest has an invalid semantic version', { field: 'version' });
+  return { name: manifest.name, version: manifest.version };
+}
+function dependencyNames(manifest: PackageManifest, _filename: string): string[] {
+  if (manifest.dependencies === undefined) return [];
+  if (manifest.dependencies === null || typeof manifest.dependencies !== 'object' || Array.isArray(manifest.dependencies)) throw createError('scope.package_invalid', 'package dependencies must be an object', { field: 'dependencies' });
+  const dependencies = manifest.dependencies as Record<string, unknown>;
+  const names = Object.keys(dependencies).sort();
+  for (const name of names) {
+    validatePackageName(name, 'dependency', 'dependencies');
+    if (typeof dependencies[name] !== 'string' || dependencies[name] === '') throw createError('scope.package_invalid', 'dependency must have a non-empty string specifier', { field: 'dependencies', reference: name });
+  }
+  return names;
+}
+function validatePackageName(name: unknown, context: string, field: string): asserts name is string {
+  if (typeof name !== 'string' || !PACKAGE_NAME.test(name)) throw createError('scope.package_invalid', `${context} has an invalid npm package name`, { field });
+}
 function hasLocusMetadata(manifest: PackageManifest): boolean { return Object.prototype.hasOwnProperty.call(manifest, 'locus'); }
-async function validateLocusEntry(manifest: PackageManifest, root: string, packageJson: string): Promise<string> { const locus = manifest.locus; if (locus === null || typeof locus !== 'object' || Array.isArray(locus) || typeof (locus as { entry?: unknown }).entry !== 'string' || (locus as { entry: string }).entry === '') throw new Error(`Locus package ${JSON.stringify(packageJson)} must declare a non-empty locus.entry string`); const declared = (locus as { entry: string }).entry; if (declared.includes('\\') || path.posix.isAbsolute(declared) || /^[A-Za-z]:\//.test(declared)) throw new Error(`locus.entry ${JSON.stringify(declared)} in ${JSON.stringify(packageJson)} must be a relative slash path`); const entry = path.posix.normalize(declared.replace(/^\.\//, '')); if (entry === '.' || entry === '..' || entry.startsWith('../')) throw new Error(`locus.entry ${JSON.stringify(declared)} in ${JSON.stringify(packageJson)} escapes the package root`); if (!SCOPE_MANIFEST_NAMES.has(path.posix.basename(entry))) throw new Error(`locus.entry ${JSON.stringify(declared)} in ${JSON.stringify(packageJson)} is not a Scope manifest`); const entryPath = path.join(root, ...entry.split('/')); let entryInfo; let canonicalEntry; try { [entryInfo, canonicalEntry] = await Promise.all([stat(entryPath), realpath(entryPath)]); } catch (error) { throw new Error(`inspect locus.entry ${JSON.stringify(entryPath)}: ${errorMessage(error)}`, { cause: error }); } if (!entryInfo.isFile() || escapesRoot(root, canonicalEntry)) throw new Error(`locus.entry ${JSON.stringify(declared)} in ${JSON.stringify(packageJson)} must be a file inside the package root`); return entry; }
+async function validateLocusEntry(manifest: PackageManifest, root: string, _packageJson: string): Promise<string> {
+  const locus = manifest.locus;
+  if (locus === null || typeof locus !== 'object' || Array.isArray(locus) || typeof (locus as { entry?: unknown }).entry !== 'string' || (locus as { entry: string }).entry === '') throw createError('scope.package_invalid', 'Locus package must declare a non-empty locus.entry string', { field: 'locus.entry' });
+  const declared = (locus as { entry: string }).entry;
+  if (declared.includes('\\') || path.posix.isAbsolute(declared) || /^[A-Za-z]:\//.test(declared)) throw createError('scope.package_invalid', 'locus.entry must be a relative slash path', { field: 'locus.entry' });
+  const entry = path.posix.normalize(declared.replace(/^\.\//, ''));
+  if (entry === '.' || entry === '..' || entry.startsWith('../')) throw createError('scope.package_invalid', 'locus.entry escapes the package root', { field: 'locus.entry' });
+  if (!SCOPE_MANIFEST_NAMES.has(path.posix.basename(entry))) throw createError('scope.package_invalid', 'locus.entry must name a Scope manifest', { field: 'locus.entry' });
+  const entryPath = path.join(root, ...entry.split('/'));
+  let entryInfo;
+  let canonicalEntry;
+  try { [entryInfo, canonicalEntry] = await Promise.all([stat(entryPath), realpath(entryPath)]); }
+  catch (error) { throw sourceError(error, 'inspect locus.entry failed', { file: entry }); }
+  if (!entryInfo.isFile() || escapesRoot(root, canonicalEntry)) throw createError('scope.package_invalid', 'locus.entry must be a file inside the package root', { field: 'locus.entry' });
+  return entry;
+}
 function escapesRoot(root: string, candidate: string): boolean { const relative = path.relative(root, candidate); return relative === '..' || relative.startsWith(`..${path.sep}`) || path.isAbsolute(relative); }
-function errorMessage(error: unknown): string { return error instanceof Error ? error.message : String(error); }
 function errorCode(error: unknown): unknown { return typeof error === 'object' && error !== null && 'cause' in error && typeof error.cause === 'object' && error.cause !== null && 'code' in error.cause ? error.cause.code : typeof error === 'object' && error !== null && 'code' in error ? error.code : undefined; }

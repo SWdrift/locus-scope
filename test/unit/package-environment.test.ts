@@ -3,6 +3,7 @@ import { mkdir, rm, writeFile } from 'node:fs/promises';
 import path from 'node:path';
 import { test } from 'node:test';
 import { buildPackageEnvironment } from '../../src/package-environment.js';
+import { ApplicationError } from '../../src/domain/errors.js';
 import { load, secureEntry } from '../../src/packageenv.js';
 
 async function writeJson(filename: string, value: unknown): Promise<void> {
@@ -63,7 +64,7 @@ test('rejects inherited package identity properties', async () => {
     await writeFile(path.join(root, 'locus.yaml'), 'id: consumer\n');
     await assert.rejects(
       load({ rootScope: root, rootDependencies: { toString: 'npm:missing@1.0.0' }, packages: {} }),
-      /targets missing package/,
+      error => error instanceof ApplicationError && error.reason === 'scope.dependency_unresolved',
     );
   } finally {
     await rm(root, { recursive: true, force: true });

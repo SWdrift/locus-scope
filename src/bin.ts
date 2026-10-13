@@ -5,6 +5,7 @@ import { findScope, loadDefinitionFile } from './domain/index.js';
 import { load as loadWorkspace, type Environment } from './packageenv.js';
 import { buildPackageEnvironment } from './package-environment.js';
 import { ApplicationService } from './application/index.js';
+import { createError } from './domain/errors.js';
 
 let version = process.env.LOCUS_SCOPE_VERSION ?? process.env.npm_package_version;
 if (!version) {
@@ -32,7 +33,7 @@ const exitCode = await main(process.argv.slice(2), {
     return new ApplicationService(await loadWorkspace(environment));
   },
   reloadWorkspace: async () => {
-    if (!currentEnvironment) throw new Error('Scope environment is unavailable');
+    if (!currentEnvironment) throw createError('scope.internal', 'Scope environment is unavailable')
     return loadWorkspace(currentEnvironment);
   },
   loadPath,

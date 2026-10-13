@@ -15,6 +15,7 @@ import {
   type Source,
   type Workspace,
 } from '../../src/domain/index.js';
+import { ApplicationError } from '../../src/domain/errors.js';
 
 const fixtureRoot = path.resolve('test/e2e/case');
 const stateRoot = path.resolve('temp/e2e-run/domain');
@@ -104,9 +105,7 @@ test('TestMultilevelReexportKeepsOriginalOwnership', async () => {
   assert.notEqual(resolved.scope, workspace.root);
   assert.throws(
     () => workspace.resolve(workspace.root, 'app:infra:secret'),
-    error => error instanceof Error &&
-      error.message.includes('scope "app"') &&
-      error.message.includes('does not export "infra:secret"'),
+    error => error instanceof ApplicationError && error.reason === 'scope.object_not_found',
   );
 });
 
@@ -166,19 +165,19 @@ test('TestResolverSourceKeyDefinesIdentityAcrossMaterializations', async () => {
   assert.deepEqual(resolved[0], { scope: packageKey, id: 'item' });
 });
 
-test('TestValidationDiagnostics: diagnostics retain filename, line, and context', async () => {
-  const cases: Array<{ name: string; want: string[] }> = [
-    { name: 'duplicate-expanded', want: ['team.locus.yaml', 'entity "team/worker"', 'after group expansion'] },
-    { name: 'missing-relation', want: ['entities.locus.yaml', 'relation "source points_to absent"', 'end reference "absent"'] },
-    { name: 'validation/missing-manifest', want: ['manifest missing', 'locus.yaml'] },
-    { name: 'validation/duplicate-manifest', want: ['multiple manifests', 'locus.json', 'locus.yaml'] },
-    { name: 'validation/missing-scope-id', want: ['locus.yaml', 'scope id is required'] },
-    { name: 'validation/missing-entity-id', want: ['entities.locus.yaml', 'line 2', 'entity 1', 'id is required'] },
-    { name: 'validation/missing-import', want: ['locus.yaml', 'import "absent"', 'does-not-exist'] },
-    { name: 'validation/missing-projection', want: ['locus.yaml', 'export "ghost:item"', 'does not import projection "ghost"'] },
-    { name: 'validation/malformed-relation', want: ['entities.locus.yaml', 'line 4', 'relation from, type, and to must be non-empty strings'] },
-    { name: 'validation/relation-tuple', want: ['entities.locus.yaml', 'line 5', 'relation must be an object'] },
-    { name: 'validation/invalid-locusignore', want: ['.locusignore:1', 'invalid ignore pattern', 'syntax error in pattern'] },
+test('TestValidationDiagnostics: diagnostics retain structured reasons and safe details', async () => {
+  const cases: Array<{ name: string; reason: ApplicationError['reason'] }> = [
+    { name: 'duplicate-expanded', reason: 'scope.entity_duplicate' },
+    { name: 'missing-relation', reason: 'scope.relation_end_unresolved' },
+    { name: 'validation/missing-manifest', reason: 'scope.manifest_missing' },
+    { name: 'validation/duplicate-manifest', reason: 'scope.manifest_ambiguous' },
+    { name: 'validation/missing-scope-id', reason: 'scope.manifest_invalid' },
+    { name: 'validation/missing-entity-id', reason: 'scope.entity_id_invalid' },
+    { name: 'validation/missing-import', reason: 'scope.source_not_found' },
+    { name: 'validation/missing-projection', reason: 'scope.export_unresolved' },
+    { name: 'validation/malformed-relation', reason: 'scope.relation_invalid' },
+    { name: 'validation/relation-tuple', reason: 'scope.relation_invalid' },
+    { name: 'validation/invalid-locusignore', reason: 'scope.definition_invalid' },
   ];
 
   for (const item of cases) {
@@ -192,11 +191,9 @@ test('TestValidationDiagnostics: diagnostics retain filename, line, and context'
         return caught;
       }
     })();
-    assert.ok(error instanceof Error, `${item.name} unexpectedly loaded`);
-    for (const fragment of item.want) {
-      const escaped = fragment.replace(/[.*+?^${}()|[\]\\]/gu, '\\$&');
-      assert.match(error.message, new RegExp(escaped, 'u'));
-    }
+    assert.ok(error instanceof ApplicationError, `${item.name} unexpectedly loaded`);
+    assert.equal(error.reason, item.reason, item.name);
+    assert.equal(Object.values(error.details ?? {}).some(value => value.includes('file://') || /[A-Za-z]:[\\/]/u.test(value)), false, item.name);
   }
 });
 
@@ -226,7 +223,7 @@ test('TestFilterStrictNestedAndMetadataSemantics', () => {
   for (const filters of [['missing!=value'], ['replicas*=three'], ['labels*=prod'], ['@scope=dependency']]) {
     assert.equal(Match(object, metadata, ParseFilters(filters)), false, filters.join(','));
   }
-  assert.throws(() => ParseFilters(['id~=[']), /invalid regexp/u);
+  assert.throws(() => ParseFilters(['id~=[']), error => error instanceof ApplicationError && error.reason === 'scope.filter_invalid');
 });
 
 test('synthetic definitions preserve declaration line provenance', async () => {
@@ -247,13 +244,11 @@ test('synthetic definitions reject strict fields and multiple documents', async 
   await writeFile(filename, 'unknown: true\nentities:\n  - id: api\n');
   await assert.rejects(
     () => LoadDefinitionFile(filename),
-    error => error instanceof Error && error.message.includes(filename) && error.message.includes('unknown'),
+    error => error instanceof ApplicationError && error.reason === 'scope.definition_invalid',
   );
   await writeFile(filename, 'entities:\n  - id: api\n---\nentities:\n  - id: other\n');
   await assert.rejects(
     () => LoadDefinitionFile(filename),
-    error => error instanceof Error &&
-      error.message.includes(filename) &&
-      error.message.includes('multiple YAML/JSON documents'),
+    error => error instanceof ApplicationError && error.reason === 'scope.definition_invalid',
   );
 });

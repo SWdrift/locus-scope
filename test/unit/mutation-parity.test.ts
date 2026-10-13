@@ -132,11 +132,11 @@ test('mutation recursively merges values, preserves null, and rejects invalid po
   const original = await readFile(path.join(root, 'entities.locus.yaml'));
   await assert.rejects(
     mutate(root, { kind: 'entity', action: 'set', ref: 'api', object: {}, fields: { 'nested.nullable.value': 4 } }),
-    typedError('invalid_argument', 'scope.mutation_invalid'),
+    typedError('invalid_argument', 'scope.field_invalid'),
   );
   await assert.rejects(
     mutate(root, { kind: 'entity', action: 'unset', ref: 'api', unset: ['missing'] }),
-    typedError('invalid_argument', 'scope.mutation_invalid'),
+    typedError('invalid_argument', 'scope.field_invalid'),
   );
   assert.deepEqual(await readFile(path.join(root, 'entities.locus.yaml')), original);
 });
@@ -158,7 +158,7 @@ test('mutation rolls back export validation and removes newly-created files on r
       if (reloads === 1) throw new Error('synthetic reload failure');
       return loadAt(root);
     }),
-    typedError('invalid_data', 'scope.mutation_invalid'),
+    typedError('internal', 'scope.mutation_write_failed'),
   );
   await assert.rejects(readFile(generated));
 });
@@ -183,8 +183,8 @@ test('mutation reports rollback cleanup and reload failures', async t => {
     }),
     error => {
       assert.ok(error instanceof ApplicationError);
-      assert.equal(error.code, 'invalid_data');
-      assert.equal(error.reason, 'scope.mutation_invalid');
+      assert.equal(error.code, 'internal');
+      assert.equal(error.reason, 'scope.mutation_write_failed');
       assert.ok(error.cause instanceof AggregateError);
       assert.equal(error.cause.errors.length, 3);
       return true;
@@ -205,10 +205,10 @@ test('mutation refuses dependency writes and nested or escaping targets', async 
   });
   await assert.rejects(
     mutate(root, { kind: 'entity', action: 'add', file: 'nested/new.locus.yaml', object: { id: 'new' }, fields: {} }),
-    typedError('invalid_argument', 'scope.mutation_invalid'),
+    typedError('invalid_argument', 'scope.mutation_input_invalid'),
   );
   await assert.rejects(
     mutate(root, { kind: 'entity', action: 'add', file: '../escape.locus.yaml', object: { id: 'new' }, fields: {} }),
-    typedError('invalid_argument', 'scope.mutation_invalid'),
+    typedError('invalid_argument', 'scope.mutation_input_invalid'),
   );
 });

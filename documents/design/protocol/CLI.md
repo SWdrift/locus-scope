@@ -84,6 +84,6 @@ Entity query envelope 固定包含 `key` 和开放 `object`；仅当 root 可解
 | 其他错误 Code | 空 | 错误信息 | `1` |
 
 - 未知指令、未知参数、缺少参数、不允许的参数组合和无效 filter 归入 `invalid_argument`。
-- `--json` 同时约束成功与失败输出；成功 schema 由对应命令定义，失败保持 `{"error":"<message>"}`。
+- `--json` 同时约束成功与失败输出；失败至少包含 `error`、`code` 和 `reason`，安全的结构化上下文可通过 `details` 提供；成功 schema 由对应命令定义。
 - runtime 直接完成 Environment、Workspace 和 application 执行；不存在独立 host protocol 或平台 host package。
 - 公开输出不包含 cause、stack trace、凭据或工作区外敏感路径。

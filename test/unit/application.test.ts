@@ -103,7 +103,13 @@ test('CLI preserves default graph seeds, help alias, version text, and path erro
   assert.match(unreachable.stderr, /no directed path/);
   const missing = await run(['entity', 'missing', '--json'], context);
   assert.equal(missing.exitCode, 1);
-  assert.match(missing.stderr, /does not contain entity/);
+  const missingBody = JSON.parse(missing.stderr);
+  assert.deepEqual(missingBody, {
+    error: 'scope "app" does not contain the requested entity',
+    code: 'not_found',
+    reason: 'scope.object_not_found',
+    details: { reference: 'missing' },
+  });
 });
 
 test('CLI rejects conflicting positional and JSON mutation identity', async () => {

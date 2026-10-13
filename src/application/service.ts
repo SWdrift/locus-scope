@@ -1,5 +1,5 @@
 import { Match } from '../domain/index.js';
-import { invalidArgument, notFound } from '../domain/errors.js';
+import { createError } from '../domain/errors.js';
 import type { EntityKey, Predicate, Provenance, ScopeKey, Workspace } from '../domain/index.js';
 import type { Entity, Group, Relation, Scope, Source, ValidationResult, Predicates } from './types.js';
 
@@ -60,7 +60,7 @@ export class ApplicationService {
   getScope(reference: string, withSource = false): Scope {
     const key = this.resolveScope(reference);
     const item = this.queryScopes([], withSource).find(candidate => candidate.key === key);
-    if (!item) throw notFound('scope.object_not_found', `scope ${reference} not found`, undefined, { reference });
+    if (!item) throw createError('scope.object_not_found', `scope ${reference} not found`, { reference });
     return item;
   }
 
@@ -92,11 +92,11 @@ export class ApplicationService {
 
   getGroup(reference: string, withSource = false): Group {
     const separator = reference.lastIndexOf('#');
-    if (separator <= 0 || separator === reference.length - 1) throw invalidArgument('scope.selector_invalid', 'invalid group reference');
+    if (separator <= 0 || separator === reference.length - 1) throw createError('scope.selector_invalid', 'invalid group reference');
     const key = this.resolveScope(reference.slice(0, separator));
     const group = reference.slice(separator + 1);
     const item = this.queryGroups([], withSource).find(candidate => candidate.scope === key && candidate.object.id === group);
-    if (!item) throw notFound('scope.object_not_found', `group ${reference} not found`, undefined, { reference });
+    if (!item) throw createError('scope.object_not_found', `group ${reference} not found`, { reference });
     return item;
   }
 
@@ -121,18 +121,13 @@ export class ApplicationService {
   }
 
   getEntity(reference: string, withSource = false): Entity {
-    let key: EntityKey;
-    try {
-      key = this.workspace.resolve(this.workspace.root, reference);
-    } catch (error) {
-      throw notFound('scope.object_not_found', error instanceof Error ? error.message : String(error), error, { reference });
-    }
+    const key = this.workspace.resolve(this.workspace.root, reference);
     return this.entityByKey(key, withSource);
   }
 
   entityByKey(key: EntityKey, withSource = false): Entity {
     const item = this.queryEntities([], withSource).find(candidate => candidate.key.scope === key.scope && candidate.key.id === key.id);
-    if (!item) throw notFound('scope.object_not_found', `entity ${key.scope}#${key.id} not found`, undefined, { reference: key.id });
+    if (!item) throw createError('scope.object_not_found', 'entity not found', { reference: key.id });
     return item;
   }
 
@@ -154,7 +149,7 @@ export class ApplicationService {
     let current = this.workspace.root;
     for (const alias of reference.split(':')) {
       const next = this.workspace.scopes.get(current)?.imports.get(alias);
-      if (!next) throw notFound('scope.object_not_found', `scope reference ${reference} does not resolve at alias ${alias}`, undefined, { reference });
+      if (!next) throw createError('scope.object_not_found', `scope reference ${reference} does not resolve at alias ${alias}`, { reference });
       current = next;
     }
     return current;
@@ -165,7 +160,7 @@ export class ApplicationService {
   }
   makeSource(provenance: Provenance): Source {
     const scope = this.workspace.scopes.get(provenance.scope);
-    if (!scope) throw new Error('source scope not found');
+    if (!scope) throw createError('scope.internal', 'source scope not found');
     const result: { scope: ScopeKey; scopeId: string; file: string; group?: string; line?: number; index?: number } = { scope: provenance.scope, scopeId: scope.manifest.id, file: provenance.file };
     if (provenance.group !== undefined && provenance.group !== '') result.group = provenance.group;
     if (provenance.line !== undefined && provenance.line !== 0) result.line = provenance.line;

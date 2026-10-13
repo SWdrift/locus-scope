@@ -56,6 +56,7 @@ class ApplicationError extends Error {
 | `scope.graph_seed_invalid` | Graph/Impact 的 seed 或 stdin Entity envelope 格式错误。 |
 | `scope.field_invalid` | Mutation field 名称、路径或赋值格式错误。 |
 | `scope.diff_input_invalid` | Diff 两侧输入数量、selector 或 selector 组合格式错误。 |
+| `scope.mutation_input_invalid` | Mutation command input、JSON payload 或位置参数组合格式错误。 |
 
 ### Source 与 package 加载：`not_found`、`permission_denied`、`invalid_data`
 
