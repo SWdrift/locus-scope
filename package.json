@@ -13,6 +13,8 @@
     "test:unit": "node node_modules/tsx/dist/cli.mjs --test test/unit/*.test.ts",
     "test:e2e": "node scripts/test.mjs e2e",
     "test:node": "pnpm run test:unit",
+    "format": "prettier --write . --ignore-path .gitignore",
+    "format:check": "prettier --check . --ignore-path .gitignore",
     "check:links": "remark \"*.md\" \".agents/skills/*/SKILL.md\" \"documents/**/*.md\" \"scripts/**/*.md\" \"test/**/*.md\" \"test/e2e/case/**/.locus/**/*.md\" --frail --rc-path scripts/config/remark.config.mjs",
     "check:error-contract": "node scripts/verify-error-contract.mjs",
     "check": "pnpm run check:links",
@@ -29,6 +31,7 @@
   },
   "devDependencies": {
     "@types/node": "^24.19.2",
+    "prettier": "^3.9.10",
     "remark-cli": "^12.0.1",
     "remark-validate-links": "^13.1.0",
     "tsx": "^4.23.15",
