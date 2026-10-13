@@ -252,7 +252,7 @@ The same data can answer two other types of graph questions:
 | Compare two semantic subgraphs    | `diff <selector-a> <selector-b>`     |
 | Show declaration sources          | Append `--source` to a query command |
 
-After entering `app` or one of its subdirectories, you can omit `--scope ./app`. The default formatted JSON is suitable for interactive reading; agents, scripts, and CI can append `--json` to receive stable single-line JSON. See the [CLI Reference](4-CLI-Reference.md) for all commands, arguments, filters, mutations, and exit statuses.
+After entering `app` or one of its subdirectories, you can omit `--scope ./app`. The default formatted JSON is suitable for interactive reading; agents, scripts, and CI can append `--json` to receive stable single-line JSON. See the [CLI Reference](3-CLI-Reference.md) for all commands, arguments, filters, mutations, and exit statuses.
 
 ## Composing Local Scopes
 

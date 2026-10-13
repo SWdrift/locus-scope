@@ -43,7 +43,7 @@ TypeScript build output is written to `temp/ts-build/`; npm release tarballs are
 
 - [Basic Usage](https://github.com/SWdrift/locus-scope/blob/master/documents/1-Basic-Usage.md): Create, validate, compose, and query Scopes.
 - [Using npm](https://github.com/SWdrift/locus-scope/blob/master/documents/2-Using-npm.md): Install the unified CLI and let npm or pnpm manage Packages.
-- [CLI Reference](https://github.com/SWdrift/locus-scope/blob/master/documents/4-CLI-Reference.md): Workspace queries, graph operations, diff, mutation, output, and exit statuses.
+- [CLI Reference](https://github.com/SWdrift/locus-scope/blob/master/documents/3-CLI-Reference.md): Workspace queries, graph operations, diff, mutation, output, and exit statuses.
 
 ## License
 

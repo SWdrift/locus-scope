@@ -8,6 +8,7 @@
 
 - CLI `--json` 错误输出统一包含 `error`、`code` 和 `reason`，可选安全 `details`；Scope、package 和 mutation 错误不再统一降级为不可诊断的内部错误。
 - 加载、解析和查询错误的公开诊断改为相对路径并过滤绝对路径、凭据和内部 cause。
+- CLI Reference 文档编号统一为 `3`，修正 README 与 Basic Usage 中的链接。
 
 ## [4.0.2] - 2026-10-13
 
