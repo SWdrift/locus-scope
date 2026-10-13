@@ -44,33 +44,52 @@ class ApplicationError extends Error {
 
 ## Reason
 
-| Reason | Code |
-| --- | --- |
-| `scope.manifest_missing` | `invalid_data` |
-| `scope.manifest_ambiguous` | `invalid_data` |
-| `scope.manifest_invalid` | `invalid_data` |
-| `scope.entity_id_invalid` | `invalid_data` |
-| `scope.entity_duplicate` | `conflict` |
-| `scope.import_unresolved` | `invalid_data` |
-| `scope.export_unresolved` | `invalid_data` |
-| `scope.relation_invalid` | `invalid_data` |
-| `scope.relation_duplicate` | `conflict` |
-| `scope.relation_start_unresolved` | `invalid_data` |
-| `scope.relation_end_unresolved` | `invalid_data` |
-| `scope.source_identity_conflict` | `conflict` |
-| `scope.reference_unresolved` | `invalid_argument` |
-| `scope.selector_invalid` | `invalid_argument` |
-| `scope.filter_invalid` | `invalid_argument` |
-| `scope.graph_seed_invalid` | `invalid_argument` |
-| `scope.path_unreachable` | `not_found` |
-| `scope.object_not_found` | `not_found` |
-| `scope.object_read_only` | `permission_denied` |
-| `scope.field_invalid` | `invalid_argument` |
-| `scope.mutation_conflict` | `conflict` |
-| `scope.mutation_invalid` | `invalid_data` |
-| `scope.mutation_write_failed` | `internal` |
-| `scope.diff_input_invalid` | `invalid_argument` |
-| `scope.internal` | `internal` |
+`Reason` 是稳定的、可供程序消费的错误标识。每个 Reason 必须有唯一 Code 和明确语义；具体 message 可以改善措辞，但不得改变 Reason 的含义。
+
+| Reason | Code | 说明 |
+| --- | --- | --- |
+| `scope.manifest_missing` | `invalid_data` | Scope 目录中没有可用的 `locus.yaml`、`locus.yml` 或 `locus.json` manifest。 |
+| `scope.manifest_ambiguous` | `invalid_data` | Scope 目录中同时存在多个 manifest，无法确定唯一入口。 |
+| `scope.manifest_invalid` | `invalid_data` | Manifest 存在，但字段、类型或值不符合协议。 |
+| `scope.source_not_found` | `not_found` | 请求的 Scope source、目录或文件不存在。 |
+| `scope.source_unreadable` | `permission_denied` | Scope source 存在，但当前进程无权读取。 |
+| `scope.source_invalid` | `invalid_data` | Source 路径存在，但不是可加载的 Scope source。 |
+| `scope.definition_invalid` | `invalid_data` | Entity/Relation definition 文件无法解析，或结构不符合 definition 协议。 |
+| `scope.entity_id_invalid` | `invalid_data` | Entity 的 id 缺失、类型错误或包含禁止的内容。 |
+| `scope.entity_duplicate` | `conflict` | 同一 Scope 中出现重复的 Entity identity。 |
+| `scope.import_unresolved` | `invalid_data` | Scope import 无法解析到目标 Scope。 |
+| `scope.export_unresolved` | `invalid_data` | Scope export 引用无法解析到可导出的 Entity。 |
+| `scope.relation_invalid` | `invalid_data` | Relation 缺少必要字段，或字段类型/值不符合协议。 |
+| `scope.relation_duplicate` | `conflict` | Workspace 中出现重复的 Relation identity。 |
+| `scope.relation_start_unresolved` | `invalid_data` | Relation 的起点引用无法解析。 |
+| `scope.relation_end_unresolved` | `invalid_data` | Relation 的终点引用无法解析。 |
+| `scope.source_identity_conflict` | `conflict` | 同一个 Scope identity 指向了互相冲突的 source。 |
+| `scope.package_invalid` | `invalid_data` | npm package manifest、`locus.entry` 或 package 元数据不符合包协议。 |
+| `scope.dependency_unresolved` | `invalid_data` | 声明为 Locus package 的依赖无法解析或加载。 |
+| `scope.reference_unresolved` | `invalid_argument` | 调用提供的 Entity/Scope/Relation reference 无法解析。 |
+| `scope.selector_invalid` | `invalid_argument` | 命令 selector、位置参数、选项或参数组合格式错误。 |
+| `scope.filter_invalid` | `invalid_argument` | Filter 语法、路径、操作符或值格式错误。 |
+| `scope.graph_seed_invalid` | `invalid_argument` | Graph/Impact 的 seed 或 stdin Entity envelope 格式错误。 |
+| `scope.path_unreachable` | `not_found` | 起点和终点存在，但没有满足条件的有向路径。 |
+| `scope.object_not_found` | `not_found` | 请求的 Scope、Group、Entity 或 Relation 不存在。 |
+| `scope.object_read_only` | `permission_denied` | 请求修改只读对象或只读 source。 |
+| `scope.field_invalid` | `invalid_argument` | Mutation field 名称、路径或赋值格式错误。 |
+| `scope.mutation_conflict` | `conflict` | Mutation 与当前 identity、provenance 或 Workspace 状态冲突。 |
+| `scope.mutation_invalid` | `invalid_data` | Mutation 请求结构完整，但无法形成符合协议的数据。 |
+| `scope.mutation_write_failed` | `internal` | Mutation 已进入写入流程，但 atomic write 或 reload 失败。 |
+| `scope.diff_input_invalid` | `invalid_argument` | Diff 两侧输入数量、selector 或 selector 组合格式错误。 |
+| `scope.internal` | `internal` | 错误无法归入其他已声明 Reason，通常表示实现错误或未分类故障。 |
+
+Reason 的新增、删除或语义改变属于协议变更；仅改善 message 不属于 Reason 变更。
+
+## 公开诊断
+
+- `message` 面向人类；程序不得解析 message 判断错误类型。
+- `details` 只包含稳定、必要且非敏感的结构化上下文，例如相对文件名、Scope ref、Entity ref、字段名和行号。
+- `cause` 和 stack trace 只用于内部诊断，不进入 CLI、JSON 输出或其他外部协议。
+- 公开输出不得包含工作区绝对路径、用户目录、凭据、环境变量或其他敏感路径。
+- Scope 内文件使用相对于 Scope root 的路径；无法安全归一化的路径不得公开。
+- 同一个 Reason 的 `details` 字段语义必须保持稳定；缺失字段表示该上下文不可用，不得用空字符串伪造。
 
 ## 传播规则
 
