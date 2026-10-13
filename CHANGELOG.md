@@ -2,6 +2,13 @@
 
 本文件记录 `locus-scope` 各发布版本的用户可见变更。
 
+## [4.0.2] - 2026-10-13
+
+### Fixed
+
+- 非法 diff selector 返回参数错误（CLI 退出码 2），不再误报内部错误并隐藏输入诊断。
+- graph library API 对负 depth 返回 `invalid_argument`，不再抛裸 `Error`。
+
 ## [4.0.1] - 2026-10-13
 
 ### Fixed

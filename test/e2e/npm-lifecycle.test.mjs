@@ -144,7 +144,7 @@ async function startRegistry(environment, endpoint) {
   await mkdir(storagePath, { recursive: true })
   await mkdir(dirname(authPath), { recursive: true })
   const yamlPath = value => JSON.stringify(value.replaceAll('\\', '/'))
-  await writeFile(configPath, `storage: ${yamlPath(storagePath)}\nauth:\n  htpasswd:\n    file: ${yamlPath(authPath)}\n    max_users: 20\nuplinks:\n  npmjs:\n    url: https://registry.npmjs.org/\npackages:\n  '@example/private':\n    access: $authenticated\n    publish: $authenticated\n    unpublish: $authenticated\n  '**':\n    access: $all\n    publish: $authenticated\n    unpublish: $authenticated\n    proxy: npmjs\nlog:\n  type: stdout\n  format: pretty\n  level: http\n`)
+  await writeFile(configPath, `storage: ${yamlPath(storagePath)}\nauth:\n  htpasswd:\n    file: ${yamlPath(authPath)}\n    max_users: 20\nuplinks:\n  npmjs:\n    url: https://registry.npmjs.org/\npackages:\n  '@example/private':\n    access: $authenticated\n    publish: $authenticated\n    unpublish: $authenticated\n  '@sundw/locus-scope':\n    access: $all\n    publish: $authenticated\n    unpublish: $authenticated\n  '**':\n    access: $all\n    publish: $authenticated\n    unpublish: $authenticated\n    proxy: npmjs\nlog:\n  type: stdout\n  format: pretty\n  level: http\n`)
   const child = spawn(node, [
     join(repositoryRoot, 'node_modules', 'verdaccio', 'bin', 'verdaccio'),
     '--config', configPath, '--listen', new URL(endpoint).host,

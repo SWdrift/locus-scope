@@ -55,3 +55,14 @@ test('3.1 rootless help and version do not load application', async () => {
   assert.equal(version.exitCode, 0);
   assert.equal(loaded, false);
 });
+
+test('diff rejects malformed selectors as argument errors on either side', async () => {
+  for (const selector of ['invalid', ':app', 'scope:', 'group:app', 'group:#team', 'group:app#', 'unknown:app']) {
+    for (const selectors of [[selector, 'scope:.'], ['scope:.', selector]]) {
+      const response = await run(['diff', ...selectors, '--json'], context());
+      assert.equal(response.exitCode, 2, selector);
+      assert.equal(response.stdout, '');
+      assert.match(JSON.parse(response.stderr).error, /diff selector/, selector);
+    }
+  }
+});

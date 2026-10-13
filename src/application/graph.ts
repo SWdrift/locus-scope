@@ -1,5 +1,5 @@
 import { Match } from '../domain/index.js';
-import { notFound } from '../domain/errors.js';
+import { invalidArgument, notFound } from '../domain/errors.js';
 import type { EntityKey, Predicate, Relation as DomainRelation } from '../domain/index.js';
 import type { Entity, GraphResult, ImpactResult, PathResult, Predicates, Relation } from './types.js';
 import { ApplicationService, compareEntityKey, entityKeyId } from './service.js';
@@ -23,7 +23,7 @@ function sortedKeys(set: Set<string>, values: Map<string, EntityKey>): EntityKey
 
 
 ApplicationService.prototype.graph = function graph(this: ApplicationService, seeds: EntityKey[], depth: number, via: Predicates = [], withSource = false): GraphResult {
-  if (depth < 0) throw new Error('graph depth must be non-negative');
+  if (depth < 0) throw invalidArgument('scope.selector_invalid', 'graph depth must be non-negative');
   const adjacency = makeAdjacency(this.workspace.relations);
   const levels = new Map<string, number>(); const keyValues = new Map<string, EntityKey>(); const queue: EntityKey[] = [];
   for (const seed of seeds) {

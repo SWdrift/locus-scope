@@ -3,6 +3,7 @@ import { mkdir, readFile, rm, symlink, writeFile } from 'node:fs/promises';
 import path from 'node:path';
 import { test } from 'node:test';
 import { ApplicationService } from '../../src/application/index.js';
+import { ApplicationError } from '../../src/domain/errors.js';
 import { run } from '../../src/cli/index.js';
 import { buildPackageEnvironment } from '../../src/package-environment.js';
 import { load, type Environment } from '../../src/packageenv.js';
@@ -56,6 +57,13 @@ test('diff preserves same IDs owned by different Scopes', async () => {
   assert.equal(result.changed.relations.length, 1);
   assert.equal(result.added.entities.length, 0);
   assert.equal(result.removed.entities.length, 0);
+});
+
+test('graph rejects negative depth as an invalid argument', () => {
+  assert.throws(
+    () => new ApplicationService(fixtureWorkspace('before')).graph([], -1),
+    error => error instanceof ApplicationError && error.code === 'invalid_argument' && error.reason === 'scope.selector_invalid',
+  );
 });
 
 test('built CLI loads and validates a local Scope', async () => {
