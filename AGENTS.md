@@ -12,6 +12,7 @@
 
 - 在仓库根目录运行命令。
 - 临时文件和构建产物只能写入 `temp/`。
+- TypeScript 构建产物位于 `temp/build/{core,cli}/`；两个 npm release tarball 位于 `temp/release/npm/`。
 - internal/web/ui 可使用 `pnpm --dir internal/web/ui run format` 格式化。
 - 使用 `pnpm`。
 

@@ -1,10 +1,9 @@
-import { cp, mkdir, readFile, rm, writeFile } from "node:fs/promises";
+import { cp, mkdir, readFile, rm } from "node:fs/promises";
 import { join } from "node:path";
 import {
   ensureOrdinaryDirectory,
   isMain,
   readVersion,
-  removeOwnedDirectory,
   repositoryRoot,
   run,
   tempRoot,
@@ -12,33 +11,62 @@ import {
 } from "./lib/workspace.mjs";
 import { build } from "./build.mjs";
 
-export async function releaseNpm() {
-  const version = await readVersion();
-  const { outputRoot } = await build({ quiet: true });
-  const releaseRoot = join(tempRoot, "release", "npm");
-  const stage = join(releaseRoot, "locus-scope");
-  await removeOwnedDirectory(releaseRoot, "npm release");
+const packages = [
+  {
+    name: "core",
+    packaging: join(repositoryRoot, "packaging", "npm", "locus-scope-core")
+  },
+  {
+    name: "locus-scope",
+    packaging: join(repositoryRoot, "packaging", "npm", "locus-scope")
+  }
+];
+
+function replaceWorkspaceDependencies(manifest, version) {
+  for (const section of ["dependencies", "devDependencies", "optionalDependencies", "peerDependencies"]) {
+    for (const [name, value] of Object.entries(manifest[section] ?? {})) {
+      if (typeof value === "string" && value.startsWith("workspace:")) manifest[section][name] = version;
+    }
+  }
+}
+
+async function stagePackage(package_, outputRoot, version) {
+  const stage = join(outputRoot, package_.name);
   await mkdir(stage, { recursive: true });
-  await cp(join(repositoryRoot, "packaging", "npm", "locus-scope"), stage, {
+  await cp(package_.packaging, stage, {
     recursive: true,
-    filter: source => !source.split(/[\\/]/u).includes("node_modules")
+    filter: source => source.split(/[\\/]/u).at(-1) !== "package.json"
   });
-  await rm(join(stage, "lib"), { recursive: true, force: true });
-  await mkdir(join(stage, "lib"));
-  await cp(outputRoot, join(stage, "lib"), { recursive: true });
-  await writeFile(join(stage, "README.md"), await readFile(join(repositoryRoot, "README.md")));
-  await writeFile(
-    join(stage, "bin", "locus-scope.mjs"),
-    `#!/usr/bin/env node\nprocess.env.LOCUS_SCOPE_VERSION = ${JSON.stringify(version)}\nawait import('../lib/bin.js')\n`
-  );
-  const manifest = JSON.parse(await readFile(join(stage, "package.json"), "utf8"));
+  await readFile(join(stage, "README.md"));
+  const manifest = JSON.parse(await readFile(join(package_.packaging, "package.json"), "utf8"));
   delete manifest.private;
   manifest.version = version;
+  replaceWorkspaceDependencies(manifest, version);
   await writeJson(join(stage, "package.json"), manifest);
+  await cp(join(tempRoot, "build", package_.name === "locus-scope" ? "cli" : package_.name), join(stage, "lib"), {
+    recursive: true
+  });
+  return stage;
+}
+
+export async function releaseNpm() {
+  const version = await readVersion();
+  await build({ quiet: true });
+  const releaseRoot = join(tempRoot, "release", "npm");
+  await ensureOrdinaryDirectory(tempRoot, "release path");
+  await rm(releaseRoot, { recursive: true, force: true });
+  await mkdir(releaseRoot, { recursive: true });
   const pnpmEntrypoint = process.env.npm_execpath;
   if (!pnpmEntrypoint) throw new Error("pnpm entrypoint is unavailable; run through pnpm run release:npm");
-  run(process.execPath, [pnpmEntrypoint, "pack", "--pack-destination", releaseRoot], { cwd: stage });
-  console.log(`Packed ${join(releaseRoot, `sundw-locus-scope-${version}.tgz`)}`);
+  for (const package_ of packages) {
+    const stage = await stagePackage(package_, releaseRoot, version);
+    run(process.execPath, [pnpmEntrypoint, "pack", "--pack-destination", releaseRoot], { cwd: stage });
+  }
+  const tarballs = packages.map(package_ =>
+    join(releaseRoot, `sundw-locus-scope-${package_.name === "locus-scope" ? "" : `${package_.name}-`}${version}.tgz`)
+  );
+  console.log(`Packed ${tarballs.join(", ")}`);
+  return { releaseRoot, tarballs, version };
 }
 
 if (isMain(import.meta.url)) {

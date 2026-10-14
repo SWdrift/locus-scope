@@ -6,7 +6,7 @@ import { promisify } from "node:util";
 
 const execFileAsync = promisify(execFile);
 const root = path.resolve("test/e2e/case/scope-composition/app");
-const executable = path.resolve("temp/ts-build/bin.js");
+const executable = path.resolve("temp/release-validation/npm/node_modules/@sundw/locus-scope/bin/locus-scope.mjs");
 
 test("built CLI preserves composed Scope fixture behavior", async () => {
   const { stdout } = await execFileAsync(process.execPath, [executable, "--scope", root, "validate", "--json"], {

@@ -10,6 +10,8 @@ npx locus-scope [--scope <dir>] [--json] <command>
 
 The `@sundw/locus-scope` runtime resolves dependencies installed by npm or pnpm and executes the shared domain/application API in-process. Except for `help` and `version`, commands load and validate all reachable Scopes before executing. When `--scope` is omitted, the CLI searches from the current directory upward for the nearest Scope.
 
+To call the same Core API in an application process, see the [Core API Reference](4-Core-API-Reference.md).
+
 ## Workspace Options
 
 These options apply to `locus-scope`:

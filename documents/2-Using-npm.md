@@ -29,6 +29,8 @@ npx locus-scope validate
 
 See [Basic Usage](1-Basic-Usage.md) for the complete modeling and CLI workflow.
 
+For library-only Workspace access, install `@sundw/locus-scope-core`; see the [Core API Reference](4-Core-API-Reference.md).
+
 ## Installing a Locus Package
 
 A Locus Package is a standard npm Package containing `locus.entry`. First, declare an Import by Package name in the consuming project's `locus.yaml`:

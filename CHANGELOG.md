@@ -2,6 +2,20 @@
 
 本文件记录 `locus-scope` 各发布版本的用户可见变更。
 
+## [4.1.0] - 2026-10-14
+
+### Added
+
+- 增加 Core package，提供进程内 Workspace 图访问 API。
+- 增加 `Adjacent` 邻接查询及对应 `locus-scope adjacent` CLI 命令，支持入边、出边、双向查询和 Relation 筛选。
+- 允许 Core `Graph` 省略深度遍历全部正向可达节点；CLI `graph` 保持默认 depth 为 1。
+- Workspace 图查询复用快照绑定的双向邻接索引。
+
+### Changed
+
+- 源码拆分为 `packages/core` 与 `packages/cli`。
+- npm 发布元数据集中到 `packaging/npm/locus-scope-core` 与 `packaging/npm/locus-scope`。
+
 ## [4.0.3] - 2026-10-13
 
 ### Fixed

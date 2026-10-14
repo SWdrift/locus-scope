@@ -1,0 +1,33 @@
+{
+  "compilerOptions": {
+    "target": "ES2023",
+    "module": "NodeNext",
+    "moduleResolution": "NodeNext",
+    "lib": ["ES2023"],
+    "rootDir": "src",
+    "outDir": "lib",
+    "baseUrl": ".",
+    "paths": {
+      "@sundw/locus-scope-core": ["../core/lib/index.d.ts"],
+      "@sundw/locus-scope-core/*": ["../core/lib/*"]
+    },
+    "strict": true,
+    "noUncheckedIndexedAccess": true,
+    "exactOptionalPropertyTypes": true,
+    "noImplicitOverride": true,
+    "noFallthroughCasesInSwitch": true,
+    "forceConsistentCasingInFileNames": true,
+    "resolveJsonModule": true,
+    "declaration": true,
+    "declarationMap": true,
+    "sourceMap": true,
+    "verbatimModuleSyntax": true,
+    "isolatedModules": true,
+    "skipLibCheck": true,
+    "types": ["node"],
+    "composite": true
+  },
+  "include": ["src/**/*.ts"],
+  "exclude": ["lib", "node_modules"],
+  "references": [{ "path": "../core" }]
+}

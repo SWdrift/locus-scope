@@ -1,26 +1,15 @@
 {
   "compilerOptions": {
-    "target": "ES2023",
-    "module": "NodeNext",
-    "moduleResolution": "NodeNext",
-    "lib": ["ES2023"],
-    "rootDir": "src",
-    "outDir": "temp/ts-build",
-    "strict": true,
-    "noUncheckedIndexedAccess": true,
-    "exactOptionalPropertyTypes": true,
-    "noImplicitOverride": true,
-    "noFallthroughCasesInSwitch": true,
-    "forceConsistentCasingInFileNames": true,
-    "resolveJsonModule": true,
-    "declaration": true,
-    "declarationMap": true,
-    "sourceMap": true,
-    "verbatimModuleSyntax": true,
-    "isolatedModules": true,
-    "skipLibCheck": true,
-    "types": ["node"]
+    "baseUrl": ".",
+    "paths": {
+      "@sundw/locus-scope": ["packages/cli/src/index.ts"],
+      "@sundw/locus-scope/*": ["packages/cli/src/*"],
+      "@sundw/locus-scope-cli": ["packages/cli/src/index.ts"],
+      "@sundw/locus-scope-cli/*": ["packages/cli/src/*"],
+      "@sundw/locus-scope-core": ["packages/core/src/index.ts"],
+      "@sundw/locus-scope-core/*": ["packages/core/src/*"]
+    }
   },
-  "include": ["src/**/*.ts"],
-  "exclude": ["temp", "node_modules"]
+  "files": [],
+  "references": [{ "path": "packages/core" }, { "path": "packages/cli" }]
 }

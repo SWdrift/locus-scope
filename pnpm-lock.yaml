@@ -39,7 +39,7 @@ importers:
         specifier: 6.10.2
         version: 6.10.2(supports-color@9.4.0)(typanion@3.14.0)
 
-  packaging/npm/locus-scope:
+  packages/core:
     dependencies:
       write-file-atomic:
         specifier: ^7.0.1
@@ -47,6 +47,15 @@ importers:
       yaml:
         specifier: ^2.9.1
         version: 2.9.1
+      zod:
+        specifier: ^4.6.5
+        version: 4.6.5
+
+  packages/cli:
+    dependencies:
+      "@sundw/locus-scope-core":
+        specifier: workspace:*
+        version: link:../core
       zod:
         specifier: ^4.6.5
         version: 4.6.5

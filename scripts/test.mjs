@@ -37,7 +37,8 @@ export async function test(suite = "all") {
     if (e2eTests.length > 0) run(process.execPath, ["--test", ...e2eTests]);
     return;
   }
-  run(process.execPath, ["node_modules/typescript/bin/tsc", "--noEmit"]);
+  const { build } = await import("./build.mjs");
+  await build({ quiet: true });
   const unitTests = await testFiles("test/unit", ".test.ts");
   if (unitTests.length > 0) run(process.execPath, ["node_modules/tsx/dist/cli.mjs", "--test", ...unitTests]);
 }

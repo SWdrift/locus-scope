@@ -11,24 +11,42 @@ import {
 } from "./lib/workspace.mjs";
 import { mkdir, rm, writeFile } from "node:fs/promises";
 
+const packageNames = ["core", "locus-scope"];
+
 export async function verifyNpmRelease(version) {
   if (!/^\d+\.\d+\.\d+(?:[-+][0-9A-Za-z.-]+)?$/.test(version)) throw new Error(`invalid release version: ${version}`);
   const releaseRoot = join(tempRoot, "release", "npm");
-  const tarball = join(releaseRoot, `sundw-locus-scope-${version}.tgz`);
-  await assertOrdinaryFile(tarball, "npm release tarball");
+  const tarballs = Object.fromEntries(
+    packageNames.map(name => [
+      name,
+      join(releaseRoot, `sundw-locus-scope-${name === "locus-scope" ? "" : `${name}-`}${version}.tgz`)
+    ])
+  );
+  for (const tarball of Object.values(tarballs)) await assertOrdinaryFile(tarball, "npm release tarball");
 
   const validationRoot = join(tempRoot, "release-validation", "npm");
   await ensureOrdinaryDirectory(join(tempRoot, "release-validation"), "release validation path");
   await rm(validationRoot, { recursive: true, force: true });
   await mkdir(validationRoot, { recursive: true });
-  await writeJson(join(validationRoot, "package.json"), { private: true });
-  await writeFile(join(validationRoot, "pnpm-workspace.yaml"), 'packages:\n  - "."\n', "utf8");
+  await writeJson(join(validationRoot, "package.json"), {
+    name: "locus-scope-release-validation",
+    private: true,
+    dependencies: {
+      "@sundw/locus-scope": `file:${tarballs["locus-scope"]}`,
+      "@sundw/locus-scope-core": `file:${tarballs.core}`
+    }
+  });
+  await writeFile(
+    join(validationRoot, "pnpm-workspace.yaml"),
+    `packages:\n  - "."\noverrides:\n  "@sundw/locus-scope-core": ${JSON.stringify(`file:${tarballs.core}`)}\n`,
+    "utf8"
+  );
   await writeFile(join(validationRoot, "locus.yaml"), "id: release-validation\n", "utf8");
 
   const pnpmEntrypoint = process.env.npm_execpath;
   if (!pnpmEntrypoint)
     throw new Error("pnpm entrypoint is unavailable; run release through pnpm run verify:npm-release");
-  run(process.execPath, [pnpmEntrypoint, "--dir", validationRoot, "add", "--ignore-scripts", "--save-exact", tarball]);
+  run(process.execPath, [pnpmEntrypoint, "--dir", validationRoot, "install", "--ignore-scripts"]);
   const result = run(
     process.execPath,
     [pnpmEntrypoint, "--dir", validationRoot, "exec", "locus-scope", "validate", "--json"],

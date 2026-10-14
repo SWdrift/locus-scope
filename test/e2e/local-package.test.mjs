@@ -7,7 +7,12 @@ import { promisify } from "node:util";
 const repositoryRoot = path.resolve(".");
 const version = (await readFile(path.join(repositoryRoot, "VERSION"), "utf8")).trim();
 const root = path.resolve("temp/e2e-run/local-package");
-const tarball = path.resolve("temp/release/npm", `sundw-locus-scope-${version}.tgz`);
+const releaseRoot = path.resolve("temp/release/npm");
+const tarballs = {
+  core: path.join(releaseRoot, `sundw-locus-scope-core-${version}.tgz`),
+  "locus-scope": path.join(releaseRoot, `sundw-locus-scope-${version}.tgz`)
+};
+const tarball = tarballs["locus-scope"];
 const pnpm = process.platform === "win32" ? "pnpm.cmd" : "pnpm";
 const execFileAsync = promisify(execFile);
 async function runPnpm(cwd, args) {
@@ -24,19 +29,25 @@ test("local tarball consumer preserves small-workspace CLI and library behavior"
         name: "local-package-consumer",
         version: "1.0.0",
         private: true,
-        dependencies: { "@sundw/locus-scope": `file:${tarball}` }
+        dependencies: {
+          "@sundw/locus-scope": `file:${tarball}`,
+          "@sundw/locus-scope-core": `file:${tarballs.core}`
+        }
       },
       null,
       2
     ) + "\n"
   );
-  await writeFile(path.join(root, "pnpm-workspace.yaml"), 'packages:\n  - "."\n');
+  await writeFile(
+    path.join(root, "pnpm-workspace.yaml"),
+    `packages:\n  - "."\noverrides:\n  "@sundw/locus-scope-core": ${JSON.stringify(`file:${tarballs.core}`)}\n`
+  );
   await writeFile(path.join(root, "locus.yaml"), "id: local-consumer\nexports: [api, db]\n");
   await writeFile(
     path.join(root, "entities.locus.yaml"),
     "entities:\n  - id: api\n    type: service\n  - id: db\n    type: database\nrelations:\n  - from: api\n    type: depends_on\n    to: db\n"
   );
-  await runPnpm(root, ["install", "--ignore-workspace", "--ignore-scripts"]);
+  await runPnpm(root, ["install", "--ignore-scripts"]);
   const validate = await runPnpm(root, ["--silent", "exec", "locus-scope", "validate", "--json"]);
   assert.equal(JSON.parse(validate.stdout).valid, true);
   const graph = await runPnpm(root, ["--silent", "exec", "locus-scope", "graph", "--json"]);

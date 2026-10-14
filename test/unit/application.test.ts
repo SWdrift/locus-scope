@@ -2,12 +2,12 @@ import assert from "node:assert/strict";
 import { mkdir, readFile, rm, symlink, writeFile } from "node:fs/promises";
 import path from "node:path";
 import { test } from "node:test";
-import { ApplicationService } from "../../src/application/index.js";
-import { ApplicationError } from "../../src/domain/errors.js";
-import { run } from "../../src/cli/index.js";
-import { buildPackageEnvironment } from "../../src/package-environment.js";
-import { load, type Environment } from "../../src/packageenv.js";
-import { Scope, Workspace, type Entity, type Relation } from "../../src/domain/index.js";
+import { ApplicationService } from "@sundw/locus-scope-core";
+import { ApplicationError } from "@sundw/locus-scope-core";
+import { run } from "@sundw/locus-scope-cli";
+import { buildPackageEnvironment } from "@sundw/locus-scope-core";
+import { loadPackageEnvironment as load, type Environment } from "@sundw/locus-scope-core";
+import { Scope, Workspace, type Entity, type Relation } from "@sundw/locus-scope-core";
 
 type GraphBody = { nodes: unknown[] };
 

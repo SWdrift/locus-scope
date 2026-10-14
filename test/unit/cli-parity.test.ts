@@ -1,8 +1,8 @@
 import assert from "node:assert/strict";
 import { test } from "node:test";
-import { ApplicationService } from "../../src/application/index.js";
-import { run } from "../../src/cli/index.js";
-import { Scope, Workspace } from "../../src/domain/index.js";
+import { ApplicationService } from "@sundw/locus-scope-core";
+import { run } from "@sundw/locus-scope-cli";
+import { Scope, Workspace } from "@sundw/locus-scope-core";
 
 function application(): ApplicationService {
   const key = "file:///workspace";
@@ -78,6 +78,20 @@ test("3.1 CLI entity, graph, path, validate and relation JSON contracts", async 
   ]);
   const graph = await run(["graph", "api", "--depth", "1", "--via", "type=depends_on", "--json"], context());
   assert.equal(JSON.parse(graph.stdout).nodes.length, 2);
+  const adjacent = await run(
+    ["adjacent", "api", "--direction", "outgoing", "--via", "type=depends_on", "--json"],
+    context()
+  );
+  assert.equal(adjacent.exitCode, 0);
+  const adjacentBody = JSON.parse(adjacent.stdout);
+  assert.deepEqual(
+    adjacentBody.nodes.map((item: { key: unknown }) => item.key),
+    [
+      { scope: "file:///workspace", id: "api" },
+      { scope: "file:///workspace", id: "db" }
+    ]
+  );
+  assert.equal(adjacentBody.relations.length, 1);
   const path = await run(["path", "api", "db", "--json"], context());
   assert.equal(JSON.parse(path.stdout).relations[0].object.type, "depends_on");
   const validate = await run(["validate", "--json"], context());
@@ -96,6 +110,9 @@ test("3.1 CLI invalid arguments, operational errors, unknown command and version
   const invalid = await run(["graph", "api", "--depth", "bad", "--json"], context());
   assert.equal(invalid.exitCode, 2);
   assert.match(invalid.stderr, /graph depth/);
+  const invalidDirection = await run(["adjacent", "api", "--direction", "sideways", "--json"], context());
+  assert.equal(invalidDirection.exitCode, 2);
+  assert.match(invalidDirection.stderr, /adjacent direction/);
   const operational = await run(["path", "db", "api", "--json"], context());
   assert.equal(operational.exitCode, 1);
   assert.match(operational.stderr, /no directed path/);

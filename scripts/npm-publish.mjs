@@ -2,7 +2,7 @@ import { join } from "node:path";
 import { assertOrdinaryFile, isMain, readVersion, repositoryRoot, run } from "./lib/workspace.mjs";
 
 const officialNpmRegistry = "https://registry.npmjs.org/";
-const tarballStems = ["sundw-locus-scope"];
+const tarballStems = ["sundw-locus-scope-core", "sundw-locus-scope"];
 
 export function buildNpmPublishArgs(tarball, args) {
   const publishArgs = args[0] === "--" ? args.slice(1) : args;

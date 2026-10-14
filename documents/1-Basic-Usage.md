@@ -313,3 +313,5 @@ npx locus-scope --scope ./app validate
 ```
 
 See [npm Mode](2-Using-npm.md) for more dependency-management boundaries.
+
+For in-process graph access from Node.js/TypeScript components, see the [Core API Reference](4-Core-API-Reference.md).

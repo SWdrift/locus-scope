@@ -1,0 +1,38 @@
+{
+  "name": "@sundw/locus-scope-cli",
+  "version": "4.1.0",
+  "private": true,
+  "description": "Locus Scope command-line interface",
+  "license": "MIT",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/SWdrift/locus-scope.git"
+  },
+  "homepage": "https://github.com/SWdrift/locus-scope#readme",
+  "bugs": {
+    "url": "https://github.com/SWdrift/locus-scope/issues"
+  },
+  "type": "module",
+  "engines": {
+    "node": ">=24.0.0"
+  },
+  "exports": {
+    ".": {
+      "types": "./lib/index.d.ts",
+      "default": "./lib/index.js"
+    },
+    "./protocol": {
+      "types": "./lib/protocol.d.ts",
+      "default": "./lib/protocol.js"
+    },
+    "./bin": "./lib/bin.js",
+    "./package.json": "./package.json"
+  },
+  "files": [
+    "lib"
+  ],
+  "dependencies": {
+    "@sundw/locus-scope-core": "workspace:*",
+    "zod": "^4.6.5"
+  }
+}

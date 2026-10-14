@@ -10,17 +10,18 @@ Locus Scope organizes identifiable things and their relationships into bounded g
 
 ## Usage
 
-The npm Package provides one `locus-scope` command and a library API. npm or pnpm owns dependency resolution, lockfiles, caches, and installation. The runtime resolves the Package graph from the installed environment, then composes and validates the Workspace in-process.
+The npm package provides the `locus-scope` command and library API; `@sundw/locus-scope-core` can also be used independently for the library API.
 
-| Usage | When to use | Command entry point |
-| --- | --- | --- |
-| [Using npm](https://github.com/SWdrift/locus-scope/blob/master/documents/2-Using-npm.md) | Manage Locus Packages with npm or pnpm, then query, validate, or mutate the Scope Workspace. | `locus-scope` |
+| Package | Use |
+| --- | --- |
+| [@sundw/locus-scope](packaging/npm/locus-scope/README.md) | CLI commands and the existing library entry point. |
+| [@sundw/locus-scope-core](packaging/npm/locus-scope-core/README.md) | Node.js library API, without a CLI. |
 
 To create your first Scope, start with [Basic Usage](https://github.com/SWdrift/locus-scope/blob/master/documents/1-Basic-Usage.md).
 
-Agents can select the matching Skill by task:
+Agents can use the CLI workflow Skill:
 
-| Node.js Package workflow                                                                                         |
+| CLI workflow                                                                                                     |
 | ---------------------------------------------------------------------------------------------------------------- |
 | [`$use-locus-scope`](https://github.com/SWdrift/locus-scope/blob/master/.agents/skills/use-locus-scope/SKILL.md) |
 
@@ -35,8 +36,6 @@ pnpm run build
 pnpm run release:npm
 ```
 
-TypeScript build output is written to `temp/ts-build/`; npm release tarballs are written to `temp/release/npm/`.
-
 </details>
 
 ## Documentation
@@ -44,6 +43,7 @@ TypeScript build output is written to `temp/ts-build/`; npm release tarballs are
 - [Basic Usage](https://github.com/SWdrift/locus-scope/blob/master/documents/1-Basic-Usage.md): Create, validate, compose, and query Scopes.
 - [Using npm](https://github.com/SWdrift/locus-scope/blob/master/documents/2-Using-npm.md): Install the unified CLI and let npm or pnpm manage Packages.
 - [CLI Reference](https://github.com/SWdrift/locus-scope/blob/master/documents/3-CLI-Reference.md): Workspace queries, graph operations, diff, mutation, output, and exit statuses.
+- [Core API Reference](documents/4-Core-API-Reference.md): Load Workspaces and use queries, graph operations, diff, mutation and structured errors in-process.
 
 ## License
 

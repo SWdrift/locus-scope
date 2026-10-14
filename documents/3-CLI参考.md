@@ -10,6 +10,8 @@ npx locus-scope [--scope <dir>] [--json] <command>
 
 `@sundw/locus-scope` runtime 解析 npm 或 pnpm 已安装的依赖，并在同一进程执行共享 domain/application API。除 `help` 和 `version` 外，命令执行前会加载并验证所有可达 Scope。省略 `--scope` 时，CLI 从当前目录向上查找最近的 Scope。
 
+在应用进程内调用同一 Core API，见[核心 API 参考](4-核心API参考.md)。
+
 ## Workspace 参数
 
 以下参数适用于 `locus-scope`：

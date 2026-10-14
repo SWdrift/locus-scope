@@ -2,9 +2,9 @@ import assert from "node:assert/strict";
 import { mkdir, rm, writeFile } from "node:fs/promises";
 import path from "node:path";
 import { test } from "node:test";
-import { buildPackageEnvironment } from "../../src/package-environment.js";
-import { ApplicationError } from "../../src/domain/errors.js";
-import { load, secureEntry } from "../../src/packageenv.js";
+import { buildPackageEnvironment } from "@sundw/locus-scope-core";
+import { ApplicationError } from "@sundw/locus-scope-core";
+import { loadPackageEnvironment as load, secureEntry } from "@sundw/locus-scope-core";
 
 async function writeJson(filename: string, value: unknown): Promise<void> {
   await mkdir(path.dirname(filename), { recursive: true });

@@ -16,7 +16,11 @@
     "node": ">=24.0.0"
   },
   "exports": {
-    ".": "./lib/index.js",
+    ".": {
+      "types": "./lib/index.d.ts",
+      "import": "./lib/index.js",
+      "default": "./lib/index.js"
+    },
     "./package.json": "./package.json"
   },
   "bin": {
@@ -24,11 +28,11 @@
   },
   "files": [
     "bin",
+    "README_CN.md",
     "lib"
   ],
   "dependencies": {
-    "write-file-atomic": "^7.0.1",
-    "yaml": "^2.9.1",
+    "@sundw/locus-scope-core": "4.1.0",
     "zod": "^4.6.5"
   }
 }
