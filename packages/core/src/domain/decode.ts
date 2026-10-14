@@ -111,7 +111,9 @@ function childLine(parsed: ParsedYaml, key: string, index: number): number {
 }
 function objectProperties(value: Record<string, unknown>, excluded: readonly string[]): Record<string, unknown> {
   const properties: Record<string, unknown> = {};
-  for (const [key, entry] of Object.entries(value)) if (!excluded.includes(key)) properties[key] = entry;
+  for (const [key, entry] of Object.entries(value))
+    if (!excluded.includes(key))
+      Object.defineProperty(properties, key, { value: entry, enumerable: true, writable: true, configurable: true });
   return properties;
 }
 
@@ -217,7 +219,7 @@ export async function decodeDefinition(scope: Scope, filename: string): Promise<
       index: index + 1,
       path: filename
     };
-    const value: Entity = { id, localId: entity.id, properties: objectProperties(entity, ["id"]), source };
+    const value: Entity = { id, localId: entity.id, properties: objectProperties(rawEntityRecord, ["id"]), source };
     scope.entities.set(id, value);
   }
   for (let index = 0; index < relations.length; index += 1) {
@@ -270,7 +272,7 @@ export async function decodeDefinition(scope: Scope, filename: string): Promise<
       from,
       type: relation.type,
       to,
-      properties: objectProperties(relation, ["from", "type", "to"]),
+      properties: objectProperties(rawRelationRecord, ["from", "type", "to"]),
       source
     };
     scope.relationDecls.push(declaration);

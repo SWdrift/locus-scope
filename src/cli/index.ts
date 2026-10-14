@@ -291,11 +291,11 @@ async function callQuery(
 }
 function mergeMutationObject(target: Record<string, unknown>, input: Record<string, unknown>): void {
   for (const [key, value] of Object.entries(input)) {
-    if (key in target && JSON.stringify(target[key]) !== JSON.stringify(value)) {
+    if (Object.hasOwn(target, key) && JSON.stringify(target[key]) !== JSON.stringify(value)) {
       throw createError("scope.mutation_input_invalid", `positional ${key} does not match JSON value`);
     }
   }
-  Object.assign(target, input);
+  Object.defineProperties(target, Object.getOwnPropertyDescriptors(input));
 }
 function parseMutationPayload(
   kind: "entity" | "relation",
@@ -398,7 +398,7 @@ function parseMutationPayload(
     } catch {
       // Assignment values that are not JSON remain strings by protocol design.
     }
-    (result.fields as Record<string, unknown>)[field] = value;
+    Object.defineProperty(result.fields, field, { value, enumerable: true, writable: true, configurable: true });
   }
   const object = result.object as Record<string, unknown>;
   if (kind === "entity") {

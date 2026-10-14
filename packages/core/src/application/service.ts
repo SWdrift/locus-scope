@@ -7,7 +7,13 @@ export function cloneValue(value: unknown): unknown {
   if (Array.isArray(value)) return value.map(cloneValue);
   if (value !== null && typeof value === "object") {
     const result: Record<string, unknown> = {};
-    for (const [key, child] of Object.entries(value as Record<string, unknown>)) result[key] = cloneValue(child);
+    for (const [key, child] of Object.entries(value))
+      Object.defineProperty(result, key, {
+        value: cloneValue(child),
+        enumerable: true,
+        writable: true,
+        configurable: true
+      });
     return result;
   }
   return value;

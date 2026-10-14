@@ -33,10 +33,7 @@ function equalValue(left: unknown, right: unknown): boolean {
     const b = Object.entries(right as Record<string, unknown>);
     return (
       a.length === b.length &&
-      a.every(
-        ([key, value]) =>
-          key in (right as Record<string, unknown>) && equalValue(value, (right as Record<string, unknown>)[key])
-      )
+      a.every(([key, value]) => Object.hasOwn(right, key) && equalValue(value, (right as Record<string, unknown>)[key]))
     );
   }
   return false;

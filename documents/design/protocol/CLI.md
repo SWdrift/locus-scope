@@ -53,7 +53,7 @@ Package 的安装、更新、lockfile、缓存、打包和发布使用 npm 或 p
 
 - `<mutation-input>` 是多个 `field=value`、一个完整 root JSON object 或 stdin `-`。field assignment 支持 object 点路径；value 优先解析为 JSON value，失败后作为 string。
 - Entity 是 `{id,...}`，Relation 是 `{from,type,to,...}`。positional 与 JSON 同时提供定位字段时必须一致；`set` 不能修改定位字段。
-- JSON `set` 对非定位字段递归 merge，`null` 是普通值；删除字段只使用 `unset`。路径穿越非 object 时失败。
+- JSON `set` 对非定位字段递归 merge，`null` 是普通值；删除字段只使用 `unset`。路径穿越非 object 时失败。字段名称与访问边界遵循[不透明属性契约](PROTOCOL.md#definition-document)。
 - grouped Entity 对外使用规范 id，写回时转换为 declaration-local id。
 - `--file` 基于 root Scope，只允许位于 root 内、非嵌套 Scope 的 `*.locus.yaml`。dependency Scope 只读。
 - `set`、`unset` 和 `remove` 根据 provenance 修改原声明文件。更新执行 `load → clone/change → validate → atomic write → reload`，失败不得留下文件或 Workspace 半更新。

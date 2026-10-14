@@ -2,6 +2,13 @@
 
 本文件记录 `locus-scope` 各发布版本的用户可见变更。
 
+## [4.1.1] - 2026-10-14
+
+### Fixed
+
+- Entity/Relation 字段写入、递归 merge 和 unset 不再沿 JS 原型链修改进程共享对象；不限制 `__proto__`、`constructor`、`toString` 等用户字段名。
+- JSON/YAML 加载、CLI 输入、查询克隆与 diff 保留同名不透明属性，不再丢失 `__proto__` 数据或误判为定位字段。
+
 ## [4.1.0] - 2026-10-14
 
 ### Added

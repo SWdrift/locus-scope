@@ -5,7 +5,7 @@
 ## 文档入口
 
 - [公共协议](protocol/README.md)：汇总用户和工具直接依赖的稳定契约。
-  - [核心协议](protocol/PROTOCOL.md)：定义 Entity、Scope、Export、Import、Projection、Relation、Definition document 和 Group。
+  - [核心协议](protocol/PROTOCOL.md)：定义 Entity、Scope、Export、Import、Projection、Relation、Definition document、Group 和不透明属性的字段访问边界。
   - [核心 API](protocol/CORE_API.md)：定义 domain/application API，供 CLI、library consumer 和未来 transport 共用。
   - [错误契约](protocol/ERRORS.md)：定义 application error 的模型、分类、reason、上下文和传播规则。
   - [CLI](protocol/CLI.md)：定义 `locus-scope` 的 Workspace 管理指令、参数、输出与退出状态。
