@@ -1,13 +1,12 @@
 {
   "compilerOptions": {
-    "baseUrl": ".",
     "paths": {
-      "@sundw/locus-scope": ["packages/cli/src/index.ts"],
-      "@sundw/locus-scope/*": ["packages/cli/src/*"],
-      "@sundw/locus-scope-cli": ["packages/cli/src/index.ts"],
-      "@sundw/locus-scope-cli/*": ["packages/cli/src/*"],
-      "@sundw/locus-scope-core": ["packages/core/src/index.ts"],
-      "@sundw/locus-scope-core/*": ["packages/core/src/*"]
+      "@sundw/locus-scope": ["./packages/cli/src/index.ts"],
+      "@sundw/locus-scope/*": ["./packages/cli/src/*"],
+      "@sundw/locus-scope-cli": ["./packages/cli/src/index.ts"],
+      "@sundw/locus-scope-cli/*": ["./packages/cli/src/*"],
+      "@sundw/locus-scope-core": ["./packages/core/src/index.ts"],
+      "@sundw/locus-scope-core/*": ["./packages/core/src/*"]
     }
   },
   "files": [],
