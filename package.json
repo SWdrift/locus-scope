@@ -8,7 +8,7 @@
   },
   "scripts": {
     "build": "node scripts/build.mjs",
-    "typecheck": "node node_modules/typescript/bin/tsc --noEmit",
+    "typecheck": "node scripts/typecheck.mjs",
     "test": "node scripts/test.mjs all",
     "test:unit": "node node_modules/tsx/dist/cli.mjs --test test/unit/*.test.ts",
     "test:e2e": "node scripts/test.mjs e2e",

@@ -1,0 +1,42 @@
+{
+  "name": "@sundw/locus-scope-core",
+  "version": "4.1.0",
+  "private": true,
+  "description": "Transport-independent Locus Scope domain and application API",
+  "license": "MIT",
+  "type": "module",
+  "engines": {
+    "node": ">=24.0.0"
+  },
+  "exports": {
+    ".": {
+      "types": "./lib/index.d.ts",
+      "default": "./lib/index.js"
+    },
+    "./domain": {
+      "types": "./lib/domain/index.d.ts",
+      "default": "./lib/domain/index.js"
+    },
+    "./application": {
+      "types": "./lib/application/index.d.ts",
+      "default": "./lib/application/index.js"
+    },
+    "./packageenv": {
+      "types": "./lib/packageenv.d.ts",
+      "default": "./lib/packageenv.js"
+    },
+    "./package-environment": {
+      "types": "./lib/package-environment.d.ts",
+      "default": "./lib/package-environment.js"
+    },
+    "./package.json": "./package.json"
+  },
+  "files": [
+    "lib"
+  ],
+  "dependencies": {
+    "write-file-atomic": "^7.0.1",
+    "yaml": "^2.9.1",
+    "zod": "^4.6.5"
+  }
+}

@@ -14,8 +14,8 @@ import {
   type Resolver,
   type Source,
   type Workspace
-} from "../../src/domain/index.js";
-import { ApplicationError } from "../../src/domain/errors.js";
+} from "@sundw/locus-scope-core";
+import { ApplicationError } from "@sundw/locus-scope-core";
 
 const fixtureRoot = path.resolve("test/e2e/case");
 const stateRoot = path.resolve("temp/e2e-run/domain");

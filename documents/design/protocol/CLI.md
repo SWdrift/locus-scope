@@ -22,10 +22,10 @@ Package 的安装、更新、lockfile、缓存、打包和发布使用 npm 或 p
 | `group [<group-ref>] [<filter>...] [--source]` | 无参数时列出 Group；提供 ref 时返回一个 Group；提供 filter 时筛选 Group。 |
 | `entity [<entity-ref>] [<filter>...] [--source]` | 无参数时列出 Entity；提供 ref 时返回一个 Entity；提供 filter 时筛选 Entity。 |
 | `relation [<filter>...] [--source]` | 无参数时列出 Relation；提供 filter 时筛选 Relation。 |
-| `graph [<entity-ref>] [--depth <n>] [--via <filter>...]` | 从 Entity 沿出边返回限定深度的子图；使用 `-` 代替 ref 时从 stdin 读取 seed。默认 depth 为 1，depth 0 只返回去重 seed。 |
+| `graph [<entity-ref>] [--depth <n>] [--via <filter>...]` | 从 Entity 沿出边返回限定深度的子图；省略 `--depth` 时遍历全部正向可达节点，`depth 0` 只返回去重 seed；使用 `-` 代替 ref 时从 stdin 读取 seed。 |
+| `adjacent <entity-ref> [--direction <incoming | outgoing | both>] [--via <filter>...]` | 查询 Entity 的入边、出边或双向邻接关系；默认 direction 为 `both`，使用 `-` 代替 ref 时从 stdin 读取 Entity envelope 或 envelope 数组。 |
 | `path <from> <to> [--via <filter>...]` | 返回一条确定的最短有向路径及沿途 Relation；等长路径和平行边按稳定 Relation 顺序决胜。 |
 | `impact <entity-ref> [--via <filter>...]` | 从 Entity 沿入边反向返回受影响对象和 Relation；使用 `-` 代替 ref 时从 stdin 读取 seed。 |
-| `entity add [<id>] [<mutation-input>] [--file <path>]` | 在可写 root Scope 中新增 Entity；省略 `--file` 时写入 `scope.locus.yaml`。 |
 | `entity set [<ref>] [<mutation-input>]` | 按 provenance 更新 Entity 的非定位字段。 |
 | `entity unset <ref> <field>...` | 删除 Entity 的一个或多个非定位字段。 |
 | `entity remove <ref>` | 删除 Entity；存在悬空 Relation 时失败且不写入文件。 |
@@ -47,7 +47,7 @@ Package 的安装、更新、lockfile、缓存、打包和发布使用 npm 或 p
 - `@scope`、`@group`、`@fromScope`、`@toScope` 查询 envelope metadata；不带 `@` 的路径只查询开放对象。
 - `scope-ref := "." | alias (":" alias)*`；`.` 是 root，alias chain 沿 root imports 解析。
 - `group-ref := scope-ref "#" group-path`。Entity ref 使用既有 Projection 与 Group 规则。
-- Graph 命令的 `--via` 复用 Relation filter。`graph -` 和 `impact -` 从 stdin 接收单个 Entity query envelope 或 envelope 数组；跨 Scope seed 使用 `key:{scope,id}`。
+- Graph 和 Adjacent 的 `--via` 复用 Relation filter；`graph -`、`impact -` 和 `adjacent -` 从 stdin 接收 Entity query envelope 或 envelope 数组；跨 Scope seed 使用 `key:{scope,id}`。
 
 ### 写入规则
 

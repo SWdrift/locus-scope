@@ -29,6 +29,8 @@ npx locus-scope validate
 
 完整的建模和 CLI 操作步骤见[基本使用](1-基本使用.md)。
 
+作为 library 依赖加载 Workspace 时可单独安装 `@sundw/locus-scope-core`，见[核心 API 参考](4-核心API参考.md)。
+
 ## 安装 Locus Package
 
 Locus Package 是包含 `locus.entry` 的标准 npm Package。先在消费项目的 `locus.yaml` 中以 Package 名声明 Import：

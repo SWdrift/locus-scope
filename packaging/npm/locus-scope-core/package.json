@@ -1,0 +1,55 @@
+{
+  "name": "@sundw/locus-scope-core",
+  "private": true,
+  "description": "Transport-independent Locus Scope domain and application API",
+  "license": "MIT",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/SWdrift/locus-scope.git"
+  },
+  "homepage": "https://github.com/SWdrift/locus-scope#readme",
+  "bugs": {
+    "url": "https://github.com/SWdrift/locus-scope/issues"
+  },
+  "type": "module",
+  "engines": {
+    "node": ">=24.0.0"
+  },
+  "exports": {
+    ".": {
+      "types": "./lib/index.d.ts",
+      "import": "./lib/index.js",
+      "default": "./lib/index.js"
+    },
+    "./domain": {
+      "types": "./lib/domain/index.d.ts",
+      "import": "./lib/domain/index.js",
+      "default": "./lib/domain/index.js"
+    },
+    "./application": {
+      "types": "./lib/application/index.d.ts",
+      "import": "./lib/application/index.js",
+      "default": "./lib/application/index.js"
+    },
+    "./packageenv": {
+      "types": "./lib/packageenv.d.ts",
+      "import": "./lib/packageenv.js",
+      "default": "./lib/packageenv.js"
+    },
+    "./package-environment": {
+      "types": "./lib/package-environment.d.ts",
+      "import": "./lib/package-environment.js",
+      "default": "./lib/package-environment.js"
+    },
+    "./package.json": "./package.json"
+  },
+  "files": [
+    "lib",
+    "README_CN.md"
+  ],
+  "dependencies": {
+    "write-file-atomic": "^7.0.1",
+    "yaml": "^2.9.1",
+    "zod": "^4.6.5"
+  }
+}

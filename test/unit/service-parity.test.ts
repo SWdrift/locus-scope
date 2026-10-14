@@ -1,7 +1,7 @@
 import assert from "node:assert/strict";
 import { test } from "node:test";
-import { ApplicationService } from "../../src/application/index.js";
-import { Scope, Workspace, parseFilters, type Relation } from "../../src/domain/index.js";
+import { ApplicationService } from "@sundw/locus-scope-core";
+import { Scope, Workspace, parseFilters, type Relation } from "@sundw/locus-scope-core";
 
 function workspace(): Workspace {
   const scope = new Scope(
@@ -82,6 +82,23 @@ test("3.1 TestGraphPathAndImpact retains deterministic traversal and filters", (
     [api, db]
   );
   assert.deepEqual(graph.relations, app.queryRelations());
+  const unbounded = app.graph([api]);
+  assert.equal(unbounded.depth, undefined);
+  assert.deepEqual(
+    unbounded.nodes.map(item => item.key),
+    [api, db]
+  );
+  assert.deepEqual(unbounded.relations, app.queryRelations());
+  const adjacent = app.adjacent({ entities: [api], direction: "outgoing" });
+  assert.deepEqual(
+    adjacent.seeds.map(item => item.key),
+    [api]
+  );
+  assert.deepEqual(
+    adjacent.nodes.map(item => item.key),
+    [api, db]
+  );
+  assert.deepEqual(adjacent.relations, app.queryRelations());
   assert.deepEqual(
     app.graph([api, api], 0).nodes.map(item => item.key),
     [api]

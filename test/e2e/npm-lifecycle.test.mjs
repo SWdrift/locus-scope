@@ -316,20 +316,26 @@ test("npm and pnpm preserve the isolated registry lifecycle", async () => {
     }
 
     const version = await readVersion();
-    const releaseTarball = join(repositoryRoot, "temp", "release", "npm", `sundw-locus-scope-${version}.tgz`);
-    await stat(releaseTarball);
-    const stagedTarball = join(fixtureRoot, `sundw-locus-scope-${version}.tgz`);
-    await cp(releaseTarball, stagedTarball);
-    const tarballPublish = await runCommand("publish-locus-scope", fixtureRoot, authEnvironment, npm, [
-      "publish",
-      stagedTarball,
-      "--access",
-      "public",
-      "--ignore-scripts",
-      "--registry",
-      endpoint
-    ]);
-    requireSuccess(tarballPublish, "publish current locus-scope tarball");
+    const releaseRoot = join(repositoryRoot, "temp", "release", "npm");
+    const releaseTarballs = {
+      core: join(releaseRoot, `sundw-locus-scope-core-${version}.tgz`),
+      "locus-scope": join(releaseRoot, `sundw-locus-scope-${version}.tgz`)
+    };
+    for (const [name, releaseTarball] of Object.entries(releaseTarballs)) {
+      await stat(releaseTarball);
+      const stagedTarball = join(fixtureRoot, `${name}-${version}.tgz`);
+      await cp(releaseTarball, stagedTarball);
+      const tarballPublish = await runCommand(`publish-${name}`, fixtureRoot, authEnvironment, npm, [
+        "publish",
+        stagedTarball,
+        "--access",
+        "public",
+        "--ignore-scripts",
+        "--registry",
+        endpoint
+      ]);
+      requireSuccess(tarballPublish, `publish ${name} tarball`);
+    }
     const consumer = await materialize(
       "consumer",
       join(repositoryRoot, "test", "e2e", "case", "npm", "consumer"),

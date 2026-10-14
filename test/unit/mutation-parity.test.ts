@@ -2,10 +2,10 @@ import assert from "node:assert/strict";
 import { mkdir, readFile, rm, writeFile } from "node:fs/promises";
 import path from "node:path";
 import { test, type TestContext } from "node:test";
-import { ApplicationService } from "../../src/application/index.js";
-import { ApplicationError } from "../../src/domain/errors.js";
-import { load, LocalResolver, newLocalSource, type Workspace } from "../../src/domain/index.js";
-import type { MutationRequest, MutationResult } from "../../src/application/types.js";
+import { ApplicationService } from "@sundw/locus-scope-core";
+import { ApplicationError } from "@sundw/locus-scope-core";
+import { load, LocalResolver, newLocalSource, type Workspace } from "@sundw/locus-scope-core";
+import type { MutationRequest, MutationResult } from "@sundw/locus-scope-core";
 
 interface MutationResponse {
   readonly result: MutationResult;

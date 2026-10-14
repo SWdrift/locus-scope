@@ -2,7 +2,7 @@
 
 ## 简述
 
-Locus Package 使用标准 npm-compatible package 作为唯一分发模型。一个可分发 npm package 对应一个 Scope；`package.json` 是名称、版本和依赖的唯一真相，`locus.entry` 指向包内唯一的 Scope manifest。npm 或 pnpm 负责 Package 解析、安装、lockfile 和缓存；Locus 只消费其 resolved Environment。
+Locus Scope 的 Scope 分发继续使用标准 npm-compatible package 作为唯一分发模型。一个可分发 Locus Scope package 对应一个 Scope；`package.json` 是名称、版本和依赖的唯一真相，`locus.entry` 指向包内唯一的 Scope manifest。`@sundw/locus-scope-core` 是不对应 Scope 的进程内 Core runtime package，不携带 `locus.entry`。npm 或 pnpm 负责 Package 解析、安装、lockfile 和缓存；Locus 只消费其 resolved Environment。
 
 ## 职责
 
@@ -29,10 +29,10 @@ flowchart LR
         Environment --> Runtime
     end
 
-    Runtime --> PackageEnv["src/packageenv.ts"]
-    PackageEnv --> Loader["src/domain/load"]
-    Runtime --> CLI["src/cli"]
-    CLI --> App["src/application"]
+    Runtime --> PackageEnv["packages/core/src/packageenv.ts"]
+    PackageEnv --> Loader["packages/core/src/domain/load"]
+    Runtime --> CLI["packages/cli"]
+    CLI --> App["packages/core/src/application"]
     Loader --> App
 ```
 
@@ -123,6 +123,6 @@ pnpm exec locus-scope validate --json
 | 普通 npm dependency | dependency 由 npm/pnpm 安装，但不进入 resolved Environment 或 Scope graph。 |
 | npm/pnpm 布局一致 | hoisted npm layout 与 pnpm symlink layout 产生相同的规范 Scope、Entity 和 Relation JSON。 |
 | 安全失败 | 缺失直接依赖、blocked package.json export、entry escape 和冲突 identity 在执行 Scope 命令前失败。 |
-| 交付边界 | 主 Package 只暴露 `locus-scope` 和进程内 library API；不存在平台 Package 或 standalone installer。 |
+| 交付边界 | 发布 `@sundw/locus-scope-core` Core package 和 `@sundw/locus-scope` CLI/library package；不存在平台 Package 或 standalone installer。 |
 
 完整测试注册、fixture、隔离方式和完成命令见[测试设计](测试设计.md)。

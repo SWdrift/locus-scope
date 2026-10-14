@@ -10,17 +10,18 @@ Locus Scope 将具有身份的事物及其关系组织成有边界的图。Entit
 
 ## 使用
 
-项目以 npm Package 提供统一的 `locus-scope` 命令和 library API。npm 或 pnpm 负责依赖解析、lockfile、缓存和安装；runtime 从实际安装环境解析 Package graph，并在同一进程装配、验证 Workspace。
+以 npm Package 提供 `locus-scope` 命令和 library API；也可单独使用 `@sundw/locus-scope-core` 提供 library API。
 
-| 使用方式 | 适用情况 | 命令入口 |
-| --- | --- | --- |
-| [使用 npm](documents/2-使用npm.md) | 使用 npm 或 pnpm 管理 Locus Package，并查询、验证或修改 Scope Workspace。 | `locus-scope` |
+| Package                                                                | 使用场景                       |
+| ---------------------------------------------------------------------- | ------------------------------ |
+| [@sundw/locus-scope](packaging/npm/locus-scope/README_CN.md)           | CLI 命令及现有 library 入口。  |
+| [@sundw/locus-scope-core](packaging/npm/locus-scope-core/README_CN.md) | Node.js/ library API，无 CLI。 |
 
 从创建第一个 Scope 开始，请阅读[基本使用](documents/1-基本使用.md)。
 
-Agent 可按任务选择对应 Skill：
+Agent 可使用 CLI 工作流 Skill：
 
-| Node.js Package 工作流                                        |
+| CLI 工作流                                                    |
 | ------------------------------------------------------------- |
 | [`$use-locus-scope`](.agents/skills/use-locus-scope/SKILL.md) |
 
@@ -35,8 +36,6 @@ pnpm run build
 pnpm run release:npm
 ```
 
-TypeScript 构建产物位于 `temp/ts-build/`；npm release tarball 位于 `temp/release/npm/`。
-
 </details>
 
 ## 文档
@@ -44,6 +43,7 @@ TypeScript 构建产物位于 `temp/ts-build/`；npm release tarball 位于 `tem
 - [基本使用](documents/1-基本使用.md)：创建、检查、组合和查询 Scope。
 - [使用 npm](documents/2-使用npm.md)：安装统一 CLI，由 npm 或 pnpm 管理 Package。
 - [CLI 参考](documents/3-CLI参考.md)：Workspace 查询、图操作、diff、mutation、输出和退出状态。
+- [核心 API 参考](documents/4-核心API参考.md)：进程内 Workspace 加载、查询、图操作、diff、mutation 和结构化错误。
 
 ## License
 
