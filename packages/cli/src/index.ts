@@ -289,10 +289,20 @@ async function callQuery(
   args: string[],
   source: boolean
 ): Promise<unknown> {
-  if (kind !== "relation" && args.length === 1 && !/[=!^*~]/.test(args[0] ?? "")) {
-    if (kind === "scope") return application.getScope(args[0] as string, source);
-    if (kind === "group") return application.getGroup(args[0] as string, source);
-    return application.getEntity(args[0] as string, source);
+  if (kind !== "relation" && args.length === 1) {
+    const value = args[0] as string;
+    if (!/[=!^*~]/.test(value)) {
+      if (kind === "scope") return application.getScope(value, source);
+      if (kind === "group") return application.getGroup(value, source);
+      return application.getEntity(value, source);
+    }
+    try {
+      if (kind === "scope") return application.getScope(value, source);
+      if (kind === "group") return application.getGroup(value, source);
+      return application.getEntity(value, source);
+    } catch (error) {
+      if (!(error instanceof ApplicationError) || error.reason !== "scope.object_not_found") throw error;
+    }
   }
   let predicates;
   try {
@@ -526,8 +536,8 @@ async function callCommand(
       throw createError("scope.selector_invalid", "graph accepts at most one entity reference");
     const depthValues = flags.get("--depth");
     const depthValue = depthValues?.[depthValues.length - 1];
-    const depth = depthValue === undefined ? 1 : Number(depthValue);
-    if (!Number.isInteger(depth) || depth < 0)
+    const depth = depthValue === undefined ? undefined : Number(depthValue);
+    if (depthValue !== undefined && (!Number.isInteger(depth) || (depth as number) < 0))
       throw createError("scope.selector_invalid", "graph depth must be a non-negative integer");
     const seed = positionals[0];
     let seeds: EntityKey[];

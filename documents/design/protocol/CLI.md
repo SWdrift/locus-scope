@@ -20,7 +20,7 @@ Package 的安装、更新、lockfile、缓存、打包和发布使用 npm 或 p
 | --- | --- |
 | `scope [<scope-ref>] [<filter>...] [--source]` | 无参数时列出 Scope；提供 ref 时返回一个 Scope；提供 filter 时筛选 Scope。 |
 | `group [<group-ref>] [<filter>...] [--source]` | 无参数时列出 Group；提供 ref 时返回一个 Group；提供 filter 时筛选 Group。 |
-| `entity [<entity-ref>] [<filter>...] [--source]` | 无参数时列出 Entity；提供 ref 时返回一个 Entity；提供 filter 时筛选 Entity。 |
+| `entity [<entity-ref>] [<filter>...] [--source]` | 无参数时列出 Entity；单个参数优先按精确 Entity ref 解析，无法解析时按 filter 处理；提供多个 filter 时筛选 Entity。 |
 | `relation [<filter>...] [--source]` | 无参数时列出 Relation；提供 filter 时筛选 Relation。 |
 | `graph [<entity-ref>] [--depth <n>] [--via <filter>...]` | 从 Entity 沿出边返回限定深度的子图；省略 `--depth` 时遍历全部正向可达节点，`depth 0` 只返回去重 seed；使用 `-` 代替 ref 时从 stdin 读取 seed。 |
 | `adjacent <entity-ref> [--direction <incoming | outgoing | both>] [--via <filter>...]` | 查询 Entity 的入边、出边或双向邻接关系；默认 direction 为 `both`，使用 `-` 代替 ref 时从 stdin 读取 Entity envelope 或 envelope 数组。 |
@@ -42,7 +42,7 @@ Package 的安装、更新、lockfile、缓存、打包和发布使用 npm 或 p
 
 ### 引用与筛选
 
-- `<filter>` 为 `field<op>value`，operator 是 `=`、`!=`、`^=`、`*=`、`~=`；多个 filter 使用 AND。value 优先解析为 JSON value，失败后作为 string。
+- `<filter>` 为 `field<op>value`，operator 是 `=`、`!=`、`^=`、`*=`、`~=`；多个 filter 使用 AND。Entity、Scope 和 Group 查询只有一个参数时优先按精确 ref 解析，解析失败后才按 filter 处理。
 - 点路径只遍历 JSON object，不索引 array。`=`、`!=` 使用严格 JSON 深比较；其他 operator 只用于 string。字段不存在时任何 predicate 都不匹配。
 - `@scope`、`@group`、`@fromScope`、`@toScope` 查询 envelope metadata；不带 `@` 的路径只查询开放对象。
 - `scope-ref := "." | alias (":" alias)*`；`.` 是 root，alias chain 沿 root imports 解析。

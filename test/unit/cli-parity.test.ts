@@ -35,6 +35,18 @@ function application(): ApplicationService {
       path: "temp/unit-ts/cli-parity/scope.locus.yaml"
     }
   });
+  scope.entities.set("a=b", {
+    id: "a=b",
+    localId: "a=b",
+    properties: { type: "literal" },
+    source: {
+      scope: key,
+      file: "scope.locus.yaml",
+      line: 6,
+      index: 3,
+      path: "temp/unit-ts/cli-parity/scope.locus.yaml"
+    }
+  });
   const workspace = new Workspace(key, new Map([[key, scope]]));
   workspace.relations = [
     {
@@ -76,8 +88,14 @@ test("3.1 CLI entity, graph, path, validate and relation JSON contracts", async 
       source: { scope: "file:///workspace", scopeId: "app", file: "scope.locus.yaml", line: 2, index: 1 }
     }
   ]);
+  const operatorEntity = await run(["entity", "a=b", "--json"], context());
+  assert.equal(operatorEntity.exitCode, 0);
+  assert.equal(JSON.parse(operatorEntity.stdout).object.id, "a=b");
   const graph = await run(["graph", "api", "--depth", "1", "--via", "type=depends_on", "--json"], context());
   assert.equal(JSON.parse(graph.stdout).nodes.length, 2);
+  const graphDefault = await run(["graph", "api", "--json"], context());
+  assert.equal(graphDefault.exitCode, 0);
+  assert.equal("depth" in JSON.parse(graphDefault.stdout), false);
   const adjacent = await run(
     ["adjacent", "api", "--direction", "outgoing", "--via", "type=depends_on", "--json"],
     context()
@@ -99,7 +117,7 @@ test("3.1 CLI entity, graph, path, validate and relation JSON contracts", async 
     valid: true,
     root: "file:///workspace",
     scopes: 1,
-    entities: 2,
+    entities: 3,
     relations: 1
   });
   const relation = await run(["relation", "type=depends_on", "--json"], context());
