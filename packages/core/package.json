@@ -1,6 +1,6 @@
 {
   "name": "@sundw/locus-scope-core",
-  "version": "4.1.1",
+  "version": "4.1.2",
   "private": true,
   "description": "Transport-independent Locus Scope domain and application API",
   "license": "MIT",
