@@ -11,7 +11,7 @@
   - [CLI](protocol/CLI.md)：定义 `locus-scope` 的 Workspace 管理指令、参数、输出与退出状态。
 - [Scope 设计](Scope设计.md)：以基本 Scope 装配和显式 Group 为例，定义 root 选择、递归 Definition document 发现、目录与嵌套 Scope 边界、Workspace 装配、检查和诊断。
 - [Package设计](Package设计.md)：定义 npm-compatible Package、package-environment adapter、resolved Environment 与 Node runtime。
-- [测试设计](测试设计.md)：登记测试分层、已覆盖场景、fixture、隔离、npm lifecycle E2E 和完成标准。
+- [E2E 测试设计](E2E测试设计.md)：定义构建产物、npm/pnpm consumer、Registry lifecycle、fixture、隔离和跨层可观察验收。
 
 ## 阅读顺序
 
@@ -20,7 +20,7 @@
 - 开发消费层或应用服务：依次阅读[核心协议](protocol/PROTOCOL.md)、[核心 API](protocol/CORE_API.md)和[错误契约](protocol/ERRORS.md)。
 - 开发 Scope 装配：依次阅读[核心协议](protocol/PROTOCOL.md)和[Scope 设计](Scope设计.md)。
 - 开发 Package 消费或发布能力：在 Scope 设计之后阅读[Package设计](Package设计.md)和 [CLI](protocol/CLI.md)。
-- 设计或实现测试：在 Scope 设计和Package设计之后阅读[测试设计](测试设计.md)。
+- 设计或实现测试：先阅读[测试设计](测试设计.md)，涉及真实构建产物、npm/pnpm consumer 或 Registry lifecycle 时再阅读 [E2E 测试设计](E2E测试设计.md)。
 
 ## 管理规则
 
