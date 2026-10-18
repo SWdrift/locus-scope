@@ -108,11 +108,13 @@ test("mutation preserves YAML, YML, and JSON definition codecs", async t => {
     "locus.yaml": "id: app\n",
     "yaml.locus.yaml": "entities:\n  - id: yaml\n    value: 1\n",
     "yml.locus.yml": "entities:\n  - id: yml\n    value: 2\n",
-    "json.locus.json": '{\n  "entities": [\n    { "id": "json", "value": 3 }\n  ]\n}\n'
+    "json.locus.json": '{\n  "entities": [\n    { "id": "json", "value": 3 }\n  ]\n}\n',
+    "bom.locus.json": '\uFEFF{\n  "entities": [\n    { "id": "bom", "value": 4 }\n  ]\n}\n'
   });
   await mutate(root, { kind: "entity", action: "set", ref: "yaml", object: {}, fields: { value: 11 } });
   await mutate(root, { kind: "entity", action: "set", ref: "yml", object: {}, fields: { value: 22 } });
   await mutate(root, { kind: "entity", action: "set", ref: "json", object: {}, fields: { value: 33 } });
+  await mutate(root, { kind: "entity", action: "set", ref: "bom", object: {}, fields: { value: 44 } });
   await mutate(root, {
     kind: "entity",
     action: "add",

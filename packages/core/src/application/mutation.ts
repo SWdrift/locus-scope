@@ -203,7 +203,8 @@ async function readMutableDocument(
   }
   let parsed: unknown;
   try {
-    parsed = path.endsWith(".json") ? JSON.parse(data.toString("utf8")) : YAML.parse(data.toString("utf8"));
+    const text = data.toString("utf8");
+    parsed = path.endsWith(".json") ? JSON.parse(text.replace(/^\uFEFF/u, "")) : YAML.parse(text);
   } catch (error) {
     throw mutationInvalidData("decode definition failed", error);
   }

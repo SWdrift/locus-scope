@@ -1,7 +1,7 @@
 import { readFile, realpath, stat } from "node:fs/promises";
 import { createRequire } from "node:module";
 import path from "node:path";
-import { pathToFileURL } from "node:url";
+import { fileURLToPath, pathToFileURL } from "node:url";
 import { createError, sourceError } from "./domain/errors.js";
 
 const PACKAGE_NAME = /^(?:@[a-z0-9][a-z0-9._~-]*\/)?[a-z0-9][a-z0-9._~-]*$/;
@@ -95,8 +95,20 @@ async function resolveDependency(importerPackageJson: string, dependency: string
   try {
     entry = importerRequire.resolve(dependency);
   } catch (error) {
-    if (errorCode(error) === "MODULE_NOT_FOUND" || errorCode(error) === "ERR_PACKAGE_PATH_NOT_EXPORTED") return null;
-    throw sourceError(error, "resolve dependency failed", { reference: dependency });
+    if (errorCode(error) === "MODULE_NOT_FOUND") return null;
+    if (errorCode(error) !== "ERR_PACKAGE_PATH_NOT_EXPORTED")
+      throw sourceError(error, "resolve dependency failed", { reference: dependency });
+    try {
+      entry = fileURLToPath(import.meta.resolve(dependency, pathToFileURL(importerPackageJson).href));
+    } catch (conditionalError) {
+      if (errorCode(conditionalError) === "MODULE_NOT_FOUND") return null;
+      throw createError(
+        "scope.package_invalid",
+        'Locus package must export "." and "./package.json"',
+        { reference: dependency },
+        conditionalError
+      );
+    }
   }
   const record = await findPackageFromEntry(entry, dependency, importerPackageJson);
   if (hasLocusMetadata(record.manifest))
