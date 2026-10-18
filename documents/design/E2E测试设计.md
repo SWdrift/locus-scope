@@ -123,6 +123,7 @@ E2E 不修改 `test/e2e/case/` 中的声明 fixture；测试状态保留在 `tem
 | 验收主题 | E2E 场景 | 观察断言 | 覆盖情况 |
 | --- | --- | --- | --- |
 | Mutation 生命周期 | Entity/Relation `add`、`set`、`unset`、`remove` | CLI 结果、持久化内容和 reload 后 Workspace 一致 | 已覆盖 |
+| Relation structural fields | Relation `from`、`type`、`to` 与 field assignment 冲突 | 返回 `scope.field_invalid` 且不创建或修改文件 | 已覆盖 |
 | Mutation selection policy | `.locusignore`、`.locus`、嵌套 Scope 目标 | 写入前拒绝且不创建文件 | 已覆盖 |
 | Mutation rollback | reload 或验证失败的 Mutation | 原文件恢复或新文件删除；后续 `validate` 成功 | 未覆盖 E2E；Unit 已覆盖 |
 | Mutation codec | 带 BOM 的 JSON、YAML、YML | 读取、修改、持久化和再次加载一致 | 已覆盖 |

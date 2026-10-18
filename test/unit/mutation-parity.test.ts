@@ -75,6 +75,16 @@ test("mutation covers entity/relation add set unset remove and dangling rollback
   const zone = region && "zone" in region ? region.zone : undefined;
   assert.equal(zone, "a");
   await mutate(root, { kind: "entity", action: "unset", ref: "api", unset: ["metadata.owner"] });
+  await assert.rejects(
+    mutate(root, {
+      kind: "relation",
+      action: "add",
+      file: "edges.locus.yml",
+      object: { from: "api", type: "uses", to: "db" },
+      fields: { from: "other" }
+    }),
+    typedError("invalid_argument", "scope.field_invalid")
+  );
   await mutate(root, {
     kind: "relation",
     action: "add",

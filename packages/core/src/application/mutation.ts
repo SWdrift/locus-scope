@@ -262,7 +262,7 @@ function mutateEntity(document: MutableDocument, request: MutationRequest, local
 function mutateRelation(document: MutableDocument, request: MutationRequest, index: number): Record<string, unknown> {
   if (request.action === "add") {
     const object = cloneObject(request.object ?? {});
-    applyFields(object, request.fields ?? {});
+    applyFields(object, request.fields ?? {}, { from: true, type: true, to: true });
     for (const field of ["from", "type", "to"])
       if (typeof object[field] !== "string" || !(object[field] as string).trim())
         throw mutationInvalid(`relation ${field} is required`);

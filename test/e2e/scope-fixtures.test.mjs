@@ -81,6 +81,31 @@ test("built CLI completes Entity and Relation mutation lifecycle", async () => {
   const mutationFixture = path.resolve("test/e2e/case/mutation-lifecycle");
   await rm(mutationRoot, { recursive: true, force: true });
   await cp(mutationFixture, mutationRoot, { recursive: true });
+  await assert.rejects(
+    execFileAsync(
+      process.execPath,
+      [
+        executable,
+        "--scope",
+        mutationRoot,
+        "relation",
+        "add",
+        "api",
+        "uses",
+        "api",
+        "from=other",
+        "--file",
+        "relations.locus.yaml",
+        "--json"
+      ],
+      { cwd: process.cwd() }
+    ),
+    error => {
+      if (!error || typeof error !== "object" || !("stderr" in error)) return false;
+      return String(error.stderr).includes("scope.field_invalid");
+    }
+  );
+  await assert.rejects(readFile(path.join(mutationRoot, "relations.locus.yaml")));
   for (const args of [
     ["entity", "add", "db", "--file", "entities.locus.yaml", "--json"],
     ["entity", "set", "db", "value=2", "--json"],
