@@ -106,7 +106,7 @@ relations:
 | manifest | 一个 Scope 必须且只能有一个位于其根目录的 `locus.yaml`、`locus.yml` 或 `locus.json`。 |
 | 本地 identity | `Source.LocalPath` 是消除符号链接后的规范绝对目录，`Source.Key` 是对应的规范 `file://` URI；`Manifest.ID` 和输入路径写法不参与 identity。同一 `ScopeKey` 在一次装配中只能对应一个 `LocalPath`。 |
 | 文件发现 | Loader 从 Scope 根目录递归发现小写 `*.locus.yaml`、`*.locus.yml` 和 `*.locus.json` definition documents，按使用 `/` 分隔的规范相对路径排序后读取；普通 `.yaml`、`.yml` 和 `.json` 文件不是 Locus 输入。`.git`、`.locus` 目录始终跳过，目录符号链接不跟随。 |
-| 发现排除 | Scope 根目录可提供 `.locusignore`。每个非空、非 `#` 注释行是一条使用 `/` 的 Scope 相对模式：无 `/` 的模式匹配任意层级 basename，含 `/` 或以 `/` 开头的模式相对 Scope 根匹配，末尾 `/` 只匹配目录；支持单路径段内的 `*`、`?` 和字符类，匹配目录时跳过整棵子树。不支持 `!`、`**`、反斜杠、空路径和 `.`/`..` 路径段，无效规则必须带文件与行号报错。该文件只控制 Definition document 发现，不改变 manifest、Import 或 Package 发布内容。 |
+| 发现排除 | Scope 根目录可提供 `.locusignore`。每个非空、非 `#` 注释行是一条使用 `/` 的 Scope 相对模式：无 `/` 的模式匹配任意层级 basename，含 `/` 或以 `/` 开头的模式相对 Scope 根匹配，末尾 `/` 只匹配目录；支持单路径段内的 `*`、`?` 和字符类，匹配目录时跳过整棵子树。不支持 `!`、`**`、反斜杠、空路径和 `.`/`..` 路径段，无效规则必须带文件与行号报错。该文件只控制 Definition document 的选择；Workspace loader 与 Mutation add 必须使用同一套 Definition document selection policy，manifest、Import 或 Package 发布内容不受影响。 |
 | 目录边界 | 普通子目录只组织文件，不产生 Group、Source identity、Import、Export 或可见性边界。后代目录一旦包含 Scope manifest，就是独立 Scope 边界；父 Scope 的递归发现不得进入，也不得自动将其加入 Workspace，只有 manifest `imports` 显式引用时才作为独立 Source 加入 reachable graph。 |
 | Group | Group 继续按[核心协议](protocol/PROTOCOL.md#group)由 definition document 的 `group` 字段显式声明，与目录路径无关。无论文件位置如何，没有显式 Group 的 Entity 都属于 Scope 根命名空间；同一个 Group 可跨多个文档。Workspace 保留每个声明的 Group/provenance 供查询和写入，但 Group 不成为 ownership 或可见性边界。 |
 | 解码 | YAML 与 JSON 使用同一严格结构；manifest `id`、Import alias/value 和 Export reference 必须有效。Entity `id` 单独保存，其余字段进入属性 map。 |
@@ -116,7 +116,7 @@ relations:
 | 完成 | 全部 reachable Scopes 加载后先验证 Exports，再解析 Relations；Relation 按起点 ScopeKey、起点 ID、名称、终点 ScopeKey、终点 ID 排序。任一步失败都不返回 Workspace。 |
 | 诊断 | 错误必须保留实际声明位置和失败边界：文件路径、Relation 行号、声明或 reference、相关 Scope；Manifest、Import、重复 ID、Group 展开和 SourceKey 冲突在各自边界报错。 |
 | provenance | 每个 Entity 和 Relation 保留声明 Scope、Scope-relative definition path、Group、当前快照 line/index 与 declaration-local ref。对外 identity 不依赖 line/index；mutation 直接使用 provenance，不按对象值反查文件。 |
-| 写入 | 只有 root Scope 可写；dependency Scope 默认只读。add 目标必须位于 root Scope 且不得越过嵌套 Scope；既有对象按 provenance 修改原文件。目标 document 按原 codec 规范化写入临时文件，经 clone/change validation 成功后原子替换并 reload。 |
+| 写入 | 只有 root Scope 可写；dependency Scope 默认只读。add 目标必须位于 root Scope、不得越过嵌套 Scope，并且必须通过与 Loader 相同的 Definition document selection policy；既有对象按 provenance 修改原文件。目标 document 按原 codec 规范化写入临时文件，经 clone/change validation 成功后原子替换并 reload。Mutation 只有在 reload 后目标仍被发现且 Workspace 验证成功时才算成功。 |
 
 ## CLI
 

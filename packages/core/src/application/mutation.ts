@@ -2,8 +2,9 @@ import { mkdir, readFile, lstat, realpath, rm } from "node:fs/promises";
 import { dirname, isAbsolute, join, relative, resolve, sep } from "node:path";
 import YAML from "yaml";
 import writeFileAtomic from "write-file-atomic";
-import type { EntityKey, Workspace } from "../domain/index.js";
+import { readScopeDocumentPolicy } from "../domain/discover.js";
 import { ApplicationError, createError, sourceError } from "../domain/errors.js";
+import type { EntityKey, Workspace } from "../domain/index.js";
 import type { MutationRequest, MutationResult, WorkspaceReloader } from "./types.js";
 import { ApplicationService, cloneObject, cloneValue } from "./service.js";
 
@@ -102,6 +103,9 @@ async function mutationTarget(
     path = isAbsolute(path) ? resolve(path) : resolve(rootPath, path);
     await ensureMutationPath(rootPath, path);
     await rejectNestedScope(rootPath, path);
+    const policy = await readScopeDocumentPolicy(rootPath);
+    const relativePath = relative(resolve(rootPath), path).split(sep).join("/");
+    if (!policy.isDefinitionIncluded(relativePath)) throw mutationInvalid("definition path is ignored");
     return { path, localId: "", relationIndex: -1 };
   }
   if (request.kind === "entity") {

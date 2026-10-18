@@ -263,6 +263,7 @@ test("mutation refuses dependency writes and nested or escaping targets", async 
   );
   const root = await setup(t, "containment", {
     "locus.yaml": "id: app\n",
+    ".locusignore": "ignored/\n",
     "nested/locus.yaml": "id: nested\n"
   });
   await assert.rejects(
@@ -273,6 +274,12 @@ test("mutation refuses dependency writes and nested or escaping targets", async 
     mutate(root, { kind: "entity", action: "add", file: "../escape.locus.yaml", object: { id: "new" }, fields: {} }),
     typedError("invalid_argument", "scope.mutation_input_invalid")
   );
+  for (const file of ["ignored/new.locus.yaml", ".locus/hidden.locus.yaml"]) {
+    await assert.rejects(
+      mutate(root, { kind: "entity", action: "add", file, object: { id: "new" }, fields: {} }),
+      typedError("invalid_argument", "scope.mutation_input_invalid")
+    );
+  }
 });
 
 test("mutation treats prototype names as ordinary data in JSON and YAML", async t => {

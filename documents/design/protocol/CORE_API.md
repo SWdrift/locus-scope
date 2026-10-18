@@ -53,7 +53,7 @@ interface WorkspaceEnvironment {
 | `Path(from, to, via)`       | 返回一条确定的最短有向路径。                                                   |
 | `Impact(seeds, via)`        | 返回反向可达 Entity 与 Relation。                                              |
 | `Adjacent(request)`         | 查询指定 Entity 的入边、出边或双向邻接关系。                                   |
-| `Mutate(request)`           | clone/change/validate/atomic write/reload Entity 或 Relation。                 |
+| `Mutate(request)`           | clone/change/validate/atomic write/reload Entity 或 Relation；add 的 Definition target 必须通过与 Workspace loader 相同的 document selection policy，只有 reload 后变更仍被发现并验证成功才返回成功。 |
 | `Diff(left, right)`         | 加载并归一化 selector 两侧语义子图后比较。                                     |
 | `Validate()`                | 返回已验证 Workspace summary。                                                 |
 

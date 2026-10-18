@@ -13,6 +13,11 @@ interface IgnorePattern {
   readonly expression: RegExp;
 }
 
+export interface ScopeDocumentPolicy {
+  isIgnored(relative: string, directory: boolean): boolean;
+  isDefinitionIncluded(relative: string): boolean;
+}
+
 export interface DiscoveredDocuments {
   readonly manifests: string[];
   readonly definitions: string[];
@@ -113,6 +118,23 @@ async function readIgnorePatterns(directory: string): Promise<IgnorePattern[]> {
   }
   return patterns;
 }
+export async function readScopeDocumentPolicy(directory: string): Promise<ScopeDocumentPolicy> {
+  const patterns = await readIgnorePatterns(directory);
+  const isIgnored = (relative: string, directoryEntry: boolean): boolean =>
+    (directoryEntry && (path.posix.basename(relative) === ".git" || path.posix.basename(relative) === ".locus")) ||
+    patterns.some(pattern => matches(pattern, relative, directoryEntry));
+  return {
+    isIgnored,
+    isDefinitionIncluded(relative: string): boolean {
+      const segments = relative.split("/");
+      for (let index = 1; index < segments.length; index += 1) {
+        if (isIgnored(segments.slice(0, index).join("/"), true)) return false;
+      }
+      return !isIgnored(relative, false);
+    }
+  };
+}
+
 
 function hasManifest(entries: readonly Dirent[]): boolean {
   return entries.some(entry => !entry.isDirectory() && (MANIFEST_FILE_NAMES as readonly string[]).includes(entry.name));
@@ -132,18 +154,14 @@ export async function discoverScopeDocuments(directory: string): Promise<Discove
   const manifests = entries
     .filter(entry => !entry.isDirectory() && (MANIFEST_FILE_NAMES as readonly string[]).includes(entry.name))
     .map(entry => entry.name);
-  const patterns = await readIgnorePatterns(directory);
+  const policy = await readScopeDocumentPolicy(directory);
   const definitions: string[] = [];
 
   async function walk(current: string, relativeDirectory: string, currentEntries: readonly Dirent[]): Promise<void> {
     for (const entry of currentEntries) {
       const relative = relativeDirectory ? path.posix.join(relativeDirectory, entry.name) : entry.name;
       if (entry.isDirectory()) {
-        if (
-          entry.name === ".git" ||
-          entry.name === ".locus" ||
-          patterns.some(pattern => matches(pattern, relative, true))
-        )
+        if (policy.isIgnored(relative, true))
           continue;
         const child = path.join(current, entry.name);
         let childEntries: Dirent[];
@@ -157,7 +175,7 @@ export async function discoverScopeDocuments(directory: string): Promise<Discove
       } else if (
         !MANIFEST_FILE_NAMES.includes(entry.name as (typeof MANIFEST_FILE_NAMES)[number]) &&
         isDefinitionFile(entry.name) &&
-        !patterns.some(pattern => matches(pattern, relative, false))
+        policy.isDefinitionIncluded(relative)
       ) {
         definitions.push(relative);
       }
