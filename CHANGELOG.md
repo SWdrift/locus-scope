@@ -2,6 +2,15 @@
 
 本文件记录 `locus-scope` 各发布版本的用户可见变更。
 
+## [4.1.2] - 2026-10-18
+
+### Fixed
+
+- 统一 Workspace Loader 与 Mutation 的 Definition document selection policy。
+- 修复 Relation mutation 覆盖 `from`、`type`、`to` 结构字段。
+- 修复 CLI Entity ref、Graph 默认深度、JSON BOM 和 Locus package export 边界。
+- 增加构建产物 CLI 的跨层 E2E 覆盖。
+
 ## [4.1.1] - 2026-10-14
 
 ### Fixed
