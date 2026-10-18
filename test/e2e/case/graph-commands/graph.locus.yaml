@@ -1,0 +1,14 @@
+entities:
+  - id: a
+  - id: b
+  - id: c
+relations:
+  - from: a
+    type: next
+    to: b
+  - from: b
+    type: next
+    to: c
+  - from: b
+    type: skip
+    to: c

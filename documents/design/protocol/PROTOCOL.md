@@ -144,6 +144,8 @@ relations:
 
 除 `id` 外，Entity 中的所有内容均为不透明属性。除 `from`、`type` 和 `to` 外，Relation 中的所有内容同样为不透明属性。Relation 声明必须使用对象形式；tuple、字符串及其他非对象形式均为无效输入。
 
+不透明属性的名称不因宿主语言的保留属性而受限；`__proto__`、`constructor`、`prototype`、`toString` 和 `hasOwnProperty` 均可作为普通数据字段。字段访问、递归 merge 和删除只操作声明中的自有数据属性，不沿宿主对象的原型链查找；加载、克隆、查询、diff 和写回必须保留这些字段，且不得改变宿主对象原型或进程共享原型。字段不存在时遵循既有创建或报错规则，不将继承属性视为已有配置。
+
 ## Group
 
 Definition document 可以声明可选的 `group`：

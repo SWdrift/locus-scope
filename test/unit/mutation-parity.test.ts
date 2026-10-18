@@ -6,6 +6,8 @@ import { ApplicationService } from "@sundw/locus-scope-core";
 import { ApplicationError } from "@sundw/locus-scope-core";
 import { load, LocalResolver, newLocalSource, type Workspace } from "@sundw/locus-scope-core";
 import type { MutationRequest, MutationResult } from "@sundw/locus-scope-core";
+import { parseFilters } from "@sundw/locus-scope-core";
+import { run } from "@sundw/locus-scope-cli";
 
 interface MutationResponse {
   readonly result: MutationResult;
@@ -73,6 +75,16 @@ test("mutation covers entity/relation add set unset remove and dangling rollback
   const zone = region && "zone" in region ? region.zone : undefined;
   assert.equal(zone, "a");
   await mutate(root, { kind: "entity", action: "unset", ref: "api", unset: ["metadata.owner"] });
+  await assert.rejects(
+    mutate(root, {
+      kind: "relation",
+      action: "add",
+      file: "edges.locus.yml",
+      object: { from: "api", type: "uses", to: "db" },
+      fields: { from: "other" }
+    }),
+    typedError("invalid_argument", "scope.field_invalid")
+  );
   await mutate(root, {
     kind: "relation",
     action: "add",
@@ -106,11 +118,13 @@ test("mutation preserves YAML, YML, and JSON definition codecs", async t => {
     "locus.yaml": "id: app\n",
     "yaml.locus.yaml": "entities:\n  - id: yaml\n    value: 1\n",
     "yml.locus.yml": "entities:\n  - id: yml\n    value: 2\n",
-    "json.locus.json": '{\n  "entities": [\n    { "id": "json", "value": 3 }\n  ]\n}\n'
+    "json.locus.json": '{\n  "entities": [\n    { "id": "json", "value": 3 }\n  ]\n}\n',
+    "bom.locus.json": '\uFEFF{\n  "entities": [\n    { "id": "bom", "value": 4 }\n  ]\n}\n'
   });
   await mutate(root, { kind: "entity", action: "set", ref: "yaml", object: {}, fields: { value: 11 } });
   await mutate(root, { kind: "entity", action: "set", ref: "yml", object: {}, fields: { value: 22 } });
   await mutate(root, { kind: "entity", action: "set", ref: "json", object: {}, fields: { value: 33 } });
+  await mutate(root, { kind: "entity", action: "set", ref: "bom", object: {}, fields: { value: 44 } });
   await mutate(root, {
     kind: "entity",
     action: "add",
@@ -259,6 +273,7 @@ test("mutation refuses dependency writes and nested or escaping targets", async 
   );
   const root = await setup(t, "containment", {
     "locus.yaml": "id: app\n",
+    ".locusignore": "ignored/\n",
     "nested/locus.yaml": "id: nested\n"
   });
   await assert.rejects(
@@ -269,4 +284,166 @@ test("mutation refuses dependency writes and nested or escaping targets", async 
     mutate(root, { kind: "entity", action: "add", file: "../escape.locus.yaml", object: { id: "new" }, fields: {} }),
     typedError("invalid_argument", "scope.mutation_input_invalid")
   );
+  for (const file of ["ignored/new.locus.yaml", ".locus/hidden.locus.yaml"]) {
+    await assert.rejects(
+      mutate(root, { kind: "entity", action: "add", file, object: { id: "new" }, fields: {} }),
+      typedError("invalid_argument", "scope.mutation_input_invalid")
+    );
+  }
+});
+
+test("mutation treats prototype names as ordinary data in JSON and YAML", async t => {
+  for (const extension of ["json", "yaml"]) {
+    await t.test(extension, async t => {
+      const file = `entities.locus.${extension}`;
+      const root = await setup(t, `own-fields-${extension}`, { "locus.yaml": "id: app\n" });
+      const prototype = Object.getOwnPropertyDescriptors(Object.prototype);
+      const payload =
+        '{"__proto__":{"owner":"before"},"constructor":{"prototype":{"value":1}},"toString":"label","hasOwnProperty":true,"items":[{"__proto__":{"value":2}}]}';
+      const response = await run(["entity", "add", "api", payload, "--file", file, "--json"], {
+        application: new ApplicationService(await loadAt(root)),
+        reloadWorkspace: () => loadAt(root)
+      });
+      assert.equal(response.exitCode, 0, response.stderr);
+      await mutate(root, {
+        kind: "relation",
+        action: "add",
+        file,
+        object: { from: "api", type: "uses", to: "api", ...JSON.parse(payload) }
+      });
+      const before = await loadAt(root);
+      const expected: Record<string, unknown> = JSON.parse(payload);
+      const initial = new ApplicationService(before);
+      assert.deepEqual(initial.getEntity("api").object, { ...expected, id: "api" });
+      assert.deepEqual(initial.queryRelations()[0]?.object, { ...expected, from: "api", type: "uses", to: "api" });
+      assert.equal(initial.queryEntities(parseFilters(["__proto__.owner=before"]))[0]?.key.id, "api");
+      assert.equal(Object.getPrototypeOf(initial.getEntity("api").object), Object.prototype);
+      for (const kind of ["entity", "relation"] as const) {
+        await mutate(root, {
+          kind,
+          action: "set",
+          ref: "api",
+          from: "api",
+          type: "uses",
+          to: "api",
+          object: JSON.parse('{"__proto__":{"next":3},"constructor":{"prototype":{"next":4}}}'),
+          fields: { "__proto__.owner": "after", toString: "updated", hasOwnProperty: false }
+        });
+      }
+      const after = await loadAt(root);
+      const service = new ApplicationService(after);
+      const updated = {
+        ...expected,
+        ["__proto__"]: { owner: "after", next: 3 },
+        constructor: { prototype: { value: 1, next: 4 } },
+        toString: "updated",
+        hasOwnProperty: false
+      };
+      assert.deepEqual(service.getEntity("api").object, { ...updated, id: "api" });
+      assert.deepEqual(service.queryRelations()[0]?.object, { ...updated, from: "api", type: "uses", to: "api" });
+      const diff = await service.diff("path:before", "path:after", async value =>
+        value === "before" ? before : after
+      );
+      assert.equal(diff.changed.entities[0]?.after.key.id, "api");
+      assert.equal(diff.changed.relations[0]?.after.object.type, "uses");
+      for (const kind of ["entity", "relation"] as const) {
+        await mutate(root, {
+          kind,
+          action: "unset",
+          ref: "api",
+          from: "api",
+          type: "uses",
+          to: "api",
+          unset: ["__proto__.next", "constructor", "toString", "hasOwnProperty"]
+        });
+      }
+      const final = new ApplicationService(await loadAt(root));
+      const remaining = { ["__proto__"]: { owner: "after" }, items: expected.items };
+      assert.deepEqual(final.getEntity("api").object, { ...remaining, id: "api" });
+      assert.deepEqual(final.queryRelations()[0]?.object, { ...remaining, from: "api", type: "uses", to: "api" });
+      const assigned = await run(
+        [
+          "entity",
+          "set",
+          "api",
+          '__proto__={"owner":"cli"}',
+          'constructor={"prototype":{"value":5}}',
+          "toString=cli",
+          "--json"
+        ],
+        { application: final, reloadWorkspace: () => loadAt(root) }
+      );
+      assert.equal(assigned.exitCode, 0, assigned.stderr);
+      const assignedService = new ApplicationService(await loadAt(root));
+      assert.deepEqual(assignedService.getEntity("api").object, {
+        ...remaining,
+        id: "api",
+        ["__proto__"]: { owner: "cli" },
+        constructor: { prototype: { value: 5 } },
+        toString: "cli"
+      });
+      await mutate(root, { kind: "entity", action: "unset", ref: "api", unset: ["__proto__"] });
+      assert.equal(
+        Object.hasOwn(new ApplicationService(await loadAt(root)).getEntity("api").object, "__proto__"),
+        false
+      );
+      assert.deepEqual(Object.getOwnPropertyDescriptors(Object.prototype), prototype);
+    });
+  }
+});
+
+test("field paths cannot mutate inherited objects, including on rollback", async t => {
+  const root = await setup(t, "prototype-paths", {
+    "locus.yaml": "id: app\n",
+    "entities.locus.json": '{"entities":[{"id":"api"},{"id":"merge"}]}'
+  });
+  const prototype = Object.getOwnPropertyDescriptors(Object.prototype);
+  t.after(() => Reflect.deleteProperty(Object.prototype, "locusScopePollution"));
+  await assert.rejects(
+    mutate(root, { kind: "entity", action: "unset", ref: "api", unset: ["__proto__.locusScopePollution"] }),
+    typedError("invalid_argument", "scope.field_invalid")
+  );
+  await mutate(root, {
+    kind: "entity",
+    action: "set",
+    ref: "merge",
+    object: JSON.parse('{"__proto__":{"locusScopePollution":"merged"}}')
+  });
+  assert.deepEqual(Object.getOwnPropertyDescriptors(Object.prototype), prototype);
+  assert.deepEqual(new ApplicationService(await loadAt(root)).getEntity("merge").object, {
+    id: "merge",
+    ["__proto__"]: { locusScopePollution: "merged" }
+  });
+  await mutate(root, {
+    kind: "entity",
+    action: "set",
+    ref: "api",
+    fields: { "__proto__.locusScopePollution": "local", "constructor.prototype.value": 1 }
+  });
+  assert.deepEqual(Object.getOwnPropertyDescriptors(Object.prototype), prototype);
+  assert.deepEqual(new ApplicationService(await loadAt(root)).getEntity("api").object, {
+    id: "api",
+    ["__proto__"]: { locusScopePollution: "local" },
+    constructor: { prototype: { value: 1 } }
+  });
+  await assert.rejects(
+    mutate(root, { kind: "entity", action: "unset", ref: "api", unset: ["__proto__.toString"] }),
+    typedError("invalid_argument", "scope.field_invalid")
+  );
+  const file = path.join(root, "entities.locus.json");
+  const original = await readFile(file);
+  const application = new ApplicationService(await loadAt(root));
+  let reloads = 0;
+  await assert.rejects(
+    application.mutate(
+      { kind: "entity", action: "set", ref: "api", fields: { "__proto__.locusScopePollution": "rollback" } },
+      async () => {
+        if (++reloads === 1) throw new Error("reload failed");
+        return loadAt(root);
+      }
+    ),
+    typedError("internal", "scope.mutation_write_failed")
+  );
+  assert.deepEqual(await readFile(file), original);
+  assert.deepEqual(Object.getOwnPropertyDescriptors(Object.prototype), prototype);
 });

@@ -288,7 +288,7 @@ function applyObjectMutation(
   }
   if (request.action === "unset") {
     for (const field of request.unset ?? []) {
-      if (protectedFields[field])
+      if (Object.hasOwn(protectedFields, field))
         throw createError("scope.field_invalid", "structural field cannot be changed", { field });
       unsetPath(object, field);
     }
@@ -302,7 +302,7 @@ function applyFields(
   protectedFields?: Readonly<Record<string, true>>
 ): void {
   for (const [path, value] of Object.entries(fields)) {
-    if (protectedFields?.[path])
+    if (protectedFields && Object.hasOwn(protectedFields, path))
       throw createError("scope.field_invalid", "structural field cannot be changed", { field: path });
     setPath(object, path, value);
   }
@@ -310,15 +310,18 @@ function applyFields(
 function mergeMap(target: Record<string, unknown>, patch: Record<string, unknown>): void {
   for (const [key, value] of Object.entries(patch)) {
     if (value && typeof value === "object" && !Array.isArray(value)) {
-      const existing = target[key];
+      const existing = Object.hasOwn(target, key) ? target[key] : undefined;
       const child =
         existing && typeof existing === "object" && !Array.isArray(existing)
           ? (existing as Record<string, unknown>)
           : {};
-      target[key] = child;
+      setDataProperty(target, key, child);
       mergeMap(child, value as Record<string, unknown>);
-    } else target[key] = cloneValue(value);
+    } else setDataProperty(target, key, cloneValue(value));
   }
+}
+function setDataProperty(object: Record<string, unknown>, key: string, value: unknown): void {
+  Object.defineProperty(object, key, { value, enumerable: true, writable: true, configurable: true });
 }
 function setPath(object: Record<string, unknown>, fieldPath: string, value: unknown): void {
   const parts = fieldPath.split(".");
@@ -326,15 +329,16 @@ function setPath(object: Record<string, unknown>, fieldPath: string, value: unkn
     throw createError("scope.field_invalid", "invalid field path", { field: fieldPath });
   let current = object;
   for (const part of parts.slice(0, -1)) {
-    const existing = current[part];
+    const existing = Object.hasOwn(current, part) ? current[part] : undefined;
     if (existing === undefined) {
-      current[part] = {};
-      current = current[part] as Record<string, unknown>;
+      const child: Record<string, unknown> = {};
+      setDataProperty(current, part, child);
+      current = child;
     } else if (existing && typeof existing === "object" && !Array.isArray(existing))
       current = existing as Record<string, unknown>;
     else throw createError("scope.field_invalid", "field path crosses non-object", { field: fieldPath });
   }
-  current[parts[parts.length - 1] as string] = cloneValue(value);
+  setDataProperty(current, parts[parts.length - 1] as string, cloneValue(value));
 }
 function unsetPath(object: Record<string, unknown>, fieldPath: string): void {
   const parts = fieldPath.split(".");
@@ -342,13 +346,14 @@ function unsetPath(object: Record<string, unknown>, fieldPath: string): void {
     throw createError("scope.field_invalid", "invalid field path", { field: fieldPath });
   let current = object;
   for (const part of parts.slice(0, -1)) {
-    const existing = current[part];
+    const existing = Object.hasOwn(current, part) ? current[part] : undefined;
     if (!existing || typeof existing !== "object" || Array.isArray(existing))
       throw createError("scope.field_invalid", "field does not exist", { field: fieldPath });
     current = existing as Record<string, unknown>;
   }
   const leaf = parts[parts.length - 1] as string;
-  if (!(leaf in current)) throw createError("scope.field_invalid", "field does not exist", { field: fieldPath });
+  if (!Object.hasOwn(current, leaf))
+    throw createError("scope.field_invalid", "field does not exist", { field: fieldPath });
   delete current[leaf];
 }
 function localEntityID(id: string, group: string | undefined): string {

@@ -1,6 +1,6 @@
 {
   "name": "@sundw/locus-scope-cli",
-  "version": "4.1.0",
+  "version": "4.1.1",
   "private": true,
   "description": "Locus Scope command-line interface",
   "license": "MIT",

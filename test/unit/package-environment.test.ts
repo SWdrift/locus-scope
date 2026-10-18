@@ -62,6 +62,33 @@ test("builds importer-relative exact package identities", async () => {
   }
 });
 
+test("rejects Locus packages that block package.json export", async () => {
+  const root = path.resolve("temp/unit-ts/package-export");
+  await rm(root, { recursive: true, force: true });
+  try {
+    await writeJson(path.join(root, "package.json"), {
+      name: "consumer",
+      version: "1.0.0",
+      dependencies: { "@example/blocked": "1.0.0" }
+    });
+    await writeFile(path.join(root, "locus.yaml"), 'id: consumer\nimports:\n  blocked: "@example/blocked"\n');
+    await writeJson(path.join(root, "node_modules/@example/blocked/package.json"), {
+      name: "@example/blocked",
+      version: "1.0.0",
+      locus: { entry: "locus.yaml" },
+      exports: { ".": { import: "./index.js" } }
+    });
+    await writeFile(path.join(root, "node_modules/@example/blocked/index.js"), "export {};\n");
+    await writeFile(path.join(root, "node_modules/@example/blocked/locus.yaml"), "id: blocked\n");
+    await assert.rejects(
+      buildPackageEnvironment(root),
+      error => error instanceof ApplicationError && error.reason === "scope.package_invalid"
+    );
+  } finally {
+    await rm(root, { recursive: true, force: true });
+  }
+});
+
 test("rejects entry paths that escape a package root", async () => {
   const root = path.resolve("temp/unit-ts/package-entry");
   await rm(root, { recursive: true, force: true });

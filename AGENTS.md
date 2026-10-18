@@ -15,6 +15,7 @@
 - TypeScript 构建产物位于 `temp/build/{core,cli}/`；两个 npm release tarball 位于 `temp/release/npm/`。
 - internal/web/ui 可使用 `pnpm --dir internal/web/ui run format` 格式化。
 - 使用 `pnpm`。
+- documents\design 内文档属于核心设计，更改需明确并斟酌
 
 ## 品味
 
